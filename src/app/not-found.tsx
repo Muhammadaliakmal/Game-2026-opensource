@@ -7,16 +7,16 @@ import Link from "next/link";
 export default function NotFound() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-5 p-8 text-center">
-      <span className="hud-label text-neon">404</span>
+      <span className="hud-label text-signal">404</span>
       <h1 className="text-3xl font-black tracking-tight">
         There is nothing here
       </h1>
-      <p className="text-muted max-w-sm text-sm">
+      <p className="text-steel-200 max-w-sm text-sm">
         That link points at a world that does not exist, or one that has not
         been published.
       </p>
       <div className="flex flex-wrap justify-center gap-2">
-        <Link href="/" className="hud-chip hud-chip--neon">
+        <Link href="/" className="hud-chip hud-chip--primary">
           Your worlds
         </Link>
         <Link href="/browse" className="hud-chip">

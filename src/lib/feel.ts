@@ -52,6 +52,10 @@ export const FEEL = {
   fallOutY: -20, // below this -> respawn at spawn
 
   // --- Placement feedback (editor) ---
-  placePunchScale: 1.15, // block "punch" pop on placement
-  placePunchTime: 0.1,
+  // Scale-in from 0.85 to 1.0 over 90ms. Under prefers-reduced-motion this
+  // shortens to `placePunchTimeReduced` rather than disappearing: it is the
+  // physical feedback for placing a block, not decoration.
+  placePunchScale: 0.85,
+  placePunchTime: 0.09,
+  placePunchTimeReduced: 0.04,
 } as const;

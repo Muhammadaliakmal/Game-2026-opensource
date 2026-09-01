@@ -1,34 +1,17 @@
 @import "tailwindcss";
+@import "./tokens.css";
 
 /*
-  "Neon Voxel" — the Blockworld design system.
-  Source of truth: the Figma file "Blockworld — Game UI" (collection "Neon Voxel").
+  Blockworld — base layer and chrome primitives.
 
-  The app commits to one dark palette rather than following the OS theme: this is
-  a game, and the 3D canvas is always a dark void — a light chrome around it read
-  as a document viewer, not a world.
+  Design direction (UI spec §1): Blockworld is a workbench, not a dashboard.
+  The chrome is tool steel and recedes; the world is the only saturated thing
+  on screen. See tokens.css for the palette and the reasoning behind it.
+
+  Everything here is written as a named class rather than repeated utility
+  strings, because every chrome surface shares one recipe and the recipe is
+  what keeps the interface reading as one system.
 */
-@theme {
-  --color-void: #080b1a;
-  --color-panel: #0e1330;
-  --color-panel2: #161c42;
-  --color-raised: #1e2554;
-  --color-line: #2a3268;
-
-  --color-ink: #e8ecff;
-  --color-muted: #8a93c4;
-  --color-dim: #5a628f;
-
-  --color-neon: #22d3ee; /* primary action / build */
-  --color-plasma: #a855f7; /* secondary / finishes */
-  --color-mint: #34d399; /* play / go */
-  --color-flare: #fb7185; /* destructive / erase */
-  --color-gold: #fbbf24; /* warning */
-  --color-acid: #a3e635;
-
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
 
 html,
 body {
@@ -36,10 +19,26 @@ body {
 }
 
 body {
-  background: var(--color-void);
-  color: var(--color-ink);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+  background: var(--color-steel-900);
+  color: var(--color-steel-050);
+  font-family: var(--font-plex), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: var(--text-xs);
+}
+
+/* Headlines carry the character; the UI face stays neutral underneath them. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-bricolage), var(--font-plex), ui-sans-serif, system-ui,
+    sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Body copy stays inside a readable measure. */
+p {
+  max-width: 68ch;
 }
 
 /* The 3D canvas owns its gestures: drag-to-look must not be stolen by the
@@ -48,108 +47,161 @@ canvas {
   touch-action: none;
 }
 
-/* Dark form controls and a neon caret, so the world-name field matches the HUD. */
 input {
-  caret-color: var(--color-neon);
+  caret-color: var(--color-signal);
 }
 ::selection {
-  background: color-mix(in oklab, var(--color-neon) 35%, transparent);
+  background: color-mix(in oklab, var(--color-signal) 35%, transparent);
 }
 
-/* ── HUD primitives ──────────────────────────────────────────────────────
-   Written as plain classes rather than repeated utility strings: every HUD
-   surface shares one recipe (glass fill, hairline border, inner top highlight),
-   and the highlight in particular is what stops the panels reading as flat
-   rectangles pasted over the canvas. */
+/*
+  Quality floor: a visible focus ring on everything reachable by keyboard.
+  Never removed, only restyled — an invisible focus state makes the app
+  unusable without a mouse.
+*/
+:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* ── Surfaces ──────────────────────────────────────────────────────────
+   Two elevations, no third tier. `.hud-panel` floats over the 3D canvas and
+   is the only thing allowed a shadow; `.card` is a flat page surface and
+   separates by border and background alone. */
 
 .hud-panel {
-  background: color-mix(in oklab, var(--color-panel) 88%, transparent);
-  border: 1px solid var(--color-line);
-  border-radius: 1rem;
-  backdrop-filter: blur(14px);
-  box-shadow:
-    0 10px 34px rgb(2 4 16 / 0.55),
-    inset 0 1px 0 rgb(255 255 255 / 0.07);
+  background: color-mix(in oklab, var(--color-steel-700) 92%, transparent);
+  border: var(--border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--lift);
 }
+
+.card {
+  background: var(--color-steel-700);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────
+   Sentence case, no letter-spacing, no all-caps: labels are read, not
+   shouted. One accent for the primary action, one outline treatment for
+   "this tool is armed", and a single destructive variant. */
 
 .hud-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  justify-content: center;
+  gap: var(--space-1);
   flex-shrink: 0;
   white-space: nowrap;
-  border-radius: 0.7rem;
-  padding: 0.5rem 0.85rem;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  background: rgb(255 255 255 / 0.05);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--color-steel-200);
+  background: rgb(255 255 255 / 0.04);
   transition:
-    background-color 0.15s ease,
-    color 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.1s ease;
+    background-color var(--dur-ui) var(--ease-ui),
+    color var(--dur-ui) var(--ease-ui),
+    border-color var(--dur-ui) var(--ease-ui);
 }
 .hud-chip:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.11);
-  color: var(--color-ink);
-}
-.hud-chip:active:not(:disabled) {
-  transform: translateY(1px);
+  background: rgb(255 255 255 / 0.09);
+  color: var(--color-steel-050);
 }
 .hud-chip:disabled {
-  opacity: 0.35;
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-/* Accent variants — the glow is what makes an active tool read as "armed". */
-.hud-chip--neon,
-.hud-chip--plasma,
-.hud-chip--mint,
-.hud-chip--flare {
-  color: #05101c;
+/* The primary action on a screen. There is only ever one that matters. */
+.hud-chip--primary {
+  background: var(--color-signal);
+  border-color: var(--color-signal);
+  color: var(--color-steel-900);
+  font-weight: 600;
 }
-.hud-chip--neon {
-  background: var(--color-neon);
-  box-shadow: 0 0 20px -4px var(--color-neon);
+.hud-chip--primary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--color-signal) 88%, white);
+  color: var(--color-steel-900);
 }
-.hud-chip--neon:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--color-neon) 88%, white);
-  color: #05101c;
+
+/* An armed tool: outlined rather than filled, so a row of them reads as a
+   segmented control instead of a row of competing primary buttons. */
+.hud-chip.is-active {
+  border-color: var(--color-signal);
+  color: var(--color-signal);
+  background: color-mix(in oklab, var(--color-signal) 12%, transparent);
 }
-.hud-chip--plasma {
-  background: var(--color-plasma);
-  color: #fff;
-  box-shadow: 0 0 20px -4px var(--color-plasma);
+
+.hud-chip--danger {
+  border-color: color-mix(in oklab, var(--color-danger) 60%, transparent);
+  color: var(--color-danger);
+  background: color-mix(in oklab, var(--color-danger) 10%, transparent);
 }
-.hud-chip--plasma:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--color-plasma) 88%, white);
-  color: #fff;
+.hud-chip--danger:hover:not(:disabled) {
+  background: var(--color-danger);
+  color: var(--color-steel-050);
 }
-.hud-chip--mint {
-  background: var(--color-mint);
-  box-shadow: 0 0 20px -4px var(--color-mint);
-}
-.hud-chip--mint:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--color-mint) 88%, white);
-  color: #05101c;
-}
-.hud-chip--flare {
-  background: var(--color-flare);
-  box-shadow: 0 0 20px -4px var(--color-flare);
-}
-.hud-chip--flare:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--color-flare) 88%, white);
-  color: #05101c;
+
+/* Icon-only buttons stay square so a toolbar of them lines up on the grid. */
+.hud-chip--icon {
+  padding: 6px;
+  width: 28px;
+  height: 28px;
 }
 
 .hud-divider {
   flex-shrink: 0;
   width: 1px;
   align-self: stretch;
-  margin-inline: 0.15rem;
-  background: var(--color-line);
+  margin-inline: 2px;
+  background: var(--border-color);
+}
+
+/* ── Text roles ────────────────────────────────────────────────────────── */
+
+/* A quiet label. Sentence case — the spec bans all-caps chrome, and an
+   eyebrow that shouts competes with the world for attention. */
+.hud-label {
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  color: var(--color-steel-200);
+  opacity: 0.75;
+}
+
+/*
+  Every number in the HUD — coordinates, block counts — uses tabular figures.
+  Without them the digits change width as values change and the readout
+  jitters while you move the cursor.
+*/
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* ── Block swatches ────────────────────────────────────────────────────── */
+
+.swatch {
+  position: relative;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 0; /* blocks are not round */
+  border: 1px solid rgb(0 0 0 / 0.35);
+  transition: transform var(--dur-ui) var(--ease-ui);
+}
+.swatch:hover {
+  transform: translateY(-2px);
+}
+.swatch[aria-pressed="true"] {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 1px;
+  transform: translateY(-2px);
 }
 
 /* Horizontally scrollable clusters: keep the scrollbar out of the chrome. */
@@ -161,10 +213,18 @@ input {
   display: none;
 }
 
-.hud-label {
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--color-dim);
+/*
+  Respect the OS setting. The one deliberate exception is the block placement
+  pop, which is the physical feedback for the core action — it shortens rather
+  than disappearing (handled in FEEL, not here).
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

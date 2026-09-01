@@ -31,7 +31,7 @@ const PARKED_Y = -9999;
 // Fades a mote by lerping its colour toward the sky as it ages — a cheap stand
 // in for per-particle alpha, which PointsMaterial can't do without a shader.
 const DUST = new THREE.Color("#cbd5e1");
-const SKY = new THREE.Color("#0b1120");
+const SKY = new THREE.Color("#14171a");
 
 function makeSim() {
   return {

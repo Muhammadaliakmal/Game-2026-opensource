@@ -92,9 +92,9 @@ function TouchHint() {
         show ? "opacity-100" : "opacity-0"
       }`}
     >
-      <div className="hud-panel px-3.5 py-2 text-center text-[0.6875rem] leading-relaxed font-bold tracking-[0.06em] text-zinc-300 uppercase">
+      <div className="hud-panel text-steel-200 px-3 py-2 text-center text-2xs leading-relaxed">
         Drag anywhere to look · Tap{" "}
-        <span className="text-neon">Run</span> to sprint
+        <span className="text-signal">Run</span> to sprint
       </div>
     </div>
   );
@@ -182,12 +182,12 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
 
   if (status === "error") {
     return (
-      <div className="bg-void flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="text-flare max-w-sm text-sm font-semibold">{error}</p>
+      <div className="bg-steel-900 flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+        <p className="text-danger max-w-sm text-sm font-semibold">{error}</p>
         {/* Deliberately not "back to build": if the world could not be loaded,
             the editor cannot load it either. */}
         <div className="flex gap-2">
-          <Link href="/" className="hud-chip hud-chip--neon">
+          <Link href="/" className="hud-chip hud-chip--primary">
             Your worlds
           </Link>
           <Link href="/browse" className="hud-chip">
@@ -199,10 +199,10 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
   }
 
   return (
-    <div className="bg-void relative min-h-0 flex-1">
+    <div className="bg-steel-900 relative min-h-0 flex-1">
       <Canvas
         shadows
-        className="bg-void"
+        className="bg-steel-900"
         camera={{ position: [8, 6, 8], fov: 65 }}
         // `preserveDrawingBuffer` stays for Phase 4's thumbnail capture
         // (`gl.domElement.toDataURL()`). `powerPreference` is left at the
@@ -211,10 +211,10 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
         // canvas), and a phone has only the one GPU to pick anyway.
         gl={{ preserveDrawingBuffer: true, failIfMajorPerformanceCaveat: false }}
         onCreated={({ scene, gl }) => {
-          scene.background = new THREE.Color("#080b1a");
+          scene.background = new THREE.Color("#14171a");
           // Distance fade into the void — without it the world just stops at a
           // hard edge and the level reads as a floating diorama.
-          scene.fog = new THREE.Fog("#080b1a", 40, 130);
+          scene.fog = new THREE.Fog("#14171a", 40, 130);
           // A locally-generated room probe: without an environment map the
           // `metal` finish has nothing to reflect and renders as a flat dark
           // patch. RoomEnvironment needs no HDR download.
@@ -226,7 +226,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
           gl.toneMappingExposure = 1.05;
         }}
       >
-        <hemisphereLight args={["#a5b4fc", "#0b1024", 1.15]} />
+        <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
         {/* Shadow box rides with the character, so a course that runs 90 units
             from the origin is lit the same at both ends. */}
         <FollowSun getFocus={() => playerFocus} extent={34} />
@@ -264,10 +264,10 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
               <mesh scale={[8, 1, 8]} receiveShadow>
                 <boxGeometry />
                 <meshStandardMaterial
-                  color="#161c42"
+                  color="#2b3037"
                   roughness={0.85}
-                  emissive="#22d3ee"
-                  emissiveIntensity={0.06}
+                  emissive="#ffb020"
+                  emissiveIntensity={0.04}
                 />
               </mesh>
             </RigidBody>
@@ -282,8 +282,8 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
           than spilling off both edges. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-start gap-2 p-2 sm:flex-row sm:flex-wrap sm:justify-between sm:p-3">
         <div className="hud-panel pointer-events-auto flex min-w-0 max-w-full items-center gap-2.5 px-3 py-2">
-          <span className="bg-mint h-2 w-2 shrink-0 rounded-full shadow-[0_0_10px_var(--color-mint)]" />
-          <span className="truncate text-[0.6875rem] font-bold tracking-[0.09em] uppercase">
+          <span className="bg-signal h-1.5 w-1.5 shrink-0" aria-hidden />
+          <span className="truncate text-2xs font-medium">
             {world?.name ?? "Loading…"}
           </span>
         </div>
@@ -291,7 +291,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
           <div className="hud-panel flex shrink-0 items-center gap-1.5 p-1.5">
           <button
             onClick={toggleFirstPerson}
-            className={`hud-chip ${firstPerson ? "hud-chip--neon" : ""}`}
+            className={`hud-chip ${firstPerson ? "is-active" : ""}`}
             title="Switch between first and third person (V)"
             aria-pressed={firstPerson}
           >
@@ -334,7 +334,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
           <Link
             href="/"
             onClick={leaveFullscreen}
-            className="hud-chip hud-chip--flare"
+            className="hud-chip"
             title="Leave the game and go back to your worlds"
           >
             Exit
@@ -357,7 +357,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
               ["R", "respawn"],
             ].map(([key, action]) => (
               <span key={key} className="flex items-center gap-1.5">
-                <kbd className="bg-raised text-ink rounded-md px-1.5 py-0.5 font-mono text-[0.625rem] font-bold ring-1 ring-white/10">
+                <kbd className="bg-steel-800 text-steel-050 rounded-[var(--radius)] px-1.5 py-0.5 font-mono text-[0.6875rem] ring-1 ring-white/10">
                   {key}
                 </kbd>
                 <span className="hud-label">{action}</span>
@@ -371,8 +371,8 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
       {touch && status === "ready" && painted && <TouchHint />}
 
       {(status === "loading" || !painted) && (
-        <div className="bg-void absolute inset-0 z-20 flex flex-col items-center justify-center gap-4">
-          <span className="border-neon h-8 w-8 animate-spin rounded-full border-2 border-t-transparent shadow-[0_0_18px_-4px_var(--color-neon)]" />
+        <div className="bg-steel-900 absolute inset-0 z-20 flex flex-col items-center justify-center gap-4">
+          <span className="border-signal h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
           <span className="hud-label">Loading world</span>
         </div>
       )}

@@ -25,16 +25,16 @@ export default function Error({
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-5 p-8 text-center">
-      <span className="hud-label text-flare">Something broke</span>
+      <span className="hud-label text-danger">Something broke</span>
       <h1 className="text-3xl font-black tracking-tight">
         That did not load
       </h1>
-      <p className="text-muted max-w-sm text-sm">
+      <p className="text-steel-200 max-w-sm text-sm">
         Try again — and if it keeps happening, the problem is on our side, not
         in your world. Nothing you have saved is affected.
       </p>
       <div className="flex flex-wrap justify-center gap-2">
-        <button onClick={reset} className="hud-chip hud-chip--neon">
+        <button onClick={reset} className="hud-chip hud-chip--primary">
           Try again
         </button>
         <Link href="/" className="hud-chip">
@@ -42,7 +42,7 @@ export default function Error({
         </Link>
       </div>
       {error.digest && (
-        <p className="text-dim font-mono text-[0.625rem]">
+        <p className="text-steel-500 font-mono text-[0.625rem]">
           reference {error.digest}
         </p>
       )}

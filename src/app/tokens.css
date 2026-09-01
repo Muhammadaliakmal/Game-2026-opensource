@@ -1,0 +1,81 @@
+/*
+  Blockworld design tokens.
+
+  The governing decision (UI spec §1): the chrome is deliberately desaturated
+  so the world's colours are the only saturated thing on screen. Every voxel
+  builder surrounds a colourful world with more colour, and the result is mud.
+  Tool-steel greys here; grass green and lantern amber exist only as blocks and
+  as palette swatches.
+
+  Block material colours are NOT tokens. They live in PALETTE in
+  lib/worlddoc.ts and reach the screen only as blocks and swatches.
+*/
+
+@theme {
+  /* ── Chrome ─────────────────────────────────────────────────────────── */
+  --color-steel-900: #1a1d21; /* editor chrome background, deepest surface */
+  --color-steel-800: #212529; /* raised surface between 900 and 700 */
+  --color-steel-700: #2b3037; /* panels, tool islands */
+  --color-steel-500: #4a525c; /* borders, dividers, inactive icons */
+  --color-steel-200: #c3c9d0; /* secondary text, icon default */
+  --color-steel-050: #edf0f3; /* primary text on dark */
+
+  /*
+    The one accent. Amber because it reads as "machine active" (a CNC status
+    light), it survives against both the steel chrome and against grass, sky
+    and stone in the 3D scene, and it does not collide with a common block
+    colour the way blue or green would.
+  */
+  --color-signal: #ffb020;
+
+  /*
+    A functional exception to the one-accent rule, used only to mark a
+    destructive confirmation (deleting a world). An irreversible action that
+    looks identical to every other button is a usability problem that
+    out-weighs the palette discipline.
+  */
+  --color-danger: #e5484d;
+
+  /* ── Type ───────────────────────────────────────────────────────────── */
+  --font-display: var(--font-bricolage);
+  --font-sans: var(--font-plex);
+  --font-mono: var(--font-plex-mono);
+
+  /* 1.25 ratio on a 16px base. */
+  --text-2xs: 0.75rem; /* 12 */
+  --text-xs: 0.875rem; /* 14 */
+  --text-sm: 1rem; /* 16 */
+  --text-base: 1.25rem; /* 20 */
+  --text-lg: 1.5625rem; /* 25 */
+  --text-xl: 1.9375rem; /* 31 */
+  --text-2xl: 2.4375rem; /* 39 */
+  --text-3xl: 3.0625rem; /* 49 */
+  --text-4xl: 3.8125rem; /* 61 */
+}
+
+/*
+  The UI grid is the voxel grid: base unit 8px = one block, and all spacing is
+  a multiple of it. That is not decoration — it is the reason the interface
+  feels like it belongs to the world it edits.
+*/
+:root {
+  --unit: 8px;
+  --space-1: var(--unit);
+  --space-2: calc(var(--unit) * 2);
+  --space-3: calc(var(--unit) * 3);
+  --space-4: calc(var(--unit) * 4);
+  --space-6: calc(var(--unit) * 6);
+  --space-8: calc(var(--unit) * 8);
+
+  /* Interactive chrome is barely rounded; block swatches are not rounded at
+     all, because blocks are not round and a pill stops reading as a block. */
+  --radius: 3px;
+  --border-color: rgb(74 82 92 / 0.4);
+  --border: 1px solid var(--border-color);
+
+  /* Exactly two elevation levels: the canvas, and things over the canvas. */
+  --lift: 0 8px 24px rgb(0 0 0 / 0.45);
+
+  --ease-ui: cubic-bezier(0.2, 0, 0, 1);
+  --dur-ui: 120ms;
+}

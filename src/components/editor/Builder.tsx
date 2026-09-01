@@ -48,10 +48,11 @@ export function Builder({ children }: { children: React.ReactNode }) {
       const s = useEditorStore.getState();
       if (s.readOnly) return;
 
-      // The spawn tool targets the empty cell in front of the face you clicked,
-      // same as placing — that's where the character would stand.
-      const placing = s.tool !== "erase";
-      const cell = cellFor(e, placing);
+      // Build and spawn target the empty cell in front of the face you
+      // clicked (that is where a block, or the character, would go). Erase,
+      // paint and pick target the block you actually clicked on.
+      const outward = s.tool === "place" || s.tool === "spawn";
+      const cell = cellFor(e, outward);
       if (!inBounds(cell)) return;
 
       const key = `${cell[0]},${cell[1]},${cell[2]}`;
@@ -61,7 +62,12 @@ export function Builder({ children }: { children: React.ReactNode }) {
       if (s.tool === "spawn") {
         s.setSpawn(cell);
         sfxSpawn();
-      } else if (placing) {
+      } else if (s.tool === "pick") {
+        s.pick(cell);
+      } else if (s.tool === "paint") {
+        s.paint(cell);
+        sfxPlace();
+      } else if (s.tool === "place") {
         s.place(cell);
         // Sound and the scale-in pop are the physical feedback for the core
         // action — SPEC §8 calls the placement punch the one animation that
@@ -79,12 +85,13 @@ export function Builder({ children }: { children: React.ReactNode }) {
   const onPointerMove = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
       const s = useEditorStore.getState();
-      const cell = cellFor(e, s.tool !== "erase");
+      const cell = cellFor(e, s.tool === "place" || s.tool === "spawn");
       s.setHoverCell(inBounds(cell) ? cell : null);
 
-      // Dragging the spawn point around would spam the undo stack with a
-      // command per cell crossed; it's a single click.
-      if (painting.current && useEditorStore.getState().tool !== "spawn") {
+      // Spawn and pick are single-shot: dragging either one would spam the
+      // undo stack (or the brush) with one action per cell crossed.
+      const tool = useEditorStore.getState().tool;
+      if (painting.current && tool !== "spawn" && tool !== "pick") {
         applyAt(e);
       }
     },

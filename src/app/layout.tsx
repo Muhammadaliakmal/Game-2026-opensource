@@ -7,17 +7,39 @@ import {
 } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/**
+ * Two families, clearly distinct (UI spec §1).
+ *
+ * Bricolage Grotesque has actual character — irregular widths and a slightly
+ * built quality that suits a block editor — and it is variable, so headline
+ * weights come from one file rather than three.
+ */
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+/**
+ * IBM Plex Sans is drafting-table utilitarian, excellent at small sizes, and
+ * its numerals are unambiguous — which matters for coordinates and block
+ * counts read at a glance.
+ */
+const plex = IBM_Plex_Sans({
+  variable: "--font-plex",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -29,7 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${bricolage.variable} ${plex.variable} ${plexMono.variable} h-full antialiased`}
     >
       {/*
         `h-dvh` (not `min-h-full`) is deliberate: the R3F <Canvas> sizes itself
@@ -38,14 +60,25 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         thin strip. The shell owns the viewport; <main> owns the scrolling.
       */}
       <body className="flex h-dvh flex-col overflow-hidden">
-        <ClerkProvider>
-          <header className="border-line bg-panel/60 flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2.5 backdrop-blur sm:px-6">
+        <ClerkProvider
+          appearance={{
+            variables: {
+              colorPrimary: "#ffb020",
+              colorBackground: "#2b3037",
+              colorForeground: "#edf0f3",
+              colorMutedForeground: "#c3c9d0",
+              colorDanger: "#e5484d",
+              borderRadius: "3px",
+            },
+          }}
+        >
+          <header className="border-[var(--border-color)] bg-steel-800 flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 sm:px-6">
             <Link href="/" className="group flex items-center gap-2.5">
-              {/* A little isometric mark — three faces of a voxel. */}
-              <span className="from-neon to-plasma block h-6 w-6 rotate-45 rounded-[7px] bg-gradient-to-br shadow-[0_0_18px_-4px_var(--color-neon)] transition-transform group-hover:rotate-[135deg]" />
-              <span className="text-sm font-bold tracking-[0.16em] uppercase">
-                Blockworld
-              </span>
+              {/* A single amber block, rotated to read as a voxel corner. The
+                  old gradient mark was exactly the decorative chrome the design
+                  direction rules out. */}
+              <span className="bg-signal block h-4 w-4 rotate-45 transition-transform group-hover:rotate-[135deg]" />
+              <span className="text-sm font-semibold">Blockworld</span>
             </Link>
             <div className="flex items-center gap-3">
               {/* Reachable on a phone too: this used to be `hidden sm:inline-flex`,

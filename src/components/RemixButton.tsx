@@ -59,7 +59,7 @@ export function RemixButton({
       >
         {busy ? "Copying…" : "⎘ Remix"}
       </button>
-      {error && <p className="text-flare w-full text-xs">{error}</p>}
+      {error && <p className="text-danger w-full text-xs">{error}</p>}
     </>
   );
 }

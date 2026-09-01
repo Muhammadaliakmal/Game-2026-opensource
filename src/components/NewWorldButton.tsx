@@ -31,11 +31,11 @@ export function NewWorldButton() {
       <button
         onClick={create}
         disabled={creating}
-        className="hud-chip hud-chip--neon !px-5 !py-3"
+        className="hud-chip hud-chip--primary !px-5 !py-3"
       >
         {creating ? "Creating…" : "+ New World"}
       </button>
-      {error && <p className="text-flare text-sm">{error}</p>}
+      {error && <p className="text-danger text-sm">{error}</p>}
     </div>
   );
 }

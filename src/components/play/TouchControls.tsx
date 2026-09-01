@@ -94,8 +94,8 @@ function ActionButton({
           "transform .1s ease, background .12s ease, box-shadow .12s ease",
         transform: held ? "scale(0.93)" : "scale(1)",
         border: `2px solid ${accent}`,
-        background: lit ? accent : "rgba(14, 19, 48, 0.55)",
-        color: lit ? "#05101c" : accent,
+        background: lit ? accent : "rgba(33, 37, 41, 0.55)",
+        color: lit ? "#1a1d21" : accent,
         boxShadow: lit ? `0 0 26px -4px ${accent}` : "none",
         backdropFilter: "blur(10px)",
         ...style,
@@ -126,15 +126,15 @@ export function TouchControls() {
         joystickBaseStyle={{
           width: 116,
           height: 116,
-          background: "rgba(14, 19, 48, 0.5)",
-          border: "2px solid rgba(34,211,238,0.35)",
+          background: "rgba(33, 37, 41, 0.55)",
+          border: "1px solid rgba(74, 82, 92, 0.6)",
           backdropFilter: "blur(10px)",
         }}
         joystickKnobStyle={{
           width: 62,
           height: 62,
-          background: "#e8ecff",
-          boxShadow: "0 0 20px -2px #22d3ee",
+          background: "#edf0f3",
+          boxShadow: "0 6px 16px rgba(0,0,0,0.45)",
         }}
       />
 
@@ -143,7 +143,7 @@ export function TouchControls() {
       <ActionButton
         label="JUMP"
         size={82}
-        accent="#34d399"
+        accent="#ffb020"
         active={false}
         style={{ right: 20, bottom: 100 }}
         onPress={() => {
@@ -159,7 +159,7 @@ export function TouchControls() {
       <ActionButton
         label="RUN"
         size={68}
-        accent="#22d3ee"
+        accent="#c3c9d0"
         active={running}
         style={{ right: 112, bottom: 26 }}
         onPress={toggleRun}

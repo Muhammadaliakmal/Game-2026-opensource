@@ -11,7 +11,12 @@ import {
 } from "@/lib/command-bus";
 import { keyOf, parseKey } from "@/lib/grid";
 
-export type Tool = "place" | "erase" | "spawn";
+/**
+ * Build and erase are the two that mutate geometry. Paint recolours a block
+ * without rebuilding it, pick adopts a block's settings as the brush (the
+ * eyedropper), and spawn moves where Play starts you.
+ */
+export type Tool = "place" | "erase" | "paint" | "pick" | "spawn";
 
 interface EditorState {
   /**
@@ -73,6 +78,10 @@ interface EditorState {
 
   place(cell: [number, number, number]): void;
   erase(cell: [number, number, number]): void;
+  /** Recolour the block in a cell, keeping its shape and rotation. */
+  paint(cell: [number, number, number]): void;
+  /** Adopt the block in a cell as the current brush. */
+  pick(cell: [number, number, number]): void;
   /** Drag-painting: everything between begin/end collapses into one undo step. */
   beginStroke(): void;
   endStroke(): void;
@@ -218,6 +227,34 @@ export const useEditorStore = create<EditorState>((set, get) => {
     if (!prev) return;
 
     submit(eraseCmd(key, prev, partsHost));
+  },
+
+  paint: (cell) => {
+    const s = get();
+    if (s.readOnly) return;
+
+    const key = keyOf(...cell);
+    const prev = s.parts.get(key);
+    // Nothing to recolour: painting empty space would be a surprise placement.
+    if (!prev) return;
+    if (prev[4] === s.colorIndex && prev[5] === s.finish) return;
+
+    const next: PartTuple = [
+      prev[0], prev[1], prev[2],
+      prev[3],
+      s.colorIndex,
+      s.finish,
+      prev[6],
+    ];
+    submit(replaceCmd(key, next, prev, partsHost));
+  },
+
+  pick: (cell) => {
+    const part = get().parts.get(keyOf(...cell));
+    if (!part) return;
+    // Picking is a read, so it is not an undoable edit and never marks the
+    // world dirty — it only moves the brush.
+    set({ shape: part[3], colorIndex: part[4], finish: part[5], rot: part[6] });
   },
 
   beginStroke: () => {

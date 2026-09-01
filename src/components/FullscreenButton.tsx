@@ -54,7 +54,6 @@ export function FullscreenButton({ className }: { className?: string }) {
       aria-label="Toggle fullscreen"
       aria-pressed={isFs}
     >
-      {/* Icon-only under sm so the HUD stays compact on phones. */}
       <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -71,9 +70,6 @@ export function FullscreenButton({ className }: { className?: string }) {
           <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
         )}
       </svg>
-      <span className="hidden sm:inline">
-        {isFs ? "Windowed" : "Full screen"}
-      </span>
     </button>
   );
 }

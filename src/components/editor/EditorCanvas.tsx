@@ -16,6 +16,7 @@ import { Ground } from "./Ground";
 import { Builder } from "./Builder";
 import { Toolbar } from "./Toolbar";
 import { useEditorHotkeys } from "./useEditorHotkeys";
+import { FrameWorld } from "./FrameWorld";
 import { FollowSun } from "@/components/FollowSun";
 
 /** Keeps the key light's shadow camera centred on the orbit target. */
@@ -144,10 +145,10 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
 
   if (status === "error") {
     return (
-      <div className="bg-void flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="text-flare max-w-sm text-sm font-semibold">{error}</p>
+      <div className="bg-steel-900 flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+        <p className="text-danger max-w-sm text-sm font-semibold">{error}</p>
         <div className="flex gap-2">
-          <Link href="/" className="hud-chip hud-chip--neon">
+          <Link href="/" className="hud-chip hud-chip--primary">
             Your worlds
           </Link>
           <Link href="/browse" className="hud-chip">
@@ -159,7 +160,7 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
   }
 
   return (
-    <div className="bg-void relative min-h-0 flex-1">
+    <div className="bg-steel-900 relative min-h-0 flex-1">
       <Canvas
         // "demand" means we only render when something actually changed —
         // an idle editor should not burn GPU at 60fps.
@@ -168,7 +169,7 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
         camera={{ position: [16, 16, 16], fov: 50 }}
         gl={{ powerPreference: "high-performance", preserveDrawingBuffer: true }}
         onCreated={({ scene, gl }) => {
-          scene.background = new THREE.Color("#080b1a");
+          scene.background = new THREE.Color("#14171a");
           // A locally-generated room probe: without an environment map the
           // `metal` finish has nothing to reflect and renders as a flat dark
           // patch. RoomEnvironment needs no HDR download.
@@ -180,7 +181,7 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
           gl.toneMappingExposure = 1.05;
         }}
       >
-        <hemisphereLight args={["#a5b4fc", "#0b1024", 1.15]} />
+        <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
         {/* Follows whatever the camera is orbiting, so the shadow box is always
             over the part of the build you are working on. */}
         <EditorSun />
@@ -191,6 +192,7 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
         </Builder>
         <GhostPreview />
         <SpawnMarker />
+        <FrameWorld />
 
         <OrbitControls
           makeDefault
@@ -203,15 +205,15 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
           // Stop the camera dropping below the floor.
           maxPolarAngle={Math.PI / 2 - 0.02}
           minDistance={3}
-          maxDistance={120}
+          maxDistance={260}
           enableDamping
           dampingFactor={0.12}
         />
       </Canvas>
 
       {status === "loading" && (
-        <div className="bg-void/80 absolute inset-0 flex flex-col items-center justify-center gap-4 backdrop-blur-sm">
-          <span className="border-neon h-8 w-8 animate-spin rounded-full border-2 border-t-transparent shadow-[0_0_18px_-4px_var(--color-neon)]" />
+        <div className="bg-steel-900/80 absolute inset-0 flex flex-col items-center justify-center gap-4 backdrop-blur-sm">
+          <span className="border-signal h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
           <span className="hud-label">Loading world</span>
         </div>
       )}

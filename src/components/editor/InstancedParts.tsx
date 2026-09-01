@@ -13,6 +13,18 @@ import { SHAPE_GEOMETRIES, createFinishMaterial } from "./shapes";
 const dummy = new THREE.Object3D();
 const col = new THREE.Color();
 
+/**
+ * How long the placement scale-in should last, honouring the OS motion
+ * setting. Queried per use rather than cached, so toggling the setting takes
+ * effect without a reload.
+ */
+function reducedMotion(): number {
+  const reduce =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  return reduce ? FEEL.placePunchTimeReduced : FEEL.placePunchTime;
+}
+
 /** Round up to a power of two so capacity changes (and remounts) stay rare. */
 function capacityFor(count: number): number {
   let cap = 256;
@@ -98,7 +110,7 @@ function Bucket({ shape, finish }: { shape: number; finish: number }) {
     if (!mesh) return;
 
     const now = performance.now();
-    const ms = FEEL.placePunchTime * 1000;
+    const ms = reducedMotion() * 1000;
     let touched = false;
 
     for (const [key, started] of punches) {
@@ -109,7 +121,7 @@ function Bucket({ shape, finish }: { shape: number; finish: number }) {
 
       const t = (now - started) / ms;
       const done = t >= 1;
-      // Ease out, so it snaps to size rather than creeping.
+      // Ease out, so it settles to size rather than creeping.
       const scale = done
         ? 1
         : 1 + (FEEL.placePunchScale - 1) * Math.pow(1 - t, 2);

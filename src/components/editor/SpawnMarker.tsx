@@ -24,7 +24,7 @@ export function SpawnMarker() {
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
         <ringGeometry args={[0.34, 0.46, 32]} />
         <meshBasicMaterial
-          color="#34d399"
+          color="#ffb020"
           transparent
           opacity={active ? 0.95 : 0.5}
           depthWrite={false}
@@ -34,7 +34,7 @@ export function SpawnMarker() {
       <mesh position={[0, 1.1, 0]}>
         <cylinderGeometry args={[0.055, 0.055, 2.2, 8]} />
         <meshBasicMaterial
-          color="#34d399"
+          color="#ffb020"
           transparent
           opacity={active ? 0.55 : 0.25}
           depthWrite={false}

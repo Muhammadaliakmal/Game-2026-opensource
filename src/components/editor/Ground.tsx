@@ -37,11 +37,11 @@ export const Ground = forwardRef<THREE.Mesh>(function Ground(_props, ref) {
     <group>
       {/* Coarse first, so the fine grid draws over it near the origin. */}
       <gridHelper
-        args={[GROUND_SIZE, GROUND_SIZE / COARSE_STEP, "#1d4f63", "#1a2050"]}
+        args={[GROUND_SIZE, GROUND_SIZE / COARSE_STEP, "#4a525c", "#2b3037"]}
         position={[0, 0.001, 0]}
       />
       <gridHelper
-        args={[FINE_GRID, FINE_GRID, "#22d3ee", "#232a5c"]}
+        args={[FINE_GRID, FINE_GRID, "#ffb020", "#343b45"]}
         position={[0, 0.002, 0]}
       />
       <mesh
@@ -52,7 +52,7 @@ export const Ground = forwardRef<THREE.Mesh>(function Ground(_props, ref) {
       >
         <planeGeometry args={[GROUND_SIZE, GROUND_SIZE]} />
         {/* Very dark and nearly matte so the grid lines stay legible on top. */}
-        <meshStandardMaterial color="#0b1024" roughness={1} />
+        <meshStandardMaterial color="#212529" roughness={1} />
       </mesh>
     </group>
   );

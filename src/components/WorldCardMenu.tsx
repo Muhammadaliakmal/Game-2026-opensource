@@ -116,7 +116,7 @@ export function WorldCardMenu({
     <div ref={wrap} className="relative shrink-0">
       <button
         onClick={() => (open ? close() : setOpen(true))}
-        className="text-dim hover:bg-raised hover:text-ink -mr-1 flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
+        className="text-steel-200 hover:bg-steel-800 hover:text-steel-050 -mr-1 flex h-7 w-7 items-center justify-center rounded-[var(--radius)] transition-colors"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Options for ${worldName}`}
@@ -131,7 +131,7 @@ export function WorldCardMenu({
       {open && (
         <div
           role="menu"
-          className="hud-panel absolute right-0 z-20 mt-1.5 w-48 overflow-hidden p-1.5"
+          className="card absolute right-0 z-20 mt-1.5 w-48 overflow-hidden p-1 shadow-[var(--lift)]"
         >
           {!arming ? (
             <>
@@ -139,13 +139,13 @@ export function WorldCardMenu({
               role="menuitem"
               onClick={() => setPublished(!published)}
               disabled={busy}
-              className="text-muted hover:bg-raised hover:text-ink flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold tracking-wide uppercase transition-colors disabled:opacity-50"
+              className="text-steel-200 hover:bg-steel-800 hover:text-steel-050 flex w-full items-center gap-2 rounded-[var(--radius)] px-2.5 py-2 text-left text-2xs font-medium transition-colors disabled:opacity-50"
             >
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${
                   published
-                    ? "bg-mint shadow-[0_0_8px_var(--color-mint)]"
-                    : "bg-dim"
+                    ? "bg-mint"
+                    : "bg-steel-500"
                 }`}
               />
               {published ? "Unpublish" : "Publish"}
@@ -153,16 +153,16 @@ export function WorldCardMenu({
             <button
               role="menuitem"
               onClick={copyLink}
-              className="text-muted hover:bg-raised hover:text-ink flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold tracking-wide uppercase transition-colors"
+              className="text-steel-200 hover:bg-steel-800 hover:text-steel-050 flex w-full items-center gap-2 rounded-[var(--radius)] px-2.5 py-2 text-left text-2xs font-medium transition-colors"
             >
               <span className="w-2 shrink-0" />
               {copied ? "Link copied" : "Copy play link"}
             </button>
-            <span className="bg-line my-1 block h-px" />
+            <span className="bg-[var(--border-color)] my-1 block h-px" />
             <button
               role="menuitem"
               onClick={() => setArming(true)}
-              className="text-flare hover:bg-flare/15 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold tracking-wide uppercase transition-colors"
+              className="text-danger hover:bg-danger/15 flex w-full items-center gap-2 rounded-[var(--radius)] px-2.5 py-2 text-left text-2xs font-medium transition-colors"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -177,12 +177,12 @@ export function WorldCardMenu({
               </svg>
               Delete world
             </button>
-            {error && <p className="text-flare px-2.5 py-1 text-xs">{error}</p>}
+            {error && <p className="text-danger px-2.5 py-1 text-xs">{error}</p>}
             </>
           ) : (
             <div className="p-1">
-              <p className="text-muted mb-2 text-xs leading-snug">
-                Delete <span className="text-ink font-semibold">{worldName}</span>{" "}
+              <p className="text-steel-200 mb-2 text-xs leading-snug">
+                Delete <span className="text-steel-050 font-semibold">{worldName}</span>{" "}
                 permanently? This can&apos;t be undone.
               </p>
               <div className="flex gap-1.5">
@@ -190,7 +190,7 @@ export function WorldCardMenu({
                   role="menuitem"
                   onClick={remove}
                   disabled={busy}
-                  className="hud-chip hud-chip--flare flex-1 justify-center"
+                  className="hud-chip hud-chip--danger flex-1 justify-center"
                 >
                   {busy ? "Deleting…" : "Delete"}
                 </button>
@@ -202,7 +202,7 @@ export function WorldCardMenu({
                   Cancel
                 </button>
               </div>
-              {error && <p className="text-flare mt-2 text-xs">{error}</p>}
+              {error && <p className="text-danger mt-2 text-xs">{error}</p>}
             </div>
           )}
         </div>
