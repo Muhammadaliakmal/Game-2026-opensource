@@ -204,6 +204,22 @@ input {
   transform: translateY(-2px);
 }
 
+/* Panels that appear over the canvas animate in at the spec's tool-panel
+   timing. The reduced-motion block below flattens this to nothing. */
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.panel-enter {
+  animation: panel-in var(--dur-ui) var(--ease-ui) both;
+}
+
 /* Horizontally scrollable clusters: keep the scrollbar out of the chrome. */
 .hud-scroll {
   scrollbar-width: none;

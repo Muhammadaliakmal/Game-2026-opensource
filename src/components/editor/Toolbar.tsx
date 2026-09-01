@@ -96,7 +96,7 @@ const TOOL_ORDER: Tool[] = ["place", "erase", "paint", "pick", "spawn"];
 /** The keyboard/mouse legend. Shown automatically the first time only. */
 function HelpPanel({ onClose }: { onClose: () => void }) {
   return (
-    <div className="hud-panel pointer-events-auto w-[min(92vw,20rem)] p-3">
+    <div className="hud-panel panel-enter pointer-events-auto w-[min(92vw,20rem)] p-3">
       <div className="mb-2 flex items-center justify-between gap-3">
         <span className="text-sm font-semibold">Controls</span>
         <button
@@ -418,7 +418,7 @@ export function Toolbar({
               >
                 {/* Number-key hint on the first nine, per the spec. */}
                 {i < 9 && (
-                  <span className="pointer-events-none absolute right-0.5 bottom-0 text-[9px] leading-none font-semibold text-white/70 mix-blend-difference">
+                  <span className="pointer-events-none absolute right-0.5 bottom-0 text-[11px] leading-none font-semibold text-white/80 mix-blend-difference">
                     {i + 1}
                   </span>
                 )}
