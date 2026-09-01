@@ -1,0 +1,151 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+/**
+ * Kebab menu on a world card.
+ *
+ * Deleting is destructive and irreversible (no soft-delete column), so it's
+ * two-stage: the menu item arms, and a second explicit click commits. That's
+ * deliberately not `window.confirm` — a native modal blocks the whole page and
+ * looks nothing like the rest of the HUD.
+ *
+ * Authorisation lives on the server: `DELETE /api/worlds/:id` scopes by the
+ * Clerk user id, so this component never decides who may delete what.
+ */
+export function WorldCardMenu({
+  worldId,
+  worldName,
+}: {
+  worldId: string;
+  worldName: string;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [arming, setArming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const wrap = useRef<HTMLDivElement>(null);
+
+  const close = () => {
+    setOpen(false);
+    setArming(false);
+    setError(null);
+  };
+
+  // Dismiss on outside click or Escape. Bound only while open, so a page full
+  // of cards isn't holding N idle listeners.
+  useEffect(() => {
+    if (!open) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!wrap.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setArming(false);
+        setError(null);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        setArming(false);
+        setError(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  async function remove() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/worlds/${worldId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Could not delete (${res.status})`);
+      setOpen(false);
+      // Re-runs the Server Component that renders the list, so the card goes
+      // away without a full navigation.
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not delete");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div ref={wrap} className="relative shrink-0">
+      <button
+        onClick={() => (open ? close() : setOpen(true))}
+        className="text-dim hover:bg-raised hover:text-ink -mr-1 flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Options for ${worldName}`}
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+          <circle cx="12" cy="5" r="1.8" />
+          <circle cx="12" cy="12" r="1.8" />
+          <circle cx="12" cy="19" r="1.8" />
+        </svg>
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="hud-panel absolute right-0 z-20 mt-1.5 w-48 overflow-hidden p-1.5"
+        >
+          {!arming ? (
+            <button
+              role="menuitem"
+              onClick={() => setArming(true)}
+              className="text-flare hover:bg-flare/15 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold tracking-wide uppercase transition-colors"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                className="h-3.5 w-3.5"
+                aria-hidden="true"
+              >
+                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+              </svg>
+              Delete world
+            </button>
+          ) : (
+            <div className="p-1">
+              <p className="text-muted mb-2 text-xs leading-snug">
+                Delete <span className="text-ink font-semibold">{worldName}</span>{" "}
+                permanently? This can&apos;t be undone.
+              </p>
+              <div className="flex gap-1.5">
+                <button
+                  role="menuitem"
+                  onClick={remove}
+                  disabled={busy}
+                  className="hud-chip hud-chip--flare flex-1 justify-center"
+                >
+                  {busy ? "Deleting…" : "Delete"}
+                </button>
+                <button
+                  onClick={() => setArming(false)}
+                  disabled={busy}
+                  className="hud-chip"
+                >
+                  Cancel
+                </button>
+              </div>
+              {error && <p className="text-flare mt-2 text-xs">{error}</p>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { worlds } from "@/lib/db/schema";
 import { NewWorldButton } from "@/components/NewWorldButton";
+import { WorldCardMenu } from "@/components/WorldCardMenu";
 
 export default async function Home() {
   const { userId } = await auth();
@@ -76,15 +77,20 @@ export default async function Home() {
           {myWorlds.map((w) => (
             <li
               key={w.id}
-              className="hud-panel group hover:border-neon/60 relative overflow-hidden p-4 transition-colors"
+              className="hud-panel group hover:border-neon/60 relative p-4 transition-colors"
             >
               {/* Accent edge that lights up on hover — cheap way to make a
-                  list of cards feel like a game menu rather than a table. */}
+                  list of cards feel like a game menu rather than a table.
+                  (The card can't clip its overflow: the kebab menu opens
+                  outside its bounds.) */}
               <span
                 aria-hidden
-                className="from-neon to-plasma absolute inset-x-0 top-0 h-px bg-gradient-to-r opacity-0 transition-opacity group-hover:opacity-100"
+                className="from-neon to-plasma absolute inset-x-4 top-0 h-px bg-gradient-to-r opacity-0 transition-opacity group-hover:opacity-100"
               />
-              <h2 className="truncate font-bold">{w.name}</h2>
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="min-w-0 truncate font-bold">{w.name}</h2>
+                <WorldCardMenu worldId={w.id} worldName={w.name} />
+              </div>
               <p className="hud-label mt-1.5">
                 {w.doc.parts.length.toLocaleString()} parts ·{" "}
                 {new Date(w.updatedAt).toLocaleDateString()}
