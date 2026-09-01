@@ -37,6 +37,16 @@ export const FEEL = {
   shakeFreq: 30,
   hitStop: 0.05, // optional freeze-frames on hard impact
 
+  // --- Juice: particles (dust puffs off the feet) ---
+  jumpBurst: 10, // motes kicked up on takeoff
+  landBurst: 24, // bigger spray on a hard landing
+  particleLife: 0.45, // seconds each mote lives
+  particleSpeed: 2.4, // initial outward speed, world units/sec
+
+  // --- Juice: audio (synthesised at runtime — no asset files until Phase 3) ---
+  audioVolume: 0.35, // master gain, 0..1
+  footstepGap: 0.34, // seconds between footfalls at walk speed (scales with speed)
+
   // --- Respawn (obby loop) ---
   respawnDelay: 0.25, // near-instant, so failure cost stays near zero
   fallOutY: -20, // below this -> respawn at spawn

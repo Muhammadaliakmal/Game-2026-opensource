@@ -8,6 +8,8 @@ import { Ecctrl, type EcctrlHandle } from "ecctrl";
 import { FEEL } from "@/lib/feel";
 import type { Vec3 } from "@/lib/worlddoc";
 import { useJumpFeel } from "./feel/useJumpFeel";
+import { useFootstepAudio } from "./feel/useFootstepAudio";
+import { JumpParticles } from "./feel/JumpParticles";
 
 /**
  * Third-person follow camera.
@@ -139,6 +141,7 @@ export function Player({ spawn }: { spawn: Vec3 }) {
 
   useJumpFeel(ref, jumpHeld, jumpPressedEdge);
   useFollowCamera(ref);
+  useFootstepAudio(ref);
 
   // Respawn on falling out of the world. Near-instant by design: when failure
   // costs almost nothing, players keep trying instead of quitting.
@@ -169,23 +172,28 @@ export function Player({ spawn }: { spawn: Vec3 }) {
   }, []);
 
   return (
-    <Ecctrl
-      ref={ref}
-      position={spawn}
-      capsuleRadius={0.3}
-      capsuleHalfHeight={0.3}
-      maxWalkVel={FEEL.walkSpeed}
-      maxRunVel={FEEL.runSpeed}
-      jumpVel={FEEL.jumpVel}
-      airDragFactor={FEEL.airControl}
-      fallingGravityScale={FEEL.fallGravityScale}
-      fallingMaxVel={FEEL.maxFallSpeed}
-      floatHeight={0.2}
-      springK={80}
-      dampingC={6}
-      groundDetection="shapeCast"
-    >
-      <CharacterModel handleRef={ref} />
-    </Ecctrl>
+    <>
+      <Ecctrl
+        ref={ref}
+        position={spawn}
+        capsuleRadius={0.3}
+        capsuleHalfHeight={0.3}
+        maxWalkVel={FEEL.walkSpeed}
+        maxRunVel={FEEL.runSpeed}
+        jumpVel={FEEL.jumpVel}
+        airDragFactor={FEEL.airControl}
+        fallingGravityScale={FEEL.fallGravityScale}
+        fallingMaxVel={FEEL.maxFallSpeed}
+        floatHeight={0.2}
+        springK={80}
+        dampingC={6}
+        groundDetection="shapeCast"
+      >
+        <CharacterModel handleRef={ref} />
+      </Ecctrl>
+
+      {/* World-space, so it sits outside <Ecctrl>'s transform. */}
+      <JumpParticles handleRef={ref} />
+    </>
   );
 }
