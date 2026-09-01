@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEditorStore } from "@/stores/editor-store";
 import { PALETTE, FINISHES, type Shape } from "@/lib/worlddoc";
 import { SHAPE_NAMES } from "./shapes";
+import { FullscreenButton } from "@/components/FullscreenButton";
 
 /**
  * DOM overlay, deliberately outside the Canvas — HTML is far cheaper than
@@ -93,6 +94,9 @@ export function Toolbar({
         </div>
 
         <div className={`${PANEL} flex shrink-0 items-center gap-1.5 px-2 py-1.5`}>
+          <FullscreenButton
+            className={`${BTN} hidden ${BTN_OFF} sm:block`}
+          />
           <span
             className={`hidden text-xs sm:inline ${
               saving
@@ -125,7 +129,7 @@ export function Toolbar({
       {/* ── Bottom stack: palette above the tool cluster ── */}
       <div className="flex flex-col items-center gap-2">
         <div
-          className={`${PANEL} flex max-h-24 max-w-[min(92vw,44rem)] flex-wrap justify-center gap-1 overflow-y-auto p-1.5 sm:max-h-none`}
+          className={`${PANEL} flex max-w-[min(94vw,44rem)] gap-1 overflow-x-auto p-1.5 sm:flex-wrap sm:justify-center sm:overflow-x-visible`}
         >
           {PALETTE.map((hex, i) => (
             <button

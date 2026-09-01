@@ -139,6 +139,23 @@ export function Player({ spawn }: { spawn: Vec3 }) {
   };
   const jumpHeld = () => getKeys().jump as boolean;
 
+  // ecctrl v2 ships no keyboard handling of its own — <KeyboardControls> only
+  // fills a store, so the directional keys have to be forwarded to the
+  // controller every frame. (useJumpFeel owns the `jump` field separately;
+  // setMovement merges per-field, so the two don't collide.)
+  useFrame(() => {
+    const h = ref.current;
+    if (!h) return;
+    const k = getKeys();
+    h.setMovement({
+      forward: !!k.forward,
+      backward: !!k.backward,
+      leftward: !!k.leftward,
+      rightward: !!k.rightward,
+      run: !!k.run,
+    });
+  });
+
   useJumpFeel(ref, jumpHeld, jumpPressedEdge);
   useFollowCamera(ref);
   useFootstepAudio(ref);
@@ -188,6 +205,8 @@ export function Player({ spawn }: { spawn: Vec3 }) {
         springK={80}
         dampingC={6}
         groundDetection="shapeCast"
+        // Hold Shift to run, not tap-to-toggle — platformer convention.
+        enableToggleRun={false}
       >
         <CharacterModel handleRef={ref} />
       </Ecctrl>

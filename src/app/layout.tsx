@@ -33,7 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <ClerkProvider>
-          <header className="flex items-center justify-between px-6 py-3 border-b border-black/[.08] dark:border-white/[.145]">
+          <header className="flex items-center justify-between gap-3 border-b border-black/[.08] px-4 py-3 sm:px-6 dark:border-white/[.145]">
             <Link href="/" className="font-semibold tracking-tight">
               Blockworld
             </Link>

@@ -11,6 +11,7 @@ import { parseWorldDoc, type PartTuple, type Vec3 } from "@/lib/worlddoc";
 import { InstancedWorld } from "./InstancedWorld";
 import { WorldColliders } from "./WorldColliders";
 import { Player } from "./Player";
+import { FullscreenButton } from "@/components/FullscreenButton";
 
 // Live game-feel tuning panel — dev only. `dynamic` keeps leva out of the main
 // bundle; the DEV gate keeps it from ever rendering in a production build.
@@ -155,12 +156,16 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
         <div className="pointer-events-auto max-w-[70vw] truncate rounded-xl bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 ring-1 ring-white/10 backdrop-blur">
           {world?.name ?? "Loading…"}
         </div>
-        <Link
-          href={`/build/${worldId}`}
-          className="pointer-events-auto shrink-0 rounded-xl bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 ring-1 ring-white/10 backdrop-blur transition-colors hover:bg-zinc-900/90"
-        >
-          Edit
-        </Link>
+        <div className="pointer-events-auto flex shrink-0 items-center gap-1.5 rounded-xl bg-zinc-950/80 p-1 ring-1 ring-white/10 backdrop-blur">
+          <FullscreenButton className="rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 transition-colors hover:bg-white/10 sm:text-sm" />
+          <span className="h-5 w-px bg-white/15" />
+          <Link
+            href={`/build/${worldId}`}
+            className="rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 transition-colors hover:bg-white/10 sm:text-sm"
+          >
+            Edit
+          </Link>
+        </div>
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2 sm:p-3">
