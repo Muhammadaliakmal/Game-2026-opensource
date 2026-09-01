@@ -1,6 +1,7 @@
 "use client";
 
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { useCallback, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
@@ -79,8 +80,17 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
         shadows
         camera={{ position: [16, 16, 16], fov: 50 }}
         gl={{ powerPreference: "high-performance", preserveDrawingBuffer: true }}
-        onCreated={({ scene }) => {
+        onCreated={({ scene, gl }) => {
           scene.background = new THREE.Color("#080b1a");
+          // A locally-generated room probe: without an environment map the
+          // `metal` finish has nothing to reflect and renders as a flat dark
+          // patch. RoomEnvironment needs no HDR download.
+          const pmrem = new THREE.PMREMGenerator(gl);
+          scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+          scene.environmentIntensity = 0.4;
+          pmrem.dispose();
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1.05;
         }}
       >
         <hemisphereLight args={["#a5b4fc", "#0b1024", 1.15]} />

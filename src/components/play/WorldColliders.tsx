@@ -3,9 +3,8 @@
 import { RigidBody } from "@react-three/rapier";
 import { useMemo } from "react";
 import type { PartTuple } from "@/lib/worlddoc";
-import { PALETTE } from "@/lib/worlddoc";
 import { buildColliders } from "@/lib/greedy-mesh";
-import { SHAPE_GEOMETRIES, FINISH_PARAMS } from "@/components/editor/shapes";
+import { COLLIDER_GEOMETRIES } from "@/components/editor/shapes";
 
 /**
  * Static world geometry with physics.
@@ -49,14 +48,11 @@ export function WorldColliders({ parts }: { parts: PartTuple[] }) {
           position={[p[0] + 0.5, p[1] + 0.5, p[2] + 0.5]}
           rotation={[0, (p[6] * Math.PI) / 2, 0]}
         >
-          <mesh geometry={SHAPE_GEOMETRIES[p[3]]} castShadow receiveShadow>
-            <meshStandardMaterial
-              color={PALETTE[p[4]]}
-              roughness={FINISH_PARAMS[p[5]].roughness}
-              metalness={FINISH_PARAMS[p[5]].metalness}
-              emissive={p[5] === 3 ? PALETTE[p[4]] : "#000000"}
-              emissiveIntensity={FINISH_PARAMS[p[5]].emissiveIntensity}
-            />
+          {/* Invisible: InstancedWorld already draws every part, including
+              these. Drawing them again here would double the draw calls and
+              z-fight. The un-bevelled collider twin also keeps ledges crisp. */}
+          <mesh geometry={COLLIDER_GEOMETRIES[p[3]]}>
+            <meshBasicMaterial visible={false} />
           </mesh>
         </RigidBody>
       ))}

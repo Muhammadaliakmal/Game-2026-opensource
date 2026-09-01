@@ -1,6 +1,7 @@
 "use client";
 
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -37,8 +38,8 @@ type Control =
   | "jump"
   | "run";
 
-// ecctrl v2 consumes this drei context directly for movement — no explicit
-// wiring. Player only reads `jump` out of it, for the jump-feel edge detection.
+// drei only captures keys into a store — ecctrl v2 reads nothing on its own,
+// so Player forwards every field of this map into setMovement each frame.
 const keyboardMap: KeyboardControlsEntry<Control>[] = [
   { name: "forward", keys: ["ArrowUp", "KeyW"] },
   { name: "backward", keys: ["ArrowDown", "KeyS"] },
@@ -107,11 +108,20 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
         // preserveDrawingBuffer is here now so Phase 4's thumbnail capture
         // (`gl.domElement.toDataURL()`) doesn't need a Canvas config change.
         gl={{ powerPreference: "high-performance", preserveDrawingBuffer: true }}
-        onCreated={({ scene }) => {
+        onCreated={({ scene, gl }) => {
           scene.background = new THREE.Color("#080b1a");
           // Distance fade into the void — without it the world just stops at a
           // hard edge and the level reads as a floating diorama.
           scene.fog = new THREE.Fog("#080b1a", 40, 130);
+          // A locally-generated room probe: without an environment map the
+          // `metal` finish has nothing to reflect and renders as a flat dark
+          // patch. RoomEnvironment needs no HDR download.
+          const pmrem = new THREE.PMREMGenerator(gl);
+          scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+          scene.environmentIntensity = 0.4;
+          pmrem.dispose();
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1.05;
         }}
       >
         <hemisphereLight args={["#a5b4fc", "#0b1024", 1.15]} />
@@ -139,12 +149,13 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
             <WorldColliders parts={world.parts} />
 
             {/*
-              Temporary spawn pad. Builds are all at y >= 0 (the editor grid
-              floor), so without a little ground under the spawn point an empty
-              or sparse world would just be an endless fall/respawn loop. Kept
-              small on purpose: step off it and the real fall-out loop
-              (FEEL.fallOutY -> respawn) still works everywhere else.
+              Safety pad for an empty world only. Without some ground under the
+              spawn point a blank world is just an endless fall/respawn loop —
+              but a built world (every new world ships the parkour course) has
+              its own floor, and a pad there would sit inside the geometry and
+              block the fall-out loop.
             */}
+            {world.parts.length === 0 && (
             <RigidBody
               type="fixed"
               colliders="cuboid"
@@ -160,6 +171,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
                 />
               </mesh>
             </RigidBody>
+            )}
           </Physics>
         )}
       </Canvas>

@@ -11,6 +11,7 @@ import type { Vec3 } from "@/lib/worlddoc";
 import { useJumpFeel } from "./feel/useJumpFeel";
 import { useFootstepAudio } from "./feel/useFootstepAudio";
 import { JumpParticles } from "./feel/JumpParticles";
+import { CharacterModel } from "./CharacterModel";
 
 /**
  * Third-person follow camera.
@@ -78,51 +79,6 @@ function useFollowCamera(handleRef: React.RefObject<EcctrlHandle | null>) {
     );
     camera.lookAt(target.current);
   });
-}
-
-/** Simple capsule stand-in for a character model, with landing squash. */
-function CharacterModel({
-  handleRef,
-}: {
-  handleRef: React.RefObject<EcctrlHandle | null>;
-}) {
-  const group = useRef<THREE.Group>(null!);
-  const squash = useRef(0);
-  const wasOnGround = useRef(true);
-
-  useFrame((_, dt) => {
-    const h = handleRef.current;
-    const g = group.current;
-    if (!h || !g) return;
-
-    if (h.isOnGround && !wasOnGround.current) {
-      // Squash scales with impact, so a small hop barely registers.
-      squash.current = Math.min(1, Math.abs(h.verticalSpeed) / FEEL.hardLandVel);
-    }
-    wasOnGround.current = h.isOnGround;
-
-    squash.current = Math.max(0, squash.current - dt / FEEL.squashRecover);
-    const t = squash.current;
-    g.scale.set(
-      1 + (FEEL.squashScale[0] - 1) * t,
-      1 + (FEEL.squashScale[1] - 1) * t,
-      1 + (FEEL.squashScale[2] - 1) * t
-    );
-  });
-
-  return (
-    <group ref={group}>
-      <mesh castShadow position={[0, 0, 0]}>
-        <capsuleGeometry args={[0.3, 0.6, 8, 16]} />
-        <meshStandardMaterial color="#22d3ee" roughness={0.35} emissive="#22d3ee" emissiveIntensity={0.35} />
-      </mesh>
-      {/* A nose, so facing direction is readable. */}
-      <mesh position={[0, 0.15, -0.3]} castShadow>
-        <boxGeometry args={[0.16, 0.16, 0.16]} />
-        <meshStandardMaterial color="#0e7490" />
-      </mesh>
-    </group>
-  );
 }
 
 export function Player({ spawn }: { spawn: Vec3 }) {
