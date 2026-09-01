@@ -191,11 +191,22 @@ export function createFinishMaterial(finish: number): THREE.MeshStandardMaterial
     // White, so the multiply below is what decides the colour.
     material.emissive.setRGB(1, 1, 1);
     material.onBeforeCompile = (shader) => {
+      // Two details here are load-bearing, and getting either wrong fails the
+      // whole fragment shader to compile (VALIDATE_STATUS false):
+      //
+      //  - The guard must be the exact condition three declares `vColor`
+      //    under in `color_pars_fragment`, which is USE_COLOR/USE_COLOR_ALPHA.
+      //    NOT USE_INSTANCING_COLOR: that define gates the *vertex* stage.
+      //    For an InstancedMesh with instanceColor three defines USE_COLOR on
+      //    the fragment stage for us (WebGLProgram, fragment prefix), which is
+      //    also how the per-instance colour reaches `diffuseColor`.
+      //  - `vColor` is a vec4 in current three, and totalEmissiveRadiance is a
+      //    vec3, so it has to be swizzled. `vec3 *= vec4` does not compile.
       shader.fragmentShader = shader.fragmentShader.replace(
         "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
-        #if defined( USE_INSTANCING_COLOR ) || defined( USE_COLOR )
-          totalEmissiveRadiance *= vColor;
+        #if defined( USE_COLOR ) || defined( USE_COLOR_ALPHA )
+          totalEmissiveRadiance *= vColor.rgb;
         #endif`
       );
     };
