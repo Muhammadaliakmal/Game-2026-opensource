@@ -13,7 +13,8 @@ import dynamic from "next/dynamic";
 const EditorCanvas = dynamic(() => import("./EditorCanvas"), {
   ssr: false,
   loading: () => (
-    <div className="flex flex-1 items-center justify-center text-zinc-400">
+    <div className="flex flex-1 items-center justify-center gap-3 bg-zinc-950 text-sm text-zinc-400">
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-transparent" />
       Loading editor…
     </div>
   ),

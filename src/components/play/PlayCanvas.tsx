@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Canvas } from "@react-three/fiber";
 import { KeyboardControls, type KeyboardControlsEntry } from "@react-three/drei";
 import { Physics, RigidBody } from "@react-three/rapier";
@@ -10,6 +11,11 @@ import { parseWorldDoc, type PartTuple, type Vec3 } from "@/lib/worlddoc";
 import { InstancedWorld } from "./InstancedWorld";
 import { WorldColliders } from "./WorldColliders";
 import { Player } from "./Player";
+
+// Live game-feel tuning panel — dev only. `dynamic` keeps leva out of the main
+// bundle; the DEV gate keeps it from ever rendering in a production build.
+const DEV = process.env.NODE_ENV !== "production";
+const FeelTuner = dynamic(() => import("./feel/FeelTuner"), { ssr: false });
 
 /**
  * Play mode: the world loaded from the DB, stood up in Rapier, walked around
@@ -75,11 +81,11 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
 
   if (status === "error") {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="text-red-500">{error}</p>
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-zinc-950 p-8 text-center text-zinc-100">
+        <p className="text-red-400">{error}</p>
         <Link
           href={`/build/${worldId}`}
-          className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-black dark:hover:bg-white"
+          className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-white"
         >
           Back to build
         </Link>
@@ -88,7 +94,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
   }
 
   return (
-    <div className="relative flex-1">
+    <div className="relative flex-1 bg-zinc-950">
       <Canvas
         shadows
         camera={{ position: [8, 6, 8], fov: 65 }}
@@ -145,29 +151,33 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
       </Canvas>
 
       {/* DOM HUD, outside the Canvas — cheaper than in-scene UI. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3">
-        <div className="pointer-events-auto rounded-lg bg-black/70 px-3 py-2 text-sm text-zinc-200 backdrop-blur">
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
+        <div className="pointer-events-auto max-w-[70vw] truncate rounded-xl bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 ring-1 ring-white/10 backdrop-blur">
           {world?.name ?? "Loading…"}
         </div>
         <Link
           href={`/build/${worldId}`}
-          className="pointer-events-auto rounded-lg bg-black/70 px-3 py-2 text-sm text-zinc-200 backdrop-blur transition-colors hover:bg-black/85"
+          className="pointer-events-auto shrink-0 rounded-xl bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 ring-1 ring-white/10 backdrop-blur transition-colors hover:bg-zinc-900/90"
         >
           Edit
         </Link>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-3">
-        <div className="rounded-lg bg-black/60 px-3 py-2 text-xs text-zinc-300 backdrop-blur">
-          WASD move · Shift run · Space jump
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2 sm:p-3">
+        <div className="rounded-xl bg-zinc-950/70 px-3 py-2 text-[11px] text-zinc-300 ring-1 ring-white/10 backdrop-blur sm:text-xs">
+          <span className="hidden sm:inline">WASD move · Shift run · Space jump</span>
+          <span className="sm:hidden">WASD · Shift · Space</span>
         </div>
       </div>
 
       {status === "loading" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-zinc-300">
+        <div className="absolute inset-0 flex items-center justify-center gap-3 bg-zinc-950/70 text-sm text-zinc-300">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent" />
           Loading world…
         </div>
       )}
+
+      {DEV && <FeelTuner />}
     </div>
   );
 }

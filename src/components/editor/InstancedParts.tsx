@@ -1,7 +1,7 @@
 "use client";
 
 import * as THREE from "three";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import { useEditorStore } from "@/stores/editor-store";
 import { PALETTE, type PartTuple } from "@/lib/worlddoc";
@@ -29,7 +29,18 @@ function Bucket({ shape, finish }: { shape: number; finish: number }) {
   const ref = useRef<THREE.InstancedMesh>(null!);
   const dirty = useEditorStore((s) => s.dirtyTick);
   const invalidate = useThree((s) => s.invalidate);
-  const [capacity, setCapacity] = useState(256);
+
+  // Capacity is derived from the live part count, not stored in state — so
+  // growing the world never triggers a second render pass. Rounding up to a
+  // power of two keeps the remount (which reallocates the buffers) rare.
+  const capacity = useMemo(() => {
+    let n = 0;
+    for (const p of useEditorStore.getState().parts.values()) {
+      if (p[3] === shape && p[5] === finish) n++;
+    }
+    return capacityFor(n);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, shape, finish]);
 
   const material = useMemo(() => {
     const p = FINISH_PARAMS[finish];
@@ -53,13 +64,7 @@ function Bucket({ shape, finish }: { shape: number; finish: number }) {
       if (p[3] === shape && p[5] === finish) mine.push(p);
     }
 
-    // Grow first and bail — writing past capacity would silently corrupt the
-    // buffer. The remount on the new capacity re-runs this effect.
-    if (mine.length > capacity) {
-      setCapacity(capacityFor(mine.length));
-      return;
-    }
-
+    // `capacity` was derived from this same count, so it always fits.
     for (let i = 0; i < mine.length; i++) {
       const p = mine[i];
       dummy.position.set(p[0] + 0.5, p[1] + 0.5, p[2] + 0.5);

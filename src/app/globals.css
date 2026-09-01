@@ -22,5 +22,13 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* The editor and play routes fill the viewport; stop the page itself from
+   scrolling so the fixed tool overlays stay put. */
+html,
+body {
+  overscroll-behavior: none;
 }
