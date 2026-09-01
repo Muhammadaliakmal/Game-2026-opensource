@@ -8,7 +8,7 @@ import type { Shape } from "@/lib/worlddoc";
  * Keyboard shortcuts. Lives outside the Canvas because it binds to window —
  * R3F's event system only sees pointer events inside the GL surface.
  */
-export function useEditorHotkeys(onSave?: () => void) {
+export function useEditorHotkeys(onSave?: () => void | Promise<boolean>) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       // Never hijack keys while the user is naming their world.
@@ -32,7 +32,7 @@ export function useEditorHotkeys(onSave?: () => void) {
       }
       if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        onSave?.();
+        void onSave?.();
         return;
       }
 
@@ -42,6 +42,11 @@ export function useEditorHotkeys(onSave?: () => void) {
           break;
         case "e":
           s.setTool(s.tool === "erase" ? "place" : "erase");
+          break;
+        // G for the spawn flag: E and R are taken, and G is free in the
+        // Blender/Minecraft muscle memory this editor borrows from.
+        case "g":
+          s.setTool(s.tool === "spawn" ? "place" : "spawn");
           break;
         case "1":
         case "2":

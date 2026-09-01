@@ -17,6 +17,7 @@ import { consumeRespawn } from "./play-actions";
 import {
   applyLook,
   look,
+  playerFocus,
   THIRD_PERSON_DISTANCE,
   useViewStore,
 } from "./camera-rig";
@@ -109,6 +110,7 @@ function useCameraRig(handleRef: React.RefObject<EcctrlHandle | null>) {
 
     // currPos mutates in place, so read components rather than storing the ref.
     const pos = h.currPos;
+    playerFocus.set(pos.x, pos.y, pos.z);
 
     if (firstPerson) {
       lookahead.current.set(0, 0, 0);

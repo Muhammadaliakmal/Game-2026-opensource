@@ -5,7 +5,8 @@ import { worlds } from "@/lib/db/schema";
 import { parseWorldDoc } from "@/lib/worlddoc";
 import { parkourWorldDoc } from "@/lib/parkour";
 import { buildBuiltInDoc, getBuiltInWorld } from "@/lib/built-in-worlds";
-import { eq } from "drizzle-orm";
+import { isUuid } from "@/lib/ids";
+import { desc, eq, sql } from "drizzle-orm";
 
 // GET /api/worlds — list the signed-in user's worlds.
 export async function GET() {
@@ -13,7 +14,20 @@ export async function GET() {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const rows = await db.select().from(worlds).where(eq(worlds.ownerId, userId));
+  // Metadata only: a list endpoint has no business shipping every WorldDoc.
+  const rows = await db
+    .select({
+      id: worlds.id,
+      name: worlds.name,
+      published: worlds.published,
+      playCount: worlds.playCount,
+      updatedAt: worlds.updatedAt,
+      partCount: sql<number>`jsonb_array_length(${worlds.doc} -> 'parts')`
+        .mapWith(Number),
+    })
+    .from(worlds)
+    .where(eq(worlds.ownerId, userId))
+    .orderBy(desc(worlds.updatedAt));
   return NextResponse.json(rows);
 }
 
@@ -46,7 +60,11 @@ export async function POST(req: Request) {
     sourceName = builtIn.name;
   } else if (from) {
     // Only published worlds can be remixed — anything else must 404 rather
-    // than reveal that a private world exists.
+    // than reveal that a private world exists. The uuid check comes first:
+    // `from` is caller-supplied, and a non-uuid would be a query error.
+    if (!isUuid(from)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const [src] = await db.select().from(worlds).where(eq(worlds.id, from));
     if (!src || src.published !== 1) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });

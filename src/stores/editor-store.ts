@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { PartTuple, Shape, WorldDoc, Vec3 } from "@/lib/worlddoc";
+import type { PartTuple, PropInstance, Shape, WorldDoc, Vec3 } from "@/lib/worlddoc";
 import {
   CommandBus,
   placeCmd,
@@ -11,7 +11,7 @@ import {
 } from "@/lib/command-bus";
 import { keyOf, parseKey } from "@/lib/grid";
 
-export type Tool = "place" | "erase";
+export type Tool = "place" | "erase" | "spawn";
 
 interface EditorState {
   /**
@@ -27,6 +27,20 @@ interface EditorState {
   name: string;
   spawn: Vec3;
   sky: number;
+  /**
+   * Props are not editable yet (Phase 3), but they must survive a round trip:
+   * loading a doc and saving it back used to drop them on the floor.
+   */
+  props: PropInstance[];
+
+  /**
+   * Whether this world can be saved at all — false for a built-in and for
+   * anyone else's world. Known only after the load, so the editor can say so
+   * up front instead of failing at the first Save.
+   */
+  readOnly: boolean;
+  /** Unsaved edits since the last load or save. */
+  dirty: boolean;
 
   // Current brush settings.
   shape: Shape;
@@ -53,6 +67,9 @@ interface EditorState {
   setTool(t: Tool): void;
   setHoverCell(c: [number, number, number] | null): void;
   setName(n: string): void;
+  setReadOnly(v: boolean): void;
+  setSpawn(cell: [number, number, number]): void;
+  markSaved(): void;
 
   place(cell: [number, number, number]): void;
   erase(cell: [number, number, number]): void;
@@ -98,6 +115,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
   name: "Untitled World",
   spawn: [0, 1, 0],
   sky: 0,
+  props: [],
+
+  readOnly: false,
+  dirty: false,
 
   shape: 0,
   colorIndex: 19,
@@ -113,14 +134,43 @@ export const useEditorStore = create<EditorState>((set, get) => {
   saving: false,
   lastSavedAt: null,
 
-  markDirty: () => set((s) => ({ dirtyTick: s.dirtyTick + 1 })),
+  // Bumps the renderer tick AND flags unsaved work — every edit path in the
+  // app funnels through here, which is what makes the "unsaved" state honest.
+  markDirty: () => set((s) => ({ dirtyTick: s.dirtyTick + 1, dirty: true })),
 
   setShape: (shape) => set({ shape }),
   setColorIndex: (colorIndex) => set({ colorIndex }),
   setFinish: (finish) => set({ finish }),
   rotateBrush: () => set((s) => ({ rot: (s.rot + 1) % 4 })),
   setTool: (tool) => set({ tool }),
-  setName: (name) => set({ name }),
+  setName: (name) => set({ name, dirty: true }),
+  setReadOnly: (readOnly) => set({ readOnly }),
+  markSaved: () => set({ dirty: false, lastSavedAt: Date.now() }),
+
+  /**
+   * Move the spawn point to a cell. Goes through the command bus like any
+   * other edit, so Ctrl+Z puts it back — nothing the player does in the
+   * editor should be the one thing undo can't reach.
+   */
+  setSpawn: (cell) => {
+    const prev = get().spawn;
+    // Sit the capsule a little above the cell floor so the player lands on the
+    // block rather than starting intersecting it.
+    const next: Vec3 = [cell[0] + 0.5, cell[1] + 1.2, cell[2] + 0.5];
+    if (prev[0] === next[0] && prev[1] === next[1] && prev[2] === next[2]) return;
+
+    submit({
+      label: "spawn",
+      do() {
+        set({ spawn: next });
+        get().markDirty();
+      },
+      undo() {
+        set({ spawn: prev });
+        get().markDirty();
+      },
+    });
+  },
 
   setHoverCell: (hoverCell) => {
     // Only write when the cell actually changed — this fires every pointer move.
@@ -140,6 +190,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
   place: (cell) => {
     const s = get();
+    if (s.readOnly) return;
     const key = keyOf(...cell);
     const part: PartTuple = [
       cell[0],
@@ -161,6 +212,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
   erase: (cell) => {
     const s = get();
+    if (s.readOnly) return;
     const key = keyOf(...cell);
     const prev = s.parts.get(key);
     if (!prev) return;
@@ -203,6 +255,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
       name: doc.name,
       spawn: doc.spawn,
       sky: doc.sky,
+      props: doc.props,
+      // A freshly loaded world has nothing unsaved in it yet.
+      dirty: false,
+      lastSavedAt: null,
       dirtyTick: s.dirtyTick + 1,
       historyTick: s.historyTick + 1,
     }));
@@ -218,7 +274,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
       spawn: s.spawn,
       sky: s.sky,
       parts: [...s.parts.values()],
-      props: [],
+      // Verbatim: nothing in the editor edits props yet, and saving [] here
+      // would quietly delete them from any world that has them.
+      props: s.props,
     };
   },
 

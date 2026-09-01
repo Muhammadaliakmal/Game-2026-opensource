@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { SignInButton, Show } from "@clerk/nextjs";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { worlds } from "@/lib/db/schema";
 import { NewWorldButton } from "@/components/NewWorldButton";
@@ -49,8 +49,19 @@ export default async function Home() {
     );
   }
 
+  // Explicit columns, never `select()`. The card shows a part *count*, and
+  // SELECT * would drag every world's entire WorldDoc across the wire to get
+  // it — the Quiet Garden alone is 133 KB of JSON. Postgres can count the
+  // array in place for a few bytes.
   const myWorlds = await db
-    .select()
+    .select({
+      id: worlds.id,
+      name: worlds.name,
+      published: worlds.published,
+      playCount: worlds.playCount,
+      partCount: sql<number>`jsonb_array_length(${worlds.doc} -> 'parts')`
+        .mapWith(Number),
+    })
     .from(worlds)
     .where(eq(worlds.ownerId, userId))
     .orderBy(desc(worlds.updatedAt));
@@ -92,7 +103,7 @@ export default async function Home() {
                 >
                   ▶ Play
                 </Link>
-                <RemixButton slug={w.slug} name={w.name} />
+                <RemixButton from={w.slug} name={w.name} />
               </div>
             </li>
           ))}
@@ -140,7 +151,7 @@ export default async function Home() {
                 />
               </div>
               <p className="hud-label mt-1.5 flex flex-wrap items-center gap-x-1.5">
-                <span>{w.doc.parts.length.toLocaleString()} parts</span>
+                <span>{w.partCount.toLocaleString()} parts</span>
                 {w.published === 1 && (
                   <>
                     <span aria-hidden>·</span>

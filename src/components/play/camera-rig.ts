@@ -22,6 +22,14 @@ export const look = {
   distance: 9,
 };
 
+/**
+ * The character's live world position, mirrored here each frame by the camera
+ * rig. Anything outside <Ecctrl>'s transform that needs to track the player
+ * (the shadow-camera light, for one) reads this instead of threading the
+ * handle ref through the tree.
+ */
+export const playerFocus = new THREE.Vector3();
+
 export const DEFAULT_PITCH = 0.49;
 export const THIRD_PERSON_DISTANCE = 9;
 

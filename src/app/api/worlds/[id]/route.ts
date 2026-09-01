@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { worlds } from "@/lib/db/schema";
 import { parseWorldDoc } from "@/lib/worlddoc";
 import { buildBuiltInDoc, isBuiltInWorld } from "@/lib/built-in-worlds";
+import { isUuid } from "@/lib/ids";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,6 +33,12 @@ export async function GET(_req: Request, { params }: Params) {
       builtIn: true,
       published: 1,
     });
+  }
+
+  // Anything that isn't a uuid can't be a row id, and querying one would be a
+  // Postgres type error rather than a miss — so a bad link 404s, never 500s.
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const [row] = await db.select().from(worlds).where(eq(worlds.id, id));
@@ -62,6 +69,9 @@ export async function PUT(req: Request, { params }: Params) {
       { error: "Built-in worlds are read-only. Remix it to make it yours." },
       { status: 403 }
     );
+  }
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const body = await req.json().catch(() => null);
@@ -114,6 +124,9 @@ export async function PATCH(req: Request, { params }: Params) {
       { status: 403 }
     );
   }
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const body = await req.json().catch(() => null);
   if (typeof body?.published !== "boolean") {
@@ -145,6 +158,9 @@ export async function DELETE(_req: Request, { params }: Params) {
       { error: "Built-in worlds can't be deleted." },
       { status: 403 }
     );
+  }
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const [row] = await db

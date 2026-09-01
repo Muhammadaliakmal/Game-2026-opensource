@@ -3,7 +3,7 @@
 import * as THREE from "three";
 import { useEffect, useMemo, useRef } from "react";
 import { PALETTE, type PartTuple } from "@/lib/worlddoc";
-import { SHAPE_GEOMETRIES, FINISH_PARAMS } from "@/components/editor/shapes";
+import { SHAPE_GEOMETRIES, createFinishMaterial } from "@/components/editor/shapes";
 
 const dummy = new THREE.Object3D();
 const col = new THREE.Color();
@@ -26,14 +26,7 @@ function Bucket({
 }) {
   const ref = useRef<THREE.InstancedMesh>(null!);
 
-  const material = useMemo(() => {
-    const p = FINISH_PARAMS[finish];
-    return new THREE.MeshStandardMaterial({
-      roughness: p.roughness,
-      metalness: p.metalness,
-      emissiveIntensity: p.emissiveIntensity,
-    });
-  }, [finish]);
+  const material = useMemo(() => createFinishMaterial(finish), [finish]);
 
   useEffect(() => () => material.dispose(), [material]);
 
@@ -50,14 +43,13 @@ function Bucket({
 
       col.set(PALETTE[p[4]]);
       mesh.setColorAt(i, col);
-      if (finish === 3) material.emissive.copy(col);
     }
 
     mesh.count = parts.length;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
-  }, [parts, finish, material]);
+  }, [parts, material]);
 
   return (
     <instancedMesh

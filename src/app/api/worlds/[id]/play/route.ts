@@ -4,6 +4,7 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { worlds } from "@/lib/db/schema";
 import { isBuiltInWorld } from "@/lib/built-in-worlds";
+import { isUuid } from "@/lib/ids";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -24,6 +25,9 @@ export async function POST(_req: Request, { params }: Params) {
 
   // Built-ins have no row to count against.
   if (isBuiltInWorld(id)) return NextResponse.json({ ok: true });
+  // A non-uuid id is a Postgres type error, not a miss — and this endpoint is
+  // fire-and-forget, so it must never be the thing that throws a 500.
+  if (!isUuid(id)) return NextResponse.json({ ok: true });
 
   const { userId } = await auth();
 

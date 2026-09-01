@@ -30,6 +30,23 @@ export function GhostPreview() {
 
   if (!hoverCell) return null;
 
+  // The spawn tool isn't placing a block, so previewing one would be a lie
+  // about what the click does.
+  if (tool === "spawn") {
+    return (
+      <group position={[hoverCell[0] + 0.5, hoverCell[1], hoverCell[2] + 0.5]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+          <ringGeometry args={[0.34, 0.46, 32]} />
+          <meshBasicMaterial color="#34d399" transparent opacity={0.8} depthWrite={false} />
+        </mesh>
+        <mesh position={[0, 1.1, 0]}>
+          <cylinderGeometry args={[0.055, 0.055, 2.2, 8]} />
+          <meshBasicMaterial color="#34d399" transparent opacity={0.4} depthWrite={false} />
+        </mesh>
+      </group>
+    );
+  }
+
   // Erase mode previews in red rather than the brush colour, so the two modes
   // are never confusable at a glance.
   material.color.set(tool === "erase" ? "#fb7185" : PALETTE[colorIndex]);

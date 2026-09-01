@@ -2,21 +2,38 @@
 
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { useCallback, useEffect, useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { useEditorStore } from "@/stores/editor-store";
 import { parseWorldDoc, type WorldDoc } from "@/lib/worlddoc";
 import { InstancedParts } from "./InstancedParts";
 import { GhostPreview } from "./GhostPreview";
+import { SpawnMarker } from "./SpawnMarker";
 import { Ground } from "./Ground";
 import { Builder } from "./Builder";
 import { Toolbar } from "./Toolbar";
 import { useEditorHotkeys } from "./useEditorHotkeys";
+import { FollowSun } from "@/components/FollowSun";
+
+/** Keeps the key light's shadow camera centred on the orbit target. */
+function EditorSun() {
+  const controls = useThree((s) => s.controls) as unknown as {
+    target?: THREE.Vector3;
+  } | null;
+  const origin = useMemo(() => new THREE.Vector3(), []);
+  return <FollowSun extent={40} getFocus={() => controls?.target ?? origin} />;
+}
 
 export default function EditorCanvas({ worldId }: { worldId: string }) {
+  const router = useRouter();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  /** Why this world cannot be saved, if it cannot. Drives the read-only banner. */
+  const [lockedReason, setLockedReason] = useState<string | null>(null);
 
   // Load the world once on mount.
   useEffect(() => {
@@ -24,14 +41,32 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
     (async () => {
       try {
         const res = await fetch(`/api/worlds/${worldId}`);
-        if (!res.ok) throw new Error(`Failed to load world (${res.status})`);
+        if (!res.ok) {
+          throw new Error(
+            res.status === 404
+              ? "This world does not exist, or it is not published."
+              : `Could not load this world (${res.status}).`
+          );
+        }
         const row = await res.json();
         if (cancelled) return;
+
+        // Work out up front whether Save can ever succeed. Finding out at the
+        // first Ctrl+S — after twenty minutes of building — is the worst
+        // possible moment to learn a world is read-only.
+        const locked = row.builtIn
+          ? "Built-in world — make a copy to edit it."
+          : row.isOwner === false
+            ? "This world belongs to someone else."
+            : null;
+
         useEditorStore.getState().loadDoc(parseWorldDoc(row.doc));
+        useEditorStore.getState().setReadOnly(Boolean(locked));
+        setLockedReason(locked);
         setStatus("ready");
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load world");
+        setError(e instanceof Error ? e.message : "Could not load this world.");
         setStatus("error");
       }
     })();
@@ -40,10 +75,13 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
     };
   }, [worldId]);
 
-  const save = useCallback(async () => {
+  /** Returns true only when the world actually reached the database. */
+  const save = useCallback(async (): Promise<boolean> => {
     const s = useEditorStore.getState();
-    if (s.saving) return;
+    if (s.readOnly || s.saving) return false;
+
     useEditorStore.setState({ saving: true });
+    setSaveError(null);
     try {
       // ownerId is authoritative on the server; "" is a placeholder the API replaces.
       const doc: WorldDoc = s.toDoc("");
@@ -52,21 +90,70 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: s.name, doc }),
       });
-      if (!res.ok) throw new Error(`Save failed (${res.status})`);
-      useEditorStore.setState({ lastSavedAt: Date.now() });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(
+          body?.error ??
+            (res.status === 401
+              ? "You are signed out — sign in again to save."
+              : `Save failed (${res.status}).`)
+        );
+      }
+      useEditorStore.getState().markSaved();
+      return true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
+      setSaveError(e instanceof Error ? e.message : "Save failed.");
+      return false;
     } finally {
       useEditorStore.setState({ saving: false });
     }
   }, [worldId]);
 
+  /** Copy this world into one the player owns, and open that. */
+  const remix = useCallback(async () => {
+    const res = await fetch("/api/worlds", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from: worldId }),
+    });
+    if (!res.ok) {
+      setSaveError(
+        res.status === 401
+          ? "Sign in to make your own copy."
+          : `Could not make a copy (${res.status}).`
+      );
+      return;
+    }
+    const row = await res.json();
+    router.push(`/build/${row.id}`);
+  }, [worldId, router]);
+
   useEditorHotkeys(save);
+
+  // Last line of defence against losing a build to a stray Cmd+W or a back
+  // gesture. The browser shows its own generic wording; the string is ignored.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!useEditorStore.getState().dirty) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
 
   if (status === "error") {
     return (
-      <div className="bg-void text-flare flex min-h-0 flex-1 items-center justify-center p-8 text-center text-sm font-semibold">
-        {error}
+      <div className="bg-void flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+        <p className="text-flare max-w-sm text-sm font-semibold">{error}</p>
+        <div className="flex gap-2">
+          <Link href="/" className="hud-chip hud-chip--neon">
+            Your worlds
+          </Link>
+          <Link href="/browse" className="hud-chip">
+            Browse worlds
+          </Link>
+        </div>
       </div>
     );
   }
@@ -94,18 +181,16 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
         }}
       >
         <hemisphereLight args={["#a5b4fc", "#0b1024", 1.15]} />
-        <directionalLight
-          position={[20, 30, 12]}
-          intensity={1.8}
-          castShadow
-          shadow-mapSize={[2048, 2048]}
-        />
+        {/* Follows whatever the camera is orbiting, so the shadow box is always
+            over the part of the build you are working on. */}
+        <EditorSun />
 
         <Builder>
           <Ground />
           <InstancedParts />
         </Builder>
         <GhostPreview />
+        <SpawnMarker />
 
         <OrbitControls
           makeDefault
@@ -118,7 +203,7 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
           // Stop the camera dropping below the floor.
           maxPolarAngle={Math.PI / 2 - 0.02}
           minDistance={3}
-          maxDistance={80}
+          maxDistance={120}
           enableDamping
           dampingFactor={0.12}
         />
@@ -131,7 +216,14 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
         </div>
       )}
 
-      <Toolbar worldId={worldId} onSave={save} />
+      <Toolbar
+        worldId={worldId}
+        onSave={save}
+        onRemix={remix}
+        lockedReason={lockedReason}
+        saveError={saveError}
+        onDismissSaveError={() => setSaveError(null)}
+      />
     </div>
   );
 }

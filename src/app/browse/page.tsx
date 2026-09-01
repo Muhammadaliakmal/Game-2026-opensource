@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { worlds } from "@/lib/db/schema";
 import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
@@ -15,8 +15,16 @@ import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
 export const dynamic = "force-dynamic";
 
 export default async function BrowsePage() {
+  // Metadata only — see the note on the home page: a gallery of 60 worlds
+  // would otherwise pull 60 full WorldDocs just to render a part count.
   const published = await db
-    .select()
+    .select({
+      id: worlds.id,
+      name: worlds.name,
+      playCount: worlds.playCount,
+      partCount: sql<number>`jsonb_array_length(${worlds.doc} -> 'parts')`
+        .mapWith(Number),
+    })
     .from(worlds)
     .where(eq(worlds.published, 1))
     .orderBy(desc(worlds.playCount), desc(worlds.updatedAt))
@@ -71,7 +79,7 @@ export default async function BrowsePage() {
             >
               <h3 className="truncate font-bold">{w.name}</h3>
               <p className="hud-label mt-1.5">
-                {w.doc.parts.length.toLocaleString()} parts ·{" "}
+                {w.partCount.toLocaleString()} parts ·{" "}
                 {w.playCount.toLocaleString()} plays
               </p>
               <Link

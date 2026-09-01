@@ -13,9 +13,12 @@ import { InstancedWorld } from "./InstancedWorld";
 import { WorldColliders } from "./WorldColliders";
 import { Player } from "./Player";
 import { TouchControls, useTouchControls } from "./TouchControls";
-import { recenterPitch, useViewStore } from "./camera-rig";
+import { playerFocus, recenterPitch, useViewStore } from "./camera-rig";
 import { requestRespawn } from "./play-actions";
 import { FullscreenButton } from "@/components/FullscreenButton";
+import { MuteButton } from "@/components/MuteButton";
+import { RemixButton } from "@/components/RemixButton";
+import { FollowSun } from "@/components/FollowSun";
 
 // Live game-feel tuning panel — dev only. `dynamic` keeps leva out of the main
 // bundle; the DEV gate keeps it from ever rendering in a production build.
@@ -55,6 +58,8 @@ interface Loaded {
   parts: PartTuple[];
   spawn: Vec3;
   name: string;
+  /** Whether the viewer may edit this world, which decides Edit vs Remix. */
+  canEdit: boolean;
 }
 
 /**
@@ -139,11 +144,24 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
     (async () => {
       try {
         const res = await fetch(`/api/worlds/${worldId}`);
-        if (!res.ok) throw new Error(`Failed to load world (${res.status})`);
+        if (!res.ok) {
+          throw new Error(
+            res.status === 404
+              ? "This world does not exist, or it is not published."
+              : `Could not load this world (${res.status}).`
+          );
+        }
         const row = await res.json();
         const doc = parseWorldDoc(row.doc);
         if (cancelled) return;
-        setWorld({ parts: doc.parts, spawn: doc.spawn, name: doc.name });
+        setWorld({
+          parts: doc.parts,
+          spawn: doc.spawn,
+          name: doc.name,
+          // Built-ins and other people's worlds can be opened in the editor but
+          // never saved, so offering "Edit" on them is a trap.
+          canEdit: !row.builtIn && row.isOwner === true,
+        });
         setStatus("ready");
 
         // Fire-and-forget: a lost play count is never worth interrupting
@@ -153,7 +171,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
         );
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load world");
+        setError(e instanceof Error ? e.message : "Could not load this world.");
         setStatus("error");
       }
     })();
@@ -165,10 +183,17 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
   if (status === "error") {
     return (
       <div className="bg-void flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-        <p className="text-flare text-sm font-semibold">{error}</p>
-        <Link href={`/build/${worldId}`} className="hud-chip hud-chip--neon">
-          Back to build
-        </Link>
+        <p className="text-flare max-w-sm text-sm font-semibold">{error}</p>
+        {/* Deliberately not "back to build": if the world could not be loaded,
+            the editor cannot load it either. */}
+        <div className="flex gap-2">
+          <Link href="/" className="hud-chip hud-chip--neon">
+            Your worlds
+          </Link>
+          <Link href="/browse" className="hud-chip">
+            Browse worlds
+          </Link>
+        </div>
       </div>
     );
   }
@@ -202,17 +227,9 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
         }}
       >
         <hemisphereLight args={["#a5b4fc", "#0b1024", 1.15]} />
-        <directionalLight
-          position={[20, 30, 12]}
-          intensity={1.8}
-          castShadow
-          shadow-mapSize={[2048, 2048]}
-          shadow-camera-left={-40}
-          shadow-camera-right={40}
-          shadow-camera-top={40}
-          shadow-camera-bottom={-40}
-          shadow-camera-far={140}
-        />
+        {/* Shadow box rides with the character, so a course that runs 90 units
+            from the origin is lit the same at both ends. */}
+        <FollowSun getFocus={() => playerFocus} extent={34} />
 
         {!painted && <FirstFrame onPainted={() => setPainted(true)} />}
 
@@ -296,15 +313,24 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
             ↻ Respawn
           </button>
           <span className="hud-divider" />
+          <MuteButton className="hud-chip" />
           <FullscreenButton className="hud-chip" />
           <span className="hud-divider" />
-          <Link
-            href={`/build/${worldId}`}
-            onClick={leaveFullscreen}
-            className="hud-chip"
-          >
-            Edit
-          </Link>
+          {world?.canEdit ? (
+            <Link
+              href={`/build/${worldId}`}
+              onClick={leaveFullscreen}
+              className="hud-chip"
+            >
+              Edit
+            </Link>
+          ) : (
+            world && (
+              // Someone who just played a world they like should be one click
+              // from building on it — that fork is the whole share loop.
+              <RemixButton from={worldId} name={world.name} />
+            )
+          )}
           <Link
             href="/"
             onClick={leaveFullscreen}

@@ -11,7 +11,16 @@ import { useRouter } from "next/navigation";
  * editing one — and it's also the cheapest possible version of the remix loop
  * SPEC §9 #4 calls the strongest UGC retention driver.
  */
-export function RemixButton({ slug, name }: { slug: string; name: string }) {
+export function RemixButton({
+  from,
+  name,
+  className = "hud-chip",
+}: {
+  /** A built-in slug or the id of any published world. */
+  from: string;
+  name: string;
+  className?: string;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,9 +32,15 @@ export function RemixButton({ slug, name }: { slug: string; name: string }) {
       const res = await fetch("/api/worlds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from: slug }),
+        body: JSON.stringify({ from }),
       });
-      if (!res.ok) throw new Error(`Could not remix (${res.status})`);
+      if (!res.ok) {
+        throw new Error(
+          res.status === 401
+            ? "Sign in to make your own copy."
+            : `Could not remix (${res.status}).`
+        );
+      }
       const row = await res.json();
       router.push(`/build/${row.id}`);
     } catch (e) {
@@ -39,7 +54,7 @@ export function RemixButton({ slug, name }: { slug: string; name: string }) {
       <button
         onClick={remix}
         disabled={busy}
-        className="hud-chip"
+        className={className}
         title={`Make an editable copy of ${name}`}
       >
         {busy ? "Copying…" : "⎘ Remix"}

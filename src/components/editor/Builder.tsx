@@ -5,6 +5,8 @@ import { useCallback, useRef } from "react";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useEditorStore } from "@/stores/editor-store";
 import { cellFromHit } from "@/lib/grid";
+import { sfxErase, sfxPlace, sfxSpawn } from "@/lib/audio";
+import { punch } from "./punch";
 import { GROUND_SIZE } from "./Ground";
 
 const HALF = GROUND_SIZE / 2;
@@ -44,7 +46,11 @@ export function Builder({ children }: { children: React.ReactNode }) {
   const applyAt = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
       const s = useEditorStore.getState();
-      const placing = s.tool === "place";
+      if (s.readOnly) return;
+
+      // The spawn tool targets the empty cell in front of the face you clicked,
+      // same as placing — that's where the character would stand.
+      const placing = s.tool !== "erase";
       const cell = cellFor(e, placing);
       if (!inBounds(cell)) return;
 
@@ -52,8 +58,20 @@ export function Builder({ children }: { children: React.ReactNode }) {
       if (lastCell.current === key) return;
       lastCell.current = key;
 
-      if (placing) s.place(cell);
-      else s.erase(cell);
+      if (s.tool === "spawn") {
+        s.setSpawn(cell);
+        sfxSpawn();
+      } else if (placing) {
+        s.place(cell);
+        // Sound and the scale-in pop are the physical feedback for the core
+        // action — SPEC §8 calls the placement punch the one animation that
+        // has to be there.
+        punch(key);
+        sfxPlace();
+      } else {
+        s.erase(cell);
+        sfxErase();
+      }
     },
     [cellFor]
   );
@@ -61,10 +79,14 @@ export function Builder({ children }: { children: React.ReactNode }) {
   const onPointerMove = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
       const s = useEditorStore.getState();
-      const cell = cellFor(e, s.tool === "place");
+      const cell = cellFor(e, s.tool !== "erase");
       s.setHoverCell(inBounds(cell) ? cell : null);
 
-      if (painting.current) applyAt(e);
+      // Dragging the spawn point around would spam the undo stack with a
+      // command per cell crossed; it's a single click.
+      if (painting.current && useEditorStore.getState().tool !== "spawn") {
+        applyAt(e);
+      }
     },
     [applyAt, cellFor]
   );
