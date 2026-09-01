@@ -6,43 +6,117 @@ import { worlds } from "@/lib/db/schema";
 import { NewWorldButton } from "@/components/NewWorldButton";
 import { WorldCardMenu } from "@/components/WorldCardMenu";
 import { RemixButton } from "@/components/RemixButton";
+import { HeroMount } from "@/components/hero/HeroMount";
 import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
 
 /**
- * Home: the hero for a visitor, the world list for a player.
+ * Home: a live world for a visitor, a world list for a player.
  *
- * Styling follows the design direction in tokens.css — steel chrome, one amber
- * accent, no gradients. The gradient headline word and the "Build · Play ·
- * Remix" eyebrow that used to sit here were template chrome: the middle-dot
- * triad said nothing the headline does not, and a single-word colour accent
- * inside a headline is the clearest generated-page tell there is.
+ * The visitor's half follows UI spec §3.1 — the hero is a live scene, not
+ * text. Someone lands, turns a world with a drag, places a block, and has
+ * used the product before reading a word; the headline underneath is then
+ * confirming what they just did rather than making a claim.
+ *
+ * The headline copy is unchanged on purpose. "Build worlds out of blocks,
+ * then walk around inside them" is concrete and specific, and its old
+ * gradient accent word and "Build · Play · Remix" eyebrow were template
+ * chrome that said nothing it does not.
  */
 export default async function Home() {
   const { userId } = await auth();
 
   if (!userId) {
+    // Real worlds with real play counts — the gallery is the proof, so it
+    // should not be a row of invented placeholders.
+    const showcase = await db
+      .select({
+        id: worlds.id,
+        name: worlds.name,
+        playCount: worlds.playCount,
+        partCount: sql<number>`jsonb_array_length(${worlds.doc} -> 'parts')`
+          .mapWith(Number),
+      })
+      .from(worlds)
+      .where(eq(worlds.published, 1))
+      .orderBy(desc(worlds.playCount), desc(worlds.updatedAt))
+      .limit(4);
+
     return (
-      <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-        <div className="flex max-w-2xl flex-col items-center gap-6">
-          <h1 className="text-3xl leading-[1.1] font-bold sm:text-4xl">
-            Build worlds out of blocks, then walk around inside them.
-          </h1>
-          <p className="text-steel-200 max-w-md text-sm">
-            A voxel editor and a platformer in the same browser tab. Place a
-            block, hit play, and you&apos;re standing on it.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {/* Straight into the editor. UI spec §3.1: an auth wall in front
-                of the core loop is the most expensive mistake a UGC product
-                can make, so the account is asked for at the moment there is
-                something worth keeping, not before. */}
-            <Link href="/build/new" className="hud-chip hud-chip--primary px-6 py-3">
-              Start building
-            </Link>
-            <Link href="/browse" className="hud-chip px-6 py-3">
-              Look around first
-            </Link>
-          </div>
+      <div className="flex w-full flex-1 flex-col">
+        <HeroMount />
+
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-12 px-4 py-10 sm:px-6">
+          <section className="flex flex-col items-start gap-5">
+            <h1 className="max-w-2xl text-3xl leading-[1.1] font-bold sm:text-4xl">
+              Build worlds out of blocks, then walk around inside them.
+            </h1>
+            <p className="text-steel-200 text-sm">
+              A voxel editor and a platformer in the same browser tab. Place a
+              block, hit play, and you&apos;re standing on it. No account
+              needed to start.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/build/new"
+                className="hud-chip hud-chip--primary px-6 py-3"
+              >
+                Start building
+              </Link>
+              <Link href="/browse" className="hud-chip px-6 py-3">
+                Browse worlds
+              </Link>
+            </div>
+          </section>
+
+          <section>
+            <h2 className="mb-4 text-xl font-bold">Worlds to play</h2>
+            <ul className="grid gap-4 sm:grid-cols-2">
+              {BUILT_IN_WORLDS.map((w) => (
+                <li
+                  key={w.slug}
+                  className="card hover:border-signal/50 p-4 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-base font-semibold">{w.name}</h3>
+                    <span className="hud-label shrink-0">Built-in</span>
+                  </div>
+                  <p className="text-steel-200 mt-1 text-sm">{w.blurb}</p>
+                  <Link
+                    href={`/play/${w.slug}`}
+                    className="hud-chip hud-chip--primary mt-4"
+                  >
+                    Play
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          {showcase.length > 0 && (
+            <section>
+              <h2 className="mb-4 text-xl font-bold">Worlds people made</h2>
+              <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {showcase.map((w) => (
+                  <li
+                    key={w.id}
+                    className="card hover:border-signal/50 p-4 transition-colors"
+                  >
+                    <h3 className="truncate text-sm font-semibold">{w.name}</h3>
+                    <p className="hud-label num mt-1">
+                      {w.partCount.toLocaleString()} parts ·{" "}
+                      {w.playCount.toLocaleString()} plays
+                    </p>
+                    <Link
+                      href={`/play/${w.id}`}
+                      className="hud-chip hud-chip--primary mt-4"
+                    >
+                      Play
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
       </div>
     );
