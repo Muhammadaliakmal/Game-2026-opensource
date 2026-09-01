@@ -4,7 +4,7 @@
  * on any mistyped or stale link (`/play/foo`). Every route that looks a world
  * up by id guards with this first and answers 404 instead.
  *
- * Built-in slugs ("parkour", "garden") are deliberately NOT uuids; check
+ * Built-in slugs (e.g. "parkour") are deliberately NOT uuids; check
  * `isBuiltInWorld` before this, never instead of it.
  */
 const UUID_RE =

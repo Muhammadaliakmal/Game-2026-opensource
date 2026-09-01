@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import { useRapier } from "@react-three/rapier";
 import { useKeyboardControls } from "@react-three/drei";
 import { Ecctrl, type EcctrlHandle } from "ecctrl";
 import { useJoystickStore } from "ecctrl/input";
@@ -91,10 +92,32 @@ function useLookControls() {
  * Camera lag and velocity lookahead (both straight from the game-feel
  * literature) apply in third person only; in first person a lagging eye is
  * just nausea.
+ *
+ * The eye also collides with the world. A follow camera on a fixed radius
+ * spends half its time inside terrain the moment the player backs against a
+ * wall or walks under an overhang — you end up looking at the inside of a
+ * block, or straight through the level. A ray from the character to where the
+ * camera wants to be finds the first solid thing in the way and the eye stops
+ * short of it.
  */
+
+/** Never let the eye get closer than this, or it ends up inside the avatar. */
+const CAMERA_MIN_DISTANCE = 0.55;
+/** Stop short of the surface: sitting exactly on it still clips the near plane. */
+const CAMERA_PAD = 0.32;
 function useCameraRig(handleRef: React.RefObject<EcctrlHandle | null>) {
   const camera = useThree((s) => s.camera);
   const firstPerson = useViewStore((s) => s.firstPerson);
+  const { world, rapier } = useRapier();
+
+  // Held in a ref and mutated per frame, like every other scratch object in
+  // this rig: the loop runs every frame, and a fresh Ray each time would be
+  // pure garbage for the collector.
+  const ray = useRef(
+    new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 1, z: 0 })
+  );
+  /** The distance actually used, after the world has had its say. */
+  const camDist = useRef(THIRD_PERSON_DISTANCE);
 
   const target = useRef(new THREE.Vector3());
   const lookahead = useRef(new THREE.Vector3());
@@ -161,7 +184,6 @@ function useCameraRig(handleRef: React.RefObject<EcctrlHandle | null>) {
       firstPerson ? 0 : THIRD_PERSON_DISTANCE,
       1 - Math.pow(0.0001, dt)
     );
-    look.distance = dist.current;
 
     // Unit vector from the character toward the eye.
     const cp = Math.cos(look.pitch);
@@ -171,10 +193,56 @@ function useCameraRig(handleRef: React.RefObject<EcctrlHandle | null>) {
       Math.cos(look.yaw) * cp
     );
 
+    // How far back the world will actually allow the eye to sit.
+    const wantDist = dist.current;
+    let allowed = wantDist;
+    if (wantDist > CAMERA_MIN_DISTANCE) {
+      const r = ray.current;
+      r.origin.x = target.current.x;
+      r.origin.y = target.current.y;
+      r.origin.z = target.current.z;
+      r.dir.x = offset.current.x;
+      r.dir.y = offset.current.y;
+      r.dir.z = offset.current.z;
+
+      // Exclude the character's own body, or the ray hits the capsule it
+      // started inside and the camera slams to the minimum every frame.
+      const hit = world.castRay(
+        r,
+        wantDist + CAMERA_PAD,
+        true,
+        undefined,
+        undefined,
+        undefined,
+        h.body
+      );
+      if (hit) {
+        allowed = Math.max(
+          CAMERA_MIN_DISTANCE,
+          hit.timeOfImpact - CAMERA_PAD
+        );
+      }
+    }
+
+    // Pull IN instantly — a camera that eases into a wall is a camera that
+    // spends a few frames inside it — but ease back OUT, because snapping the
+    // view outward the moment a corner clears reads as a lurch.
+    camDist.current =
+      allowed < camDist.current
+        ? allowed
+        : Math.min(
+            allowed,
+            THREE.MathUtils.lerp(camDist.current, wantDist, 1 - Math.pow(0.01, dt))
+          );
+
+    // The avatar hides itself off this, so it disappears when the eye is
+    // pushed inside it rather than filling the screen.
+    look.distance = camDist.current;
+
     camera.position.set(
-      target.current.x + offset.current.x * dist.current + ox,
-      target.current.y + offset.current.y * dist.current + oy,
-      target.current.z + offset.current.z * dist.current
+      target.current.x + offset.current.x * camDist.current + ox,
+      target.current.y + offset.current.y * camDist.current + oy,
+      target.current.z + offset.current.z * camDist.current
     );
     // Looking back down the offset keeps the aim identical in both modes, so
     // ecctrl's camera-derived forward vector doesn't jump on toggle.

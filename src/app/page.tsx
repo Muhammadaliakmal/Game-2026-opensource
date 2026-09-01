@@ -51,7 +51,7 @@ export default async function Home() {
 
   // Explicit columns, never `select()`. The card shows a part *count*, and
   // SELECT * would drag every world's entire WorldDoc across the wire to get
-  // it — the Quiet Garden alone is 133 KB of JSON. Postgres can count the
+  // it — a large world runs to hundreds of KB of JSON. Postgres can count the
   // array in place for a few bytes.
   const myWorlds = await db
     .select({

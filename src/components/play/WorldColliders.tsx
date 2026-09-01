@@ -15,13 +15,12 @@ import { COLLIDER_GEOMETRIES } from "@/components/editor/shapes";
  * Static world geometry with physics.
  *
  * Everything lives under ONE fixed RigidBody. The world never moves, so there
- * is nothing to gain from a body per block — and plenty to lose: the Quiet
- * Garden used to mount 1,642 <RigidBody> components (1,442 merged boxes plus a
- * body each for its 200 flower slabs), which is 1,642 React components, 1,642
- * Rapier bodies and 1,642 invisible three.js meshes to build before the world
- * can be walked on. Rapier is happy to hang many colliders off a single body,
- * so that's what this does: same collision, one body, and no meshes at all —
- * InstancedWorld already draws every part.
+ * is nothing to gain from a body per block — and plenty to lose: a 7,000-part
+ * landscape used to mount over 1,600 <RigidBody> components, which is that
+ * many React components, Rapier bodies and invisible three.js meshes to build
+ * before the world can be walked on. Rapier is happy to hang many colliders
+ * off a single body, so that's what this does: same collision, one body, and
+ * no meshes at all — InstancedWorld already draws every part.
  *
  * Shape strategy:
  *  - Full cubes are greedy-merged into a few big cuboids (§7.4).

@@ -6,8 +6,6 @@ import {
   isBuiltInWorld,
 } from "./built-in-worlds";
 import { parseWorldDoc } from "./worlddoc";
-import { buildColliders } from "./greedy-mesh";
-import { gardenParts, GARDEN_SPAWN } from "./garden";
 import { FEEL } from "./feel";
 
 test("every built-in world produces a valid WorldDoc", () => {
@@ -21,7 +19,7 @@ test("every built-in world produces a valid WorldDoc", () => {
 
 test("built-in slugs are recognised and unknown ids are not", () => {
   assert.ok(isBuiltInWorld("parkour"));
-  assert.ok(isBuiltInWorld("garden"));
+  assert.equal(isBuiltInWorld("garden"), false); // removed; must not resurrect
   assert.equal(isBuiltInWorld("00000000-0000-0000-0000-000000000000"), false);
   assert.equal(buildBuiltInDoc("nope", "user-1"), null);
 });
@@ -36,37 +34,33 @@ test("built-in worlds are deterministic", () => {
   }
 });
 
-test("the garden stays under the part ceiling", () => {
-  const parts = gardenParts();
-  assert.ok(parts.length < 50000, `garden has ${parts.length} parts`);
-  assert.ok(parts.length > 2000, "garden should feel like a landscape");
-});
+test("every built-in world spawns the player above solid ground", () => {
+  // A spawn with nothing under it is a bottomless drop on first load, and a
+  // spawn inside a block wedges the character. Both are silent until someone
+  // presses Play, so they are worth asserting for every world we ship.
+  for (const w of BUILT_IN_WORLDS) {
+    const doc = w.build("user-1");
+    const solid = new Set(doc.parts.map((p) => `${p[0]},${p[1]},${p[2]}`));
+    const [sx, sy, sz] = doc.spawn;
+    const cx = Math.floor(sx);
+    const cz = Math.floor(sz);
 
-test("garden terrain never dips below the grid floor", () => {
-  for (const p of gardenParts()) {
-    assert.ok(p[1] >= 0, `part below floor at y=${p[1]}`);
-  }
-});
+    assert.ok(
+      !solid.has(`${cx},${Math.floor(sy)},${cz}`),
+      `${w.slug}: spawn cell must be empty`
+    );
+    assert.ok(
+      sy > FEEL.fallOutY + 5,
+      `${w.slug}: spawn must sit above the fall-out plane`
+    );
 
-test("the garden spawn is clear and above solid ground", () => {
-  const solid = new Set(gardenParts().map((p) => `${p[0]},${p[1]},${p[2]}`));
-  const [sx, sy, sz] = GARDEN_SPAWN;
-
-  assert.ok(!solid.has(`${sx},${sy},${sz}`), "spawn cell must be empty");
-  assert.ok(sy > FEEL.fallOutY + 5, "spawn must sit above the fall-out plane");
-
-  // Something solid somewhere below, or the player spawns into a bottomless drop.
-  let ground = false;
-  for (let y = sy - 1; y >= 0; y--) {
-    if (solid.has(`${sx},${y},${sz}`)) {
-      ground = true;
-      break;
+    let ground = false;
+    for (let y = Math.floor(sy) - 1; y >= 0; y--) {
+      if (solid.has(`${cx},${y},${cz}`)) {
+        ground = true;
+        break;
+      }
     }
+    assert.ok(ground, `${w.slug}: there must be ground under the spawn`);
   }
-  assert.ok(ground, "there must be ground under the garden spawn");
-});
-
-test("the garden merges into a sane number of colliders", () => {
-  const { boxes } = buildColliders(gardenParts());
-  assert.ok(boxes.length < 4000, `garden merged to ${boxes.length} boxes`);
 });
