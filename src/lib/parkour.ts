@@ -8,10 +8,12 @@ import type { PartTuple, Shape, Vec3, WorldDoc } from "./worlddoc";
  * *do* the first time someone presses it, which is what sells the build→play
  * loop before the player has built anything themselves.
  *
- * Difficulty is deliberately conservative because the whole course has to clear
- * FEEL's jump arc: with jumpVel 5.5 the character rises ~1.5 units, so every
- * rise here is at most 1 cell, and gaps are at most 2 cells (a walk-speed jump
- * covers ~2.2, a run-speed one roughly double). Nothing needs a running start.
+ * Tuned to be forgiving. The whole course has to clear FEEL's jump arc — with
+ * jumpVel 5.5 the character rises ~1.5 units — so every rise is at most 1 cell
+ * and every gap at most 2. Beyond that the landing surfaces are deliberately
+ * generous: 3x3 pads and a 3-wide beam rather than the minimum that would fit,
+ * because on a first play the failure you remember is the one where you made
+ * the jump and slid off the edge.
  */
 
 // Shapes
@@ -88,60 +90,64 @@ export function parkourParts(): PartTuple[] {
   fill(4, 1, -2, 1, 5, VIOLET, GLOSSY, SLAB);
 
   // ── 2. Stepping stones — rise 1, gap 2 ─────────────────────────────────
-  // Six 2×2 pads climbing away from the plaza. The last one glows: it's the
+  // Five 3×3 pads climbing away from the plaza. The last one glows: it's the
   // visual "you made it" beat before the beam.
   let x = 9;
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 5; i++) {
     const y = 1 + i;
-    const last = i === 5;
-    fill(x, y, -1, 2, 2, last ? TEAL : CYAN, last ? GLOW : GLOSSY);
-    x += 4; // 2 wide + 2 gap
+    const last = i === 4;
+    fill(x, y, -2, 3, 3, last ? TEAL : CYAN, last ? GLOW : GLOSSY);
+    x += 5; // 3 wide + 2 gap
   }
 
-  // ── 3. Balance beam ─────────────────────────────────────────────────────
-  // One block wide, at the height the stones ended on. Every third block glows
-  // so the line stays readable against the void.
-  const beamY = 6;
+  // ── 3. Walkway ──────────────────────────────────────────────────────────
+  // Three wide, at the height the stones ended on — wide enough to run without
+  // aiming. Glowing rails every third block keep the line readable against the
+  // void without narrowing the surface you actually land on.
+  const beamY = 5;
   const beamStart = x;
-  for (let i = 0; i < 14; i++) {
-    const glow = i % 3 === 0;
-    put(beamStart + i, beamY, 0, BLOCK, glow ? PINK : VIOLET, glow ? GLOW : MATTE);
+  for (let i = 0; i < 12; i++) {
+    const rail = i % 3 === 0;
+    put(beamStart + i, beamY, 0, BLOCK, VIOLET, MATTE);
+    put(beamStart + i, beamY, -1, BLOCK, rail ? PINK : VIOLET, rail ? GLOW : MATTE);
+    put(beamStart + i, beamY, 1, BLOCK, rail ? PINK : VIOLET, rail ? GLOW : MATTE);
   }
-  x = beamStart + 14;
+  x = beamStart + 12;
 
   // ── 4. Landing terrace + ramp descent ───────────────────────────────────
-  fill(x, beamY, -3, 5, 7, INDIGO, MATTE);
-  outline(x, beamY, -3, 5, 7, CYAN, GLOW);
+  fill(x, beamY, -3, 6, 7, INDIGO, MATTE);
+  outline(x, beamY, -3, 6, 7, CYAN, GLOW);
   // Ramps rise toward +x in local space, so rot 2 turns them into a descent.
   for (let i = 0; i < 4; i++) {
-    put(x + 5 + i, beamY - 1 - i, 0, RAMP, TEAL, METAL, 2);
-    put(x + 5 + i, beamY - 1 - i, 1, RAMP, TEAL, METAL, 2);
+    put(x + 6 + i, beamY - 1 - i, -1, RAMP, TEAL, METAL, 2);
+    put(x + 6 + i, beamY - 1 - i, 0, RAMP, TEAL, METAL, 2);
+    put(x + 6 + i, beamY - 1 - i, 1, RAMP, TEAL, METAL, 2);
   }
-  x = x + 9;
+  x = x + 10;
 
   // ── 5. Floating islands — the run-up section ───────────────────────────
   // Alternating z offsets so the player has to turn mid-course rather than
   // holding W in a straight line.
   const islands: Array<[number, number, number]> = [
-    [x + 2, 2, -4],
-    [x + 7, 3, 2],
-    [x + 12, 3, -3],
-    [x + 17, 4, 1],
+    [x + 2, 1, -4],
+    [x + 8, 2, 1],
+    [x + 14, 2, -3],
+    [x + 20, 3, 1],
   ];
   for (const [ix, iy, iz] of islands) {
-    fill(ix, iy, iz, 3, 3, VIOLET, GLOSSY);
-    put(ix + 1, iy, iz + 1, BLOCK, CYAN, GLOW);
+    fill(ix, iy, iz, 4, 4, VIOLET, GLOSSY);
+    outline(ix, iy, iz, 4, 4, CYAN, GLOW);
   }
 
   // ── 6. Staircase to the finish ─────────────────────────────────────────
-  const stairX = x + 22;
+  const stairX = x + 25;
   for (let i = 0; i < 5; i++) {
-    fill(stairX + i, 4 + i, 0, 1, 3, INDIGO, MATTE);
+    fill(stairX + i, 3 + i, -1, 1, 4, INDIGO, MATTE);
   }
 
   // ── 7. Finish tower ─────────────────────────────────────────────────────
   const fx = stairX + 5;
-  const fy = 8;
+  const fy = 7;
   fill(fx, fy, -2, 5, 5, INDIGO, MATTE);
   outline(fx, fy, -2, 5, 5, ACID, GLOW);
   // A little podium you can actually stand on top of.

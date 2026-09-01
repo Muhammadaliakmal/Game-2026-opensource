@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { worlds } from "@/lib/db/schema";
 import { parseWorldDoc } from "@/lib/worlddoc";
+import { buildBuiltInDoc, isBuiltInWorld } from "@/lib/built-in-worlds";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -15,6 +16,21 @@ export async function GET(_req: Request, { params }: Params) {
   }
 
   const { id } = await params;
+
+  // Built-ins are generated, not stored. This has to come before the query:
+  // `worlds.id` is a uuid column, so a slug like "parkour" is a Postgres error
+  // rather than an empty result.
+  const builtIn = buildBuiltInDoc(id, userId);
+  if (builtIn) {
+    return NextResponse.json({
+      id,
+      ownerId: userId,
+      name: builtIn.name,
+      doc: builtIn,
+      builtIn: true,
+    });
+  }
+
   const [row] = await db.select().from(worlds).where(eq(worlds.id, id));
 
   if (!row) {
@@ -34,6 +50,13 @@ export async function PUT(req: Request, { params }: Params) {
   }
 
   const { id } = await params;
+  if (isBuiltInWorld(id)) {
+    return NextResponse.json(
+      { error: "Built-in worlds are read-only. Remix it to make it yours." },
+      { status: 403 }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   if (!body?.doc) {
     return NextResponse.json({ error: "Missing doc" }, { status: 400 });
@@ -73,6 +96,13 @@ export async function DELETE(_req: Request, { params }: Params) {
   }
 
   const { id } = await params;
+  if (isBuiltInWorld(id)) {
+    return NextResponse.json(
+      { error: "Built-in worlds can't be deleted." },
+      { status: 403 }
+    );
+  }
+
   const [row] = await db
     .delete(worlds)
     .where(and(eq(worlds.id, id), eq(worlds.ownerId, userId)))

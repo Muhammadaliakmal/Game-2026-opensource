@@ -29,11 +29,21 @@ const MIN_PITCH = -1.2; // ~-69°, looking up
 const MAX_PITCH = 1.35; // ~77°, looking down — short of straight down to avoid gimbal flip
 const SENSITIVITY = 0.0032; // radians per CSS pixel of drag
 
-/** Feed a drag delta in CSS pixels. */
+/**
+ * Feed a drag delta in CSS pixels.
+ *
+ * Direct manipulation: the view follows the drag, so the scene tracks your
+ * finger or cursor rather than sliding away from it. Both axes agree, and both
+ * match the editor's OrbitControls — swapping conventions between build and
+ * play made the camera feel broken even though each half was self-consistent.
+ *
+ * To invert either axis, flip the sign of its term here; this is the only
+ * place look direction is decided.
+ */
 export function applyLook(dx: number, dy: number) {
-  look.yaw -= dx * SENSITIVITY;
+  look.yaw += dx * SENSITIVITY;
   look.pitch = THREE.MathUtils.clamp(
-    look.pitch - dy * SENSITIVITY,
+    look.pitch + dy * SENSITIVITY,
     MIN_PITCH,
     MAX_PITCH
   );
