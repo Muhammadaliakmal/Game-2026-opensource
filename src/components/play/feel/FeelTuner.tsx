@@ -11,7 +11,7 @@ import { FEEL } from "@/lib/feel";
  * wants it tunable live. `FEEL` is a plain runtime object (`as const` is
  * compile-time only) and every play component reads `FEEL.*` fresh inside its
  * frame loop, so writing back here lands next frame with no re-render or prop
- * threading. PlayCanvas only mounts this outside production.
+ * threading. WorldCanvas only mounts this outside production.
  */
 
 const feel = FEEL as unknown as Record<string, number>;

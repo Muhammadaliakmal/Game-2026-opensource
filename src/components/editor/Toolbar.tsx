@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEditorStore, type Tool } from "@/stores/editor-store";
@@ -185,7 +184,6 @@ function TouchHint() {
 }
 
 export function Toolbar({
-  worldId,
   onSave,
   onRemix,
   onPlay,
@@ -195,7 +193,6 @@ export function Toolbar({
   isDraft,
   isSignedIn,
 }: {
-  worldId: string;
   onSave: () => Promise<boolean>;
   onRemix: () => void | Promise<void>;
   onPlay: () => Promise<boolean>;
@@ -206,13 +203,12 @@ export function Toolbar({
   isDraft: boolean;
   isSignedIn: boolean;
 }) {
-  const router = useRouter();
   const touch = useCoarsePointer();
   const [entering, setEntering] = useState(false);
   const [remixing, setRemixing] = useState(false);
 
   // Read on first render, not in an effect: this component only ever renders
-  // in the browser (EditorCanvas is a dynamic ssr:false import), so there is
+  // in the browser (WorldCanvas is a dynamic ssr:false import), so there is
   // no server render to mismatch, and a setState-in-effect would cascade.
   const [help, setHelp] = useState(() => {
     try {
@@ -273,11 +269,10 @@ export function Toolbar({
   async function play() {
     setEntering(true);
     try {
-      // A draft is flushed to this browser and played from there; a real world
-      // has to reach the database first, and if that fails we do NOT navigate,
-      // because Play reads the world back and the edits would be gone.
-      if ((await onPlay()) === false) return;
-      router.push(`/play/${worldId}`);
+      // No navigation: Play is a mode of the same canvas. The canvas decides
+      // whether the world is safe to enter (a real world has to reach the
+      // database first, because Play reads it back).
+      await onPlay();
     } finally {
       setEntering(false);
     }

@@ -1,4 +1,4 @@
-import { EditorMount } from "@/components/editor/EditorMount";
+import { WorldMount } from "@/components/world/WorldMount";
 
 export default async function BuildPage({
   params,
@@ -6,7 +6,7 @@ export default async function BuildPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  // The canvas is mounted browser-only inside EditorMount — see the note there
-  // on why the dynamic import can't live in this Server Component.
-  return <EditorMount worldId={id} />;
+  // Build and Play are one canvas with a mode (see WorldCanvas); the route
+  // only decides which mode it opens in, and switching does not navigate.
+  return <WorldMount worldId={id} initialMode="build" />;
 }

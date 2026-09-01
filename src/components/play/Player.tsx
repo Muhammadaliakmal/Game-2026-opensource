@@ -14,9 +14,10 @@ import { useFootstepAudio } from "./feel/useFootstepAudio";
 import { JumpParticles } from "./feel/JumpParticles";
 import { CharacterModel } from "./CharacterModel";
 import { touchInput, useRunStore } from "./touch-input";
-import { consumeRespawn } from "./play-actions";
+import { consumeRespawn, notifyRespawned } from "./play-actions";
 import {
   applyLook,
+  cameraHandoff,
   look,
   playerFocus,
   THIRD_PERSON_DISTANCE,
@@ -134,6 +135,14 @@ function useCameraRig(handleRef: React.RefObject<EcctrlHandle | null>) {
     // currPos mutates in place, so read components rather than storing the ref.
     const pos = h.currPos;
     playerFocus.set(pos.x, pos.y, pos.z);
+
+    // Take over from wherever the editor camera was looking, once.
+    if (cameraHandoff.pending) {
+      cameraHandoff.pending = false;
+      target.current.copy(cameraHandoff.from);
+      dist.current = cameraHandoff.distance;
+      camDist.current = cameraHandoff.distance;
+    }
 
     if (firstPerson) {
       lookahead.current.set(0, 0, 0);
@@ -316,6 +325,7 @@ export function Player({ spawn }: { spawn: Vec3 }) {
           true
         );
         h.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        notifyRespawned();
       }
       return;
     }

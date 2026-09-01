@@ -1,4 +1,4 @@
-import { PlayMount } from "@/components/play/PlayMount";
+import { WorldMount } from "@/components/world/WorldMount";
 
 export default async function PlayPage({
   params,
@@ -6,6 +6,6 @@ export default async function PlayPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  // Browser-only R3F mount lives in PlayMount — see the note there.
-  return <PlayMount worldId={id} />;
+  // The shareable link. Same canvas as /build/<id>, opened in play mode.
+  return <WorldMount worldId={id} initialMode="play" />;
 }

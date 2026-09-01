@@ -18,3 +18,20 @@ export function consumeRespawn(): boolean {
   pending.respawn = false;
   return true;
 }
+
+/**
+ * Respawn notifications, for chrome that wants to react to one (the screen
+ * wash). Separate from the request flag above: that is a command going INTO
+ * the frame loop, this is an event coming OUT of it.
+ */
+const respawnListeners = new Set<() => void>();
+
+export function onRespawned(fn: () => void): () => void {
+  respawnListeners.add(fn);
+  return () => void respawnListeners.delete(fn);
+}
+
+/** Called by the player the moment it actually teleports. */
+export function notifyRespawned() {
+  for (const fn of respawnListeners) fn();
+}

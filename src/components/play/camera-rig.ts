@@ -30,6 +30,22 @@ export const look = {
  */
 export const playerFocus = new THREE.Vector3();
 
+/**
+ * Where the follow camera should begin its glide when Play starts.
+ *
+ * Play used to be a separate page, so the camera simply existed wherever the
+ * new canvas put it. Now that Play is a mode of the same canvas, cutting from
+ * the orbit view to behind the character would be a jump-cut in the middle of
+ * a continuous scene. The rig seeds itself from this once and then eases to
+ * the character on its normal camera lag, which is the 500ms glide the UI
+ * spec asks for.
+ */
+export const cameraHandoff = {
+  from: new THREE.Vector3(),
+  distance: 9,
+  pending: false,
+};
+
 export const DEFAULT_PITCH = 0.49;
 export const THIRD_PERSON_DISTANCE = 9;
 
