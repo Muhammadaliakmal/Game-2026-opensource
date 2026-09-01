@@ -6,6 +6,8 @@ import {
   isBuiltInWorld,
 } from "./built-in-worlds";
 import { parseWorldDoc } from "./worlddoc";
+import { buildColliders } from "./greedy-mesh";
+import { GROUND_SIZE } from "@/components/editor/Ground";
 import { FEEL } from "./feel";
 
 test("every built-in world produces a valid WorldDoc", () => {
@@ -18,7 +20,7 @@ test("every built-in world produces a valid WorldDoc", () => {
 });
 
 test("built-in slugs are recognised and unknown ids are not", () => {
-  assert.ok(isBuiltInWorld("parkour"));
+  for (const w of BUILT_IN_WORLDS) assert.ok(isBuiltInWorld(w.slug));
   assert.equal(isBuiltInWorld("garden"), false); // removed; must not resurrect
   assert.equal(isBuiltInWorld("00000000-0000-0000-0000-000000000000"), false);
   assert.equal(buildBuiltInDoc("nope", "user-1"), null);
@@ -62,5 +64,46 @@ test("every built-in world spawns the player above solid ground", () => {
       }
     }
     assert.ok(ground, `${w.slug}: there must be ground under the spawn`);
+  }
+});
+
+test("every built-in world fits inside the buildable area", () => {
+  // The editor clamps edits to the build plane, so anything outside it is
+  // visible but impossible to erase or build against once the world is
+  // remixed — and anything below y=0 is unreachable in the same way. More
+  // than half the parkour course used to sit outside the old bounds.
+  const HALF = GROUND_SIZE / 2;
+  for (const w of BUILT_IN_WORLDS) {
+    for (const p of w.build("user-1").parts) {
+      assert.ok(p[1] >= 0, `${w.slug}: part below the grid floor at y=${p[1]}`);
+      assert.ok(
+        p[0] >= -HALF && p[0] < HALF && p[2] >= -HALF && p[2] < HALF,
+        `${w.slug}: part outside the build plane at x=${p[0]} z=${p[2]}`
+      );
+    }
+  }
+});
+
+test("no built-in world stacks two parts in one cell", () => {
+  for (const w of BUILT_IN_WORLDS) {
+    const seen = new Set<string>();
+    for (const p of w.build("user-1").parts) {
+      const key = `${p[0]},${p[1]},${p[2]}`;
+      assert.ok(!seen.has(key), `${w.slug}: duplicate cell ${key}`);
+      seen.add(key);
+    }
+  }
+});
+
+test("every built-in world stays cheap enough to stand up in Rapier", () => {
+  // Colliders are built on load, before the world can be walked on, so a
+  // world that merges badly is a world that hangs on entry.
+  for (const w of BUILT_IN_WORLDS) {
+    const parts = w.build("user-1").parts;
+    const { boxes, others } = buildColliders(parts);
+    assert.ok(
+      boxes.length + others.length < 1200,
+      `${w.slug}: ${boxes.length + others.length} colliders from ${parts.length} parts`
+    );
   }
 });
