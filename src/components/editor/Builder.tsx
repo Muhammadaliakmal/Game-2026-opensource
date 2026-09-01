@@ -29,6 +29,10 @@ function inBounds([x, y, z]: [number, number, number]) {
  */
 export function Builder({ children }: { children: React.ReactNode }) {
   const painting = useRef(false);
+  // The pointer that owns the current stroke. Touch delivers one pointer per
+  // finger, and without this the second finger of an orbit gesture would keep
+  // painting while the camera moved.
+  const strokeId = useRef<number | null>(null);
   // Last cell edited in this stroke, so dragging across one cell doesn't
   // re-emit the same edit dozens of times.
   const lastCell = useRef<string | null>(null);
@@ -84,6 +88,9 @@ export function Builder({ children }: { children: React.ReactNode }) {
 
   const onPointerMove = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
+      // Ignore fingers that are not the one that started the stroke.
+      if (strokeId.current !== null && e.pointerId !== strokeId.current) return;
+
       const s = useEditorStore.getState();
       const cell = cellFor(e, s.tool === "place" || s.tool === "spawn");
       s.setHoverCell(inBounds(cell) ? cell : null);
@@ -98,30 +105,47 @@ export function Builder({ children }: { children: React.ReactNode }) {
     [applyAt, cellFor]
   );
 
+  const endStroke = useCallback(() => {
+    if (!painting.current) return;
+    painting.current = false;
+    strokeId.current = null;
+    lastCell.current = null;
+    useEditorStore.getState().endStroke();
+  }, []);
+
   const onPointerDown = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
       if (e.button !== 0) return; // left button only; right belongs to the camera
+
+      // A second finger means the player is reaching for the camera, not
+      // drawing. Close the stroke and stay out of the way.
+      if (strokeId.current !== null) {
+        endStroke();
+        return;
+      }
+
       e.stopPropagation();
       painting.current = true;
+      strokeId.current = e.pointerId;
       lastCell.current = null;
       useEditorStore.getState().beginStroke();
       applyAt(e);
     },
-    [applyAt]
+    [applyAt, endStroke]
   );
-
-  const endStroke = useCallback(() => {
-    if (!painting.current) return;
-    painting.current = false;
-    lastCell.current = null;
-    useEditorStore.getState().endStroke();
-  }, []);
 
   return (
     <group
       onPointerMove={onPointerMove}
       onPointerDown={onPointerDown}
-      onPointerUp={endStroke}
+      onPointerUp={(e) => {
+        if (strokeId.current === null || e.pointerId === strokeId.current) {
+          endStroke();
+        }
+      }}
+      // A finger lifted off the canvas edge, or cancelled by the browser
+      // claiming the gesture, must still close the stroke.
+      onPointerCancel={endStroke}
       // Releasing outside the canvas must still close the stroke, or the next
       // edit silently joins the previous one's undo step.
       onPointerLeave={() => {

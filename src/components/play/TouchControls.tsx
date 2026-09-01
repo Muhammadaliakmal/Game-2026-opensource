@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Joystick } from "ecctrl/input";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { touchInput, useRunStore } from "./touch-input";
 
 /**
@@ -20,19 +21,8 @@ import { touchInput, useRunStore } from "./touch-input";
  */
 
 /** True on touch/pen devices, or any viewport small enough to want thumb controls. */
-export function useTouchControls() {
-  const [on, setOn] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(pointer: coarse), (max-width: 900px)");
-    const sync = () => setOn(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  return on;
-}
+export const useTouchControls = () =>
+  useMediaQuery("(pointer: coarse), (max-width: 900px)");
 
 function ActionButton({
   label,

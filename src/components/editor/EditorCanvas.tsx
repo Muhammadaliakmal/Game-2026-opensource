@@ -202,6 +202,14 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
             MIDDLE: THREE.MOUSE.PAN,
             RIGHT: THREE.MOUSE.ROTATE,
           }}
+          // The same split for touch: one finger is the tool, two fingers are
+          // the camera. A phone has no right button, so the default (one
+          // finger orbits) meant every attempt to look around also painted
+          // blocks — the editor was unusable on a touch screen.
+          touches={{
+            ONE: undefined,
+            TWO: THREE.TOUCH.DOLLY_ROTATE,
+          }}
           // Stop the camera dropping below the floor.
           maxPolarAngle={Math.PI / 2 - 0.02}
           minDistance={3}

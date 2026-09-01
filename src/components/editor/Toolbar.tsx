@@ -8,6 +8,7 @@ import { PALETTE, FINISHES, type Shape } from "@/lib/worlddoc";
 import { SHAPE_NAMES } from "./shapes";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
+import { useCoarsePointer } from "@/lib/use-media-query";
 
 /**
  * The editor chrome: floating islands over a full-bleed canvas, never a
@@ -28,6 +29,7 @@ const CONTROLS: Array<[string, string]> = [
   ["Right drag", "orbit"],
   ["Middle drag", "pan"],
   ["Scroll", "zoom"],
+  ["Two fingers", "orbit and zoom on touch"],
   ["F", "frame the whole world"],
   ["B / E", "build / erase"],
   ["G / I", "paint / pick"],
@@ -156,6 +158,31 @@ function Readout() {
   );
 }
 
+/**
+ * Shown once per mount on touch devices. Fades on a timer rather than waiting
+ * for a dismiss tap — a tap here is a tap the builder meant to spend on a
+ * block.
+ */
+function TouchHint() {
+  const [show, setShow] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setShow(false), 7000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div
+      className={`pointer-events-none absolute inset-x-0 top-16 flex justify-center px-3 transition-opacity duration-700 ${
+        show ? "opacity-100" : "opacity-0"
+      }`}
+    >
+      <div className="hud-panel text-steel-200 px-3 py-2 text-center text-2xs">
+        One finger builds · two fingers move the camera
+      </div>
+    </div>
+  );
+}
+
 export function Toolbar({
   worldId,
   onSave,
@@ -172,6 +199,7 @@ export function Toolbar({
   onDismissSaveError: () => void;
 }) {
   const router = useRouter();
+  const touch = useCoarsePointer();
   const [entering, setEntering] = useState(false);
   const [remixing, setRemixing] = useState(false);
 
@@ -367,12 +395,17 @@ export function Toolbar({
         </div>
       )}
 
+      {/* On a phone the split between "one finger builds" and "two fingers
+          move the camera" is the one thing that has to be said out loud —
+          nothing on screen implies it. */}
+      {touch && !help && <TouchHint />}
+
       {/* ── Bottom: tools and palette left, readout right ── */}
       <div className="flex items-end justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-2">
           {/* Palette: 0-radius swatches, because blocks are not round and a
               pill stops reading as a block. */}
-          <div className="hud-panel hud-scroll pointer-events-auto flex max-w-[min(80vw,32rem)] flex-wrap gap-1 overflow-x-auto p-1.5">
+          <div className="hud-panel hud-scroll pointer-events-auto flex max-w-[min(92vw,32rem)] flex-nowrap gap-1 overflow-x-auto p-1.5 sm:flex-wrap">
             {PALETTE.map((hex, i) => (
               <button
                 key={hex + i}
