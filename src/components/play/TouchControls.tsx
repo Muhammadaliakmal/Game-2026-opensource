@@ -1,16 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Joystick, VirtualButton } from "ecctrl/input";
+import { Joystick } from "ecctrl/input";
+import { touchInput, useRunStore } from "./touch-input";
 
 /**
  * On-screen controls for touch devices (SPEC §1 put mobile out of v1; this is
  * a deliberate addition on top).
  *
- * These are ecctrl's own DOM overlays — worth using rather than hand-rolling,
- * because they already handle pointer capture, multi-touch pointer-id tracking
- * and radius clamping. They only write to ecctrl's input stores; Player is what
- * bridges those stores into `setMovement`, exactly as it does for the keyboard.
+ * The thumbstick is ecctrl's own overlay — worth keeping rather than
+ * hand-rolling, because it already handles pointer capture, multi-touch
+ * pointer-id tracking and radius clamping. The action buttons are ours: they
+ * need the Neon Voxel styling, and RUN needs latch behaviour that ecctrl's
+ * momentary VirtualButton can't express.
+ *
+ * Everything here is `position: fixed` above the canvas, so a pointer that
+ * starts on a control never reaches the canvas's drag-to-look listener. That's
+ * what lets the left thumb drive while the right thumb looks.
  */
 
 /** True on touch/pen devices, or any viewport small enough to want thumb controls. */
@@ -28,7 +34,85 @@ export function useTouchControls() {
   return on;
 }
 
+function ActionButton({
+  label,
+  size,
+  accent,
+  active,
+  style,
+  onPress,
+  onRelease,
+}: {
+  label: string;
+  size: number;
+  accent: string;
+  active: boolean;
+  style: React.CSSProperties;
+  onPress(): void;
+  onRelease?(): void;
+}) {
+  const [held, setHeld] = useState(false);
+  const lit = active || held;
+
+  return (
+    <button
+      aria-label={label}
+      aria-pressed={active}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        setHeld(true);
+        onPress();
+      }}
+      onPointerUp={(e) => {
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+        setHeld(false);
+        onRelease?.();
+      }}
+      onPointerCancel={() => {
+        setHeld(false);
+        onRelease?.();
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+      style={{
+        position: "fixed",
+        zIndex: 10,
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        display: "grid",
+        placeItems: "center",
+        fontSize: 11,
+        fontWeight: 800,
+        letterSpacing: "0.1em",
+        touchAction: "none",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        transition:
+          "transform .1s ease, background .12s ease, box-shadow .12s ease",
+        transform: held ? "scale(0.93)" : "scale(1)",
+        border: `2px solid ${accent}`,
+        background: lit ? accent : "rgba(14, 19, 48, 0.55)",
+        color: lit ? "#05101c" : accent,
+        boxShadow: lit ? `0 0 26px -4px ${accent}` : "none",
+        backdropFilter: "blur(10px)",
+        ...style,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 export function TouchControls() {
+  const running = useRunStore((s) => s.running);
+  const toggleRun = useRunStore((s) => s.toggle);
+
+  // Don't leave sprint armed for the next world you open.
+  useEffect(() => useRunStore.getState().reset, []);
+
   return (
     <>
       <Joystick
@@ -42,8 +126,9 @@ export function TouchControls() {
         joystickBaseStyle={{
           width: 116,
           height: 116,
-          background: "rgba(255,255,255,0.06)",
+          background: "rgba(14, 19, 48, 0.5)",
           border: "2px solid rgba(34,211,238,0.35)",
+          backdropFilter: "blur(10px)",
         }}
         joystickKnobStyle={{
           width: 62,
@@ -53,42 +138,31 @@ export function TouchControls() {
         }}
       />
 
-      <VirtualButton
-        id="jump"
+      {/* Momentary — held, so the jump-feel layer still sees a real press and
+          release edge and variable jump height keeps working. */}
+      <ActionButton
         label="JUMP"
-        buttonWrapperStyle={{
-          right: 20,
-          bottom: 96,
-          width: 78,
-          height: 78,
-          background: "rgba(255,255,255,0.06)",
+        size={82}
+        accent="#34d399"
+        active={false}
+        style={{ right: 20, bottom: 100 }}
+        onPress={() => {
+          touchInput.jump = true;
         }}
-        buttonCapStyle={{
-          width: 62,
-          height: 62,
-          background: "#34d399",
-          color: "#05101c",
-          boxShadow: "0 0 24px -4px #34d399",
+        onRelease={() => {
+          touchInput.jump = false;
         }}
       />
 
-      <VirtualButton
-        id="run"
+      {/* Latching — tap to arm sprint, then just steer. Holding a run button
+          while also steering and looking is a three-thumb problem. */}
+      <ActionButton
         label="RUN"
-        buttonWrapperStyle={{
-          right: 108,
-          bottom: 24,
-          width: 66,
-          height: 66,
-          background: "rgba(255,255,255,0.06)",
-        }}
-        buttonCapStyle={{
-          width: 52,
-          height: 52,
-          background: "#22d3ee",
-          color: "#05101c",
-          boxShadow: "0 0 24px -4px #22d3ee",
-        }}
+        size={68}
+        accent="#22d3ee"
+        active={running}
+        style={{ right: 112, bottom: 26 }}
+        onPress={toggleRun}
       />
     </>
   );

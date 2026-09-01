@@ -5,13 +5,15 @@ import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useKeyboardControls } from "@react-three/drei";
 import { Ecctrl, type EcctrlHandle } from "ecctrl";
-import { useButtonStore, useJoystickStore } from "ecctrl/input";
+import { useJoystickStore } from "ecctrl/input";
 import { FEEL } from "@/lib/feel";
 import type { Vec3 } from "@/lib/worlddoc";
 import { useJumpFeel } from "./feel/useJumpFeel";
 import { useFootstepAudio } from "./feel/useFootstepAudio";
 import { JumpParticles } from "./feel/JumpParticles";
 import { CharacterModel } from "./CharacterModel";
+import { touchInput, useRunStore } from "./touch-input";
+import { consumeRespawn } from "./play-actions";
 import {
   applyLook,
   look,
@@ -189,8 +191,7 @@ export function Player({ spawn }: { spawn: Vec3 }) {
 
   // Space or the on-screen JUMP button — both feed the same forgiveness layer,
   // so coyote time / buffering / variable height work identically on touch.
-  const jumpDown = () =>
-    Boolean(getKeys().jump) || Boolean(useButtonStore.getState().buttons.jump);
+  const jumpDown = () => Boolean(getKeys().jump) || touchInput.jump;
 
   // Rising-edge detection: distinguishes a fresh press from a held button, so
   // holding jump doesn't retrigger every frame.
@@ -210,17 +211,17 @@ export function Player({ spawn }: { spawn: Vec3 }) {
     const h = ref.current;
     if (!h) return;
     const k = getKeys();
-    // The on-screen thumbstick and RUN button write to ecctrl's own input
-    // stores, which <Ecctrl> also doesn't read on its own — so they get
-    // forwarded here too. Keyboard and touch are additive, never exclusive.
+    // The on-screen thumbstick writes to ecctrl's joystick store, which
+    // <Ecctrl> also doesn't read on its own — so it gets forwarded here too.
+    // Keyboard and touch are additive, never exclusive.
     const stick = useJoystickStore.getState().joysticks.default;
-    const buttons = useButtonStore.getState().buttons;
     h.setMovement({
       forward: !!k.forward,
       backward: !!k.backward,
       leftward: !!k.leftward,
       rightward: !!k.rightward,
-      run: Boolean(k.run) || Boolean(buttons.run),
+      // Shift is hold-to-run; the touch RUN button is a latch you tap once.
+      run: Boolean(k.run) || useRunStore.getState().running,
       joystick: { x: stick?.x ?? 0, y: stick?.y ?? 0 },
     });
   });
@@ -230,8 +231,8 @@ export function Player({ spawn }: { spawn: Vec3 }) {
   useLookControls();
   useFootstepAudio(ref);
 
-  // Respawn on falling out of the world. Near-instant by design: when failure
-  // costs almost nothing, players keep trying instead of quitting.
+  // Respawn on falling out of the world, or on demand. Near-instant by design:
+  // when failure costs almost nothing, players keep trying instead of quitting.
   const respawnTimer = useRef(0);
   useFrame((_, dt) => {
     const h = ref.current;
@@ -246,6 +247,13 @@ export function Player({ spawn }: { spawn: Vec3 }) {
         );
         h.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
       }
+      return;
+    }
+
+    // A manual respawn is immediate — the delay exists to let a fall read as a
+    // failure, and someone who asked to reset has already accepted that.
+    if (consumeRespawn()) {
+      respawnTimer.current = Number.EPSILON;
       return;
     }
 

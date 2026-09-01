@@ -14,6 +14,7 @@ import { WorldColliders } from "./WorldColliders";
 import { Player } from "./Player";
 import { TouchControls, useTouchControls } from "./TouchControls";
 import { recenterPitch, useViewStore } from "./camera-rig";
+import { requestRespawn } from "./play-actions";
 import { FullscreenButton } from "@/components/FullscreenButton";
 
 // Live game-feel tuning panel — dev only. `dynamic` keeps leva out of the main
@@ -56,6 +57,32 @@ interface Loaded {
   name: string;
 }
 
+/**
+ * Drag-to-look is invisible until someone tries it, so say so once. Fades on a
+ * timer rather than waiting for a dismiss tap — a tap here would be a tap the
+ * player meant to spend on looking around.
+ */
+function TouchHint() {
+  const [show, setShow] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setShow(false), 6000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div
+      className={`pointer-events-none absolute inset-x-0 top-16 flex justify-center px-3 transition-opacity duration-700 ${
+        show ? "opacity-100" : "opacity-0"
+      }`}
+    >
+      <div className="hud-panel px-3.5 py-2 text-center text-[0.6875rem] leading-relaxed font-bold tracking-[0.06em] text-zinc-300 uppercase">
+        Drag anywhere to look · Tap{" "}
+        <span className="text-neon">Run</span> to sprint
+      </div>
+    </div>
+  );
+}
+
 export default function PlayCanvas({ worldId }: { worldId: string }) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +106,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
       if (e.key === "v" || e.key === "V") toggleFirstPerson();
       if (e.key === "c" || e.key === "C") recenterPitch();
+      if (e.key === "r" || e.key === "R") requestRespawn();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -218,6 +246,13 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
           >
             ⌖
           </button>
+          <button
+            onClick={requestRespawn}
+            className="hud-chip"
+            title="Back to the start (R)"
+          >
+            ↻ Respawn
+          </button>
           <span className="hud-divider" />
           <FullscreenButton className="hud-chip" />
           <span className="hud-divider" />
@@ -250,6 +285,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
               ["Space", "jump"],
               ["Drag", "look"],
               ["V", "view"],
+              ["R", "respawn"],
             ].map(([key, action]) => (
               <span key={key} className="flex items-center gap-1.5">
                 <kbd className="bg-raised text-ink rounded-md px-1.5 py-0.5 font-mono text-[0.625rem] font-bold ring-1 ring-white/10">
@@ -263,6 +299,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
       )}
 
       {touch && status === "ready" && <TouchControls />}
+      {touch && status === "ready" && <TouchHint />}
 
       {status === "loading" && (
         <div className="bg-void/80 absolute inset-0 flex flex-col items-center justify-center gap-4 backdrop-blur-sm">
