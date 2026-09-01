@@ -5,7 +5,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { KeyboardControls, type KeyboardControlsEntry } from "@react-three/drei";
 import { Physics, RigidBody } from "@react-three/rapier";
 import { parseWorldDoc, type PartTuple, type Vec3 } from "@/lib/worlddoc";
@@ -58,6 +58,18 @@ interface Loaded {
 }
 
 /**
+ * Fires once, on the first rendered frame. The world fetch resolves in
+ * milliseconds, but standing up Rapier + the PMREM probe + 7k instances takes
+ * noticeably longer on a phone — long enough that the loading cover used to
+ * clear onto an unpainted (white) canvas. This keeps the cover up until there's
+ * actually something on screen.
+ */
+function FirstFrame({ onPainted }: { onPainted: () => void }) {
+  useFrame(() => onPainted());
+  return null;
+}
+
+/**
  * Drag-to-look is invisible until someone tries it, so say so once. Fades on a
  * timer rather than waiting for a dismiss tap — a tap here would be a tap the
  * player meant to spend on looking around.
@@ -87,7 +99,17 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [world, setWorld] = useState<Loaded | null>(null);
+  // Drop the loading cover only once the scene has painted a frame — or after a
+  // hard timeout, so a device that never gets a WebGL context isn't stranded on
+  // the spinner forever.
+  const [painted, setPainted] = useState(false);
   const touch = useTouchControls();
+
+  useEffect(() => {
+    if (painted) return;
+    const t = setTimeout(() => setPainted(true), 8000);
+    return () => clearTimeout(t);
+  }, [painted]);
 
   const firstPerson = useViewStore((s) => s.firstPerson);
   const toggleFirstPerson = useViewStore((s) => s.toggleFirstPerson);
@@ -155,10 +177,14 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
     <div className="bg-void relative min-h-0 flex-1">
       <Canvas
         shadows
+        className="bg-void"
         camera={{ position: [8, 6, 8], fov: 65 }}
-        // preserveDrawingBuffer is here now so Phase 4's thumbnail capture
-        // (`gl.domElement.toDataURL()`) doesn't need a Canvas config change.
-        gl={{ powerPreference: "high-performance", preserveDrawingBuffer: true }}
+        // `preserveDrawingBuffer` stays for Phase 4's thumbnail capture
+        // (`gl.domElement.toDataURL()`). `powerPreference` is left at the
+        // default: pairing "high-performance" with preserveDrawingBuffer makes
+        // some Android GPUs hand back a context that never paints (blank white
+        // canvas), and a phone has only the one GPU to pick anyway.
+        gl={{ preserveDrawingBuffer: true, failIfMajorPerformanceCaveat: false }}
         onCreated={({ scene, gl }) => {
           scene.background = new THREE.Color("#080b1a");
           // Distance fade into the void — without it the world just stops at a
@@ -188,10 +214,16 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
           shadow-camera-far={140}
         />
 
+        {!painted && <FirstFrame onPainted={() => setPainted(true)} />}
+
         {world && (
-          // "vary" timestep keeps the character from tunnelling through the
-          // merged box colliders on a frame spike.
-          <Physics timeStep="vary">
+          // Fixed timestep, not "vary": ecctrl holds the character on a spring
+          // and integrates it as force * world.timestep, tuned for ~1/60 steps.
+          // On a slow device "vary" feeds it frame deltas of 50-200ms+, the
+          // spring overshoots instead of settling, and the character gets
+          // flung into the air ("flying"). The fixed-timestep accumulator
+          // keeps stepping at 1/60 no matter how slowly the scene renders.
+          <Physics timeStep={1 / 60}>
             <KeyboardControls map={keyboardMap}>
               <Player spawn={world.spawn} />
             </KeyboardControls>
@@ -227,15 +259,19 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
         )}
       </Canvas>
 
-      {/* DOM HUD, outside the Canvas — cheaper than in-scene UI. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
-        <div className="hud-panel pointer-events-auto flex min-w-0 items-center gap-2.5 px-3 py-2">
+      {/* DOM HUD, outside the Canvas — cheaper than in-scene UI.
+          On a phone the control cluster is wider than the viewport, so the bar
+          stacks (title over controls) and the controls scroll sideways rather
+          than spilling off both edges. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-start gap-2 p-2 sm:flex-row sm:flex-wrap sm:justify-between sm:p-3">
+        <div className="hud-panel pointer-events-auto flex min-w-0 max-w-full items-center gap-2.5 px-3 py-2">
           <span className="bg-mint h-2 w-2 shrink-0 rounded-full shadow-[0_0_10px_var(--color-mint)]" />
-          <span className="max-w-[52vw] truncate text-[0.6875rem] font-bold tracking-[0.09em] uppercase">
+          <span className="truncate text-[0.6875rem] font-bold tracking-[0.09em] uppercase">
             {world?.name ?? "Loading…"}
           </span>
         </div>
-        <div className="hud-panel pointer-events-auto flex shrink-0 items-center gap-1.5 p-1.5">
+        <div className="hud-scroll pointer-events-auto flex max-w-full overflow-x-auto sm:overflow-visible">
+          <div className="hud-panel flex shrink-0 items-center gap-1.5 p-1.5">
           <button
             onClick={toggleFirstPerson}
             className={`hud-chip ${firstPerson ? "hud-chip--neon" : ""}`}
@@ -278,6 +314,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
             Exit
           </Link>
         </div>
+        </div>
       </div>
 
       {/* The keyboard legend is noise once thumb controls are on screen — and
@@ -304,11 +341,11 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
         </div>
       )}
 
-      {touch && status === "ready" && <TouchControls />}
-      {touch && status === "ready" && <TouchHint />}
+      {touch && status === "ready" && painted && <TouchControls />}
+      {touch && status === "ready" && painted && <TouchHint />}
 
-      {status === "loading" && (
-        <div className="bg-void/80 absolute inset-0 flex flex-col items-center justify-center gap-4 backdrop-blur-sm">
+      {(status === "loading" || !painted) && (
+        <div className="bg-void absolute inset-0 z-20 flex flex-col items-center justify-center gap-4">
           <span className="border-neon h-8 w-8 animate-spin rounded-full border-2 border-t-transparent shadow-[0_0_18px_-4px_var(--color-neon)]" />
           <span className="hud-label">Loading world</span>
         </div>

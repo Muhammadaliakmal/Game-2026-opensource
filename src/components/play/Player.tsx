@@ -280,8 +280,13 @@ export function Player({ spawn }: { spawn: Vec3 }) {
         fallingGravityScale={FEEL.fallGravityScale}
         fallingMaxVel={FEEL.maxFallSpeed}
         floatHeight={0.2}
+        // The capsule rides a spring at floatHeight above the ground. dampingC
+        // was ecctrl's default 6 — underdamped for this capsule mass, so every
+        // landing overshot and the character bobbed in place before settling.
+        // Raised toward critical damping to kill that bounce while staying
+        // responsive on slopes and steps.
         springK={80}
-        dampingC={6}
+        dampingC={11}
         groundDetection="shapeCast"
         // Hold Shift to run, not tap-to-toggle — platformer convention.
         enableToggleRun={false}
