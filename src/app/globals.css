@@ -42,6 +42,12 @@ body {
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* The 3D canvas owns its gestures: drag-to-look must not be stolen by the
+   browser's scroll/pinch handling on touch devices. */
+canvas {
+  touch-action: none;
+}
+
 /* Dark form controls and a neon caret, so the world-name field matches the HUD. */
 input {
   caret-color: var(--color-neon);

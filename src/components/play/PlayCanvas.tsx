@@ -13,6 +13,7 @@ import { InstancedWorld } from "./InstancedWorld";
 import { WorldColliders } from "./WorldColliders";
 import { Player } from "./Player";
 import { TouchControls, useTouchControls } from "./TouchControls";
+import { recenterPitch, useViewStore } from "./camera-rig";
 import { FullscreenButton } from "@/components/FullscreenButton";
 
 // Live game-feel tuning panel — dev only. `dynamic` keeps leva out of the main
@@ -61,11 +62,27 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
   const [world, setWorld] = useState<Loaded | null>(null);
   const touch = useTouchControls();
 
+  const firstPerson = useViewStore((s) => s.firstPerson);
+  const toggleFirstPerson = useViewStore((s) => s.toggleFirstPerson);
+
   // Leaving the game while still fullscreen strands the user in a chromeless
   // window, so drop out of it on the way to another route.
   const leaveFullscreen = () => {
     if (document.fullscreenElement) void document.exitFullscreen?.();
   };
+
+  // V toggles the view, C levels it out. Bound to the window rather than the
+  // canvas so they work without clicking into the scene first.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
+      if (e.key === "v" || e.key === "V") toggleFirstPerson();
+      if (e.key === "c" || e.key === "C") recenterPitch();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleFirstPerson]);
 
   useEffect(() => {
     let cancelled = false;
@@ -185,6 +202,23 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
           </span>
         </div>
         <div className="hud-panel pointer-events-auto flex shrink-0 items-center gap-1.5 p-1.5">
+          <button
+            onClick={toggleFirstPerson}
+            className={`hud-chip ${firstPerson ? "hud-chip--neon" : ""}`}
+            title="Switch between first and third person (V)"
+            aria-pressed={firstPerson}
+          >
+            {firstPerson ? "1st" : "3rd"}
+          </button>
+          <button
+            onClick={recenterPitch}
+            className="hud-chip"
+            title="Level the view (C)"
+            aria-label="Level the view"
+          >
+            ⌖
+          </button>
+          <span className="hud-divider" />
           <FullscreenButton className="hud-chip" />
           <span className="hud-divider" />
           <Link
@@ -214,6 +248,8 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
               ["WASD", "move"],
               ["Shift", "run"],
               ["Space", "jump"],
+              ["Drag", "look"],
+              ["V", "view"],
             ].map(([key, action]) => (
               <span key={key} className="flex items-center gap-1.5">
                 <kbd className="bg-raised text-ink rounded-md px-1.5 py-0.5 font-mono text-[0.625rem] font-bold ring-1 ring-white/10">

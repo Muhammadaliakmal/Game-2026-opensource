@@ -12,21 +12,94 @@ import { useJumpFeel } from "./feel/useJumpFeel";
 import { useFootstepAudio } from "./feel/useFootstepAudio";
 import { JumpParticles } from "./feel/JumpParticles";
 import { CharacterModel } from "./CharacterModel";
+import {
+  applyLook,
+  look,
+  THIRD_PERSON_DISTANCE,
+  useViewStore,
+} from "./camera-rig";
 
 /**
- * Third-person follow camera.
+ * Drag-to-look, for mouse and touch through the same code path.
  *
- * ecctrl v2 removed the built-in follow cam, so the camera is driven here:
- * lerp toward the character with a deliberate lag, plus velocity-based
- * lookahead so the view leads the direction of travel. Both come straight from
- * the game-feel literature — a camera welded rigidly to the player feels dead.
+ * Listeners sit on the WebGL canvas itself, so the touch overlays (thumbstick,
+ * JUMP/RUN) naturally win any pointer that starts on them — which gives the
+ * standard mobile layout for free: left thumb drives, right thumb looks,
+ * anywhere that isn't a control is look area.
+ *
+ * Only the pointer that began the drag is tracked, so a second finger on the
+ * stick can't yank the camera. Deltas come from clientX/Y rather than
+ * movementX/Y because movement* is always 0 for touch pointers.
+ *
+ * `touch-action: none` on the canvas is set in globals.css — without it the
+ * browser claims the gesture for scroll/zoom before we ever see a pointermove.
  */
-function useFollowCamera(handleRef: React.RefObject<EcctrlHandle | null>) {
+function useLookControls() {
+  const gl = useThree((s) => s.gl);
+
+  useEffect(() => {
+    const el = gl.domElement;
+
+    let activeId: number | null = null;
+    let lastX = 0;
+    let lastY = 0;
+
+    const onDown = (e: PointerEvent) => {
+      if (activeId !== null) return;
+      activeId = e.pointerId;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      el.setPointerCapture(e.pointerId);
+    };
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerId !== activeId) return;
+      applyLook(e.clientX - lastX, e.clientY - lastY);
+      lastX = e.clientX;
+      lastY = e.clientY;
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerId !== activeId) return;
+      activeId = null;
+      if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+    };
+
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+    el.addEventListener("pointercancel", onUp);
+    return () => {
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+      el.removeEventListener("pointercancel", onUp);
+    };
+  }, [gl]);
+}
+
+/**
+ * Orbiting follow camera with a first-person mode.
+ *
+ * ecctrl v2 ships no camera, so this is ours: the eye orbits the character on
+ * a yaw/pitch sphere whose radius collapses to zero for first person. One rig
+ * covers both views, which means the transition can be a distance lerp instead
+ * of a cut — and, more importantly, movement direction stays consistent across
+ * the switch because ecctrl reads the same camera either way.
+ *
+ * Camera lag and velocity lookahead (both straight from the game-feel
+ * literature) apply in third person only; in first person a lagging eye is
+ * just nausea.
+ */
+function useCameraRig(handleRef: React.RefObject<EcctrlHandle | null>) {
   const camera = useThree((s) => s.camera);
-  const target = useRef(new THREE.Vector3(0, 0, 0));
+  const firstPerson = useViewStore((s) => s.firstPerson);
+
+  const target = useRef(new THREE.Vector3());
   const lookahead = useRef(new THREE.Vector3());
+  const desired = useRef(new THREE.Vector3());
+  const offset = useRef(new THREE.Vector3());
   const shake = useRef({ time: 0, amp: 0 });
   const wasOnGround = useRef(true);
+  const dist = useRef(THIRD_PERSON_DISTANCE);
 
   useFrame((_, dt) => {
     const h = handleRef.current;
@@ -35,21 +108,27 @@ function useFollowCamera(handleRef: React.RefObject<EcctrlHandle | null>) {
     // currPos mutates in place, so read components rather than storing the ref.
     const pos = h.currPos;
 
-    lookahead.current.lerp(
-      new THREE.Vector3(h.currLinVel.x, 0, h.currLinVel.z).multiplyScalar(
-        FEEL.camLookahead
-      ),
-      0.1
-    );
+    if (firstPerson) {
+      lookahead.current.set(0, 0, 0);
+    } else {
+      lookahead.current.lerp(
+        offset.current
+          .set(h.currLinVel.x, 0, h.currLinVel.z)
+          .multiplyScalar(FEEL.camLookahead),
+        0.1
+      );
+    }
 
-    const desired = new THREE.Vector3(
+    // Eye height: roughly head level in first person, chest-ish in third.
+    desired.current.set(
       pos.x + lookahead.current.x,
-      pos.y + 1.2,
+      pos.y + (firstPerson ? 0.45 : 1.1),
       pos.z + lookahead.current.z
     );
     // Frame-rate independent lerp: without the dt scaling, camera lag would
-    // change character between a 60Hz and a 144Hz display.
-    target.current.lerp(desired, 1 - Math.pow(1 - FEEL.camLag, dt * 60));
+    // change character between a 60Hz and a 144Hz display. First person snaps.
+    const follow = firstPerson ? 1 : 1 - Math.pow(1 - FEEL.camLag, dt * 60);
+    target.current.lerp(desired.current, follow);
 
     // Screen shake on a hard landing.
     const landedHard =
@@ -72,12 +151,34 @@ function useFollowCamera(handleRef: React.RefObject<EcctrlHandle | null>) {
       oy = Math.cos(t * FEEL.shakeFreq * 1.3) * shake.current.amp * falloff;
     }
 
-    camera.position.set(
-      target.current.x + 8 + ox,
-      target.current.y + 6 + oy,
-      target.current.z + 8
+    // Ease the radius so toggling views glides instead of cutting.
+    dist.current = THREE.MathUtils.lerp(
+      dist.current,
+      firstPerson ? 0 : THIRD_PERSON_DISTANCE,
+      1 - Math.pow(0.0001, dt)
     );
-    camera.lookAt(target.current);
+    look.distance = dist.current;
+
+    // Unit vector from the character toward the eye.
+    const cp = Math.cos(look.pitch);
+    offset.current.set(
+      Math.sin(look.yaw) * cp,
+      Math.sin(look.pitch),
+      Math.cos(look.yaw) * cp
+    );
+
+    camera.position.set(
+      target.current.x + offset.current.x * dist.current + ox,
+      target.current.y + offset.current.y * dist.current + oy,
+      target.current.z + offset.current.z * dist.current
+    );
+    // Looking back down the offset keeps the aim identical in both modes, so
+    // ecctrl's camera-derived forward vector doesn't jump on toggle.
+    camera.lookAt(
+      camera.position.x - offset.current.x,
+      camera.position.y - offset.current.y,
+      camera.position.z - offset.current.z
+    );
   });
 }
 
@@ -125,7 +226,8 @@ export function Player({ spawn }: { spawn: Vec3 }) {
   });
 
   useJumpFeel(ref, jumpHeld, jumpPressedEdge);
-  useFollowCamera(ref);
+  useCameraRig(ref);
+  useLookControls();
   useFootstepAudio(ref);
 
   // Respawn on falling out of the world. Near-instant by design: when failure

@@ -7,6 +7,7 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 import type { RefObject } from "react";
 import type { EcctrlHandle } from "ecctrl";
 import { FEEL } from "@/lib/feel";
+import { look } from "./camera-rig";
 
 /**
  * The player avatar: a small voxel courier with a lit visor.
@@ -56,6 +57,12 @@ export function CharacterModel({
     if (!h || !root.current) return;
     const a = anim.current;
     const t = state.clock.elapsedTime;
+
+    // Hide once the eye is inside the model. Keyed off the rig's live distance
+    // rather than the first-person flag so it disappears partway through the
+    // transition instead of popping at either end of it.
+    root.current.visible = look.distance > 1.8;
+    if (!root.current.visible) return;
 
     const speed = h.moveSpeed;
     const gait = Math.min(1, speed / FEEL.runSpeed); // 0..1 blend
