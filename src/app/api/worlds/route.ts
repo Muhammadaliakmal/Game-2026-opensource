@@ -31,8 +31,12 @@ export async function GET() {
   return NextResponse.json(rows);
 }
 
-// POST /api/worlds — seed a new world with the default parkour course.
-// SPEC §9 #5: never drop a new user into a blank void.
+// POST /api/worlds — create a world.
+//
+// Three sources, in order of precedence: `from` remixes a built-in or a
+// published world, `doc` claims a draft built without an account, and neither
+// seeds the default parkour course (SPEC §9 #5: never drop a new user into a
+// blank void).
 export async function POST(req: Request) {
   const { userId } = await auth();
   if (!userId) {
@@ -71,6 +75,11 @@ export async function POST(req: Request) {
     }
     seed = src.doc;
     sourceName = src.name;
+  } else if (body?.doc) {
+    // Claiming a local draft: someone built without an account and has just
+    // signed in to keep it. The doc is caller-supplied, so it is validated
+    // below with the id and ownerId pinned server-side like any other write.
+    seed = body.doc;
   } else {
     seed = parkourWorldDoc(id, userId, "Untitled World");
   }
@@ -80,9 +89,18 @@ export async function POST(req: Request) {
       ? body.name.trim()
       : sourceName
         ? `${sourceName} (remix)`
-        : "Untitled World";
+        : typeof (seed as { name?: unknown })?.name === "string" &&
+            (seed as { name: string }).name.trim()
+          ? (seed as { name: string }).name.trim()
+          : "Untitled World";
 
-  const doc = parseWorldDoc({ ...seed, id, ownerId: userId, name });
+  let doc;
+  try {
+    doc = parseWorldDoc({ ...seed, id, ownerId: userId, name });
+  } catch {
+    // Only reachable from a claimed draft: everything else is generated here.
+    return NextResponse.json({ error: "Invalid WorldDoc" }, { status: 422 });
+  }
 
   const [row] = await db
     .insert(worlds)

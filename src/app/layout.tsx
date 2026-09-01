@@ -87,8 +87,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 Browse
               </Link>
               <Show when="signed-out">
-                <SignInButton />
-                <SignUpButton />
+                {/* Modal, not a page: UI spec §3.5 — signing in must not take
+                    someone away from the world they are in the middle of
+                    building. */}
+                <SignInButton mode="modal" />
+                <SignUpButton mode="modal" />
               </Show>
               <Show when="signed-in">
                 <UserButton />

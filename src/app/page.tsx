@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { SignInButton, Show } from "@clerk/nextjs";
 import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { worlds } from "@/lib/db/schema";
@@ -33,13 +32,13 @@ export default async function Home() {
             block, hit play, and you&apos;re standing on it.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <Show when="signed-out">
-              <SignInButton>
-                <button className="hud-chip hud-chip--primary px-6 py-3">
-                  Start building
-                </button>
-              </SignInButton>
-            </Show>
+            {/* Straight into the editor. UI spec §3.1: an auth wall in front
+                of the core loop is the most expensive mistake a UGC product
+                can make, so the account is asked for at the moment there is
+                something worth keeping, not before. */}
+            <Link href="/build/new" className="hud-chip hud-chip--primary px-6 py-3">
+              Start building
+            </Link>
             <Link href="/browse" className="hud-chip px-6 py-3">
               Look around first
             </Link>

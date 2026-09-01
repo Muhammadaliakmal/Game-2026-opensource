@@ -7,7 +7,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import { useAuth } from "@clerk/nextjs";
 import { useEditorStore } from "@/stores/editor-store";
+import {
+  clearDraft,
+  DRAFT_ID,
+  loadDraft,
+  newDraftDoc,
+  saveDraft,
+} from "@/lib/draft";
 import { parseWorldDoc, type WorldDoc } from "@/lib/worlddoc";
 import { InstancedParts } from "./InstancedParts";
 import { GhostPreview } from "./GhostPreview";
@@ -30,7 +38,18 @@ function EditorSun() {
 
 export default function EditorCanvas({ worldId }: { worldId: string }) {
   const router = useRouter();
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const { isSignedIn } = useAuth();
+  /**
+   * A draft has no database row: it lives in localStorage until someone signs
+   * in and claims it. Everything below branches on this rather than on being
+   * signed in, because a signed-in user can be working on a draft too (they
+   * arrived before signing in, or opened the link directly).
+   */
+  const isDraft = worldId === DRAFT_ID;
+  // A draft is already in this browser; there is nothing to wait for.
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(() =>
+    worldId === DRAFT_ID ? "ready" : "loading"
+  );
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   /** Why this world cannot be saved, if it cannot. Drives the read-only banner. */
@@ -39,6 +58,16 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
   // Load the world once on mount.
   useEffect(() => {
     let cancelled = false;
+
+    if (isDraft) {
+      // No round trip: pick up where they left off, or start from the
+      // template. Never an empty grid. These write to the zustand store, not
+      // to React state, so nothing cascades a render here.
+      useEditorStore.getState().loadDoc(loadDraft() ?? newDraftDoc());
+      useEditorStore.getState().setReadOnly(false);
+      return;
+    }
+
     (async () => {
       try {
         const res = await fetch(`/api/worlds/${worldId}`);
@@ -74,12 +103,88 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [worldId]);
+  }, [worldId, isDraft]);
+
+  /**
+   * Persist a draft locally as it is built.
+   *
+   * This is the entire safety net for a build with no account behind it, so it
+   * runs off the store subscription rather than off Save — the whole point is
+   * that nobody has pressed Save. Debounced, because the subscription fires on
+   * every painted cell and serialising a 7,000-part world per block would cost
+   * more than the render does.
+   */
+  useEffect(() => {
+    if (!isDraft || status !== "ready") return;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = useEditorStore.subscribe(() => {
+      if (!useEditorStore.getState().dirty) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        saveDraft(useEditorStore.getState().toDoc(""));
+      }, 800);
+    });
+
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+      // Catch whatever the last debounce did not: leaving the page is exactly
+      // when an unsaved draft matters most.
+      if (useEditorStore.getState().dirty) {
+        saveDraft(useEditorStore.getState().toDoc(""));
+      }
+    };
+  }, [isDraft, status]);
+
+  /**
+   * Turn the local draft into a world this account owns, then continue on its
+   * real URL. Called the moment a signed-in visitor asks to keep their build.
+   */
+  const claimDraft = useCallback(async (): Promise<boolean> => {
+    const s = useEditorStore.getState();
+    if (s.saving) return false;
+
+    useEditorStore.setState({ saving: true });
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/worlds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doc: s.toDoc(""), name: s.name }),
+      });
+      if (!res.ok) {
+        throw new Error(
+          res.status === 401
+            ? "Sign in to keep this world."
+            : `Could not save this world (${res.status}).`
+        );
+      }
+      const row = await res.json();
+      useEditorStore.getState().markSaved();
+      // Only once the server has it: this is the only copy until then.
+      clearDraft();
+      router.replace(`/build/${row.id}`);
+      return true;
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Could not save.");
+      return false;
+    } finally {
+      useEditorStore.setState({ saving: false });
+    }
+  }, [router]);
 
   /** Returns true only when the world actually reached the database. */
   const save = useCallback(async (): Promise<boolean> => {
     const s = useEditorStore.getState();
     if (s.readOnly || s.saving) return false;
+
+    // A draft has nowhere to PUT to yet. Signed in, saving means claiming it;
+    // signed out, the Toolbar puts a sign-in in front of this instead.
+    if (isDraft) {
+      if (!isSignedIn) return false;
+      return claimDraft();
+    }
 
     useEditorStore.setState({ saving: true });
     setSaveError(null);
@@ -108,7 +213,22 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
     } finally {
       useEditorStore.setState({ saving: false });
     }
-  }, [worldId]);
+  }, [worldId, isDraft, isSignedIn, claimDraft]);
+
+  /**
+   * Called before jumping to Play. A draft is flushed to localStorage, which
+   * is where Play will read it from; a real world has to reach the database,
+   * and Play must not happen if it did not.
+   */
+  const prepareForPlay = useCallback(async (): Promise<boolean> => {
+    const s = useEditorStore.getState();
+    if (isDraft) {
+      saveDraft(s.toDoc(""));
+      return true;
+    }
+    if (s.readOnly) return true;
+    return save();
+  }, [isDraft, save]);
 
   /** Copy this world into one the player owns, and open that. */
   const remix = useCallback(async () => {
@@ -233,6 +353,9 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
         lockedReason={lockedReason}
         saveError={saveError}
         onDismissSaveError={() => setSaveError(null)}
+        isDraft={isDraft}
+        isSignedIn={Boolean(isSignedIn)}
+        onPlay={prepareForPlay}
       />
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEditorStore, type Tool } from "@/stores/editor-store";
 import { PALETTE, FINISHES, type Shape } from "@/lib/worlddoc";
@@ -187,16 +188,23 @@ export function Toolbar({
   worldId,
   onSave,
   onRemix,
+  onPlay,
   lockedReason,
   saveError,
   onDismissSaveError,
+  isDraft,
+  isSignedIn,
 }: {
   worldId: string;
   onSave: () => Promise<boolean>;
   onRemix: () => void | Promise<void>;
+  onPlay: () => Promise<boolean>;
   lockedReason: string | null;
   saveError: string | null;
   onDismissSaveError: () => void;
+  /** A world with no database row yet, living in this browser only. */
+  isDraft: boolean;
+  isSignedIn: boolean;
 }) {
   const router = useRouter();
   const touch = useCoarsePointer();
@@ -265,7 +273,10 @@ export function Toolbar({
   async function play() {
     setEntering(true);
     try {
-      if (!readOnly && (await onSave()) === false) return;
+      // A draft is flushed to this browser and played from there; a real world
+      // has to reach the database first, and if that fails we do NOT navigate,
+      // because Play reads the world back and the edits would be gone.
+      if ((await onPlay()) === false) return;
       router.push(`/play/${worldId}`);
     } finally {
       setEntering(false);
@@ -285,11 +296,13 @@ export function Toolbar({
     ? "Saving"
     : readOnly
       ? "Read-only"
-      : dirty
-        ? "Unsaved changes"
-        : lastSavedAt
-          ? "Saved"
-          : "No changes yet";
+      : isDraft
+        ? "Draft — this browser only"
+        : dirty
+          ? "Unsaved changes"
+          : lastSavedAt
+            ? "Saved"
+            : "No changes yet";
 
   return (
     <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-2 p-2">
@@ -328,6 +341,14 @@ export function Toolbar({
 
           {/* Say a world is read-only BEFORE the work happens, and offer the
               one action that does work: copy it. */}
+          {isDraft && (
+            <div className="hud-panel pointer-events-auto flex max-w-[min(92vw,26rem)] flex-wrap items-center gap-2 px-2 py-1.5">
+              <span className="text-steel-200 text-2xs">
+                Building without an account — saved on this device only.
+              </span>
+            </div>
+          )}
+
           {lockedReason && (
             <div className="hud-panel pointer-events-auto flex max-w-[min(92vw,26rem)] flex-wrap items-center gap-2 px-2 py-1.5">
               <span className="text-signal text-2xs">{lockedReason}</span>
@@ -364,20 +385,41 @@ export function Toolbar({
             ?
           </button>
           <span className="hud-divider" />
-          <button
-            onClick={onSave}
-            disabled={saving || readOnly || !dirty}
-            className={`hud-chip ${dirty && !readOnly ? "is-active" : ""}`}
-            title={
-              readOnly
-                ? "This world is read-only"
-                : dirty
-                  ? "Save (Ctrl+S)"
-                  : "Everything is saved"
-            }
-          >
-            {saving ? "Saving…" : dirty ? "Save" : "Saved"}
-          </button>
+          {isDraft ? (
+            isSignedIn ? (
+              <button
+                onClick={onSave}
+                disabled={saving}
+                className="hud-chip is-active"
+                title="Move this world into your account"
+              >
+                {saving ? "Saving…" : "Keep this world"}
+              </button>
+            ) : (
+              // The one and only auth prompt in the build loop, and it is a
+              // modal so the build stays on screen behind it (UI spec §3.5).
+              <SignInButton mode="modal">
+                <button className="hud-chip is-active" title="Sign in to keep this world">
+                  Keep this world
+                </button>
+              </SignInButton>
+            )
+          ) : (
+            <button
+              onClick={onSave}
+              disabled={saving || readOnly || !dirty}
+              className={`hud-chip ${dirty && !readOnly ? "is-active" : ""}`}
+              title={
+                readOnly
+                  ? "This world is read-only"
+                  : dirty
+                    ? "Save (Ctrl+S)"
+                    : "Everything is saved"
+              }
+            >
+              {saving ? "Saving…" : dirty ? "Save" : "Saved"}
+            </button>
+          )}
           <button
             onClick={play}
             disabled={saving || entering}

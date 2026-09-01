@@ -9,6 +9,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { KeyboardControls, type KeyboardControlsEntry } from "@react-three/drei";
 import { Physics, RigidBody } from "@react-three/rapier";
 import { parseWorldDoc, type PartTuple, type Vec3 } from "@/lib/worlddoc";
+import { DRAFT_ID, loadDraft } from "@/lib/draft";
 import { InstancedWorld } from "./InstancedWorld";
 import { WorldColliders } from "./WorldColliders";
 import { Player } from "./Player";
@@ -100,10 +101,45 @@ function TouchHint() {
   );
 }
 
+/**
+ * A draft is already in this browser, so it needs no fetch and no loading
+ * state — it is resolved once, during the first render, rather than in an
+ * effect that would set state synchronously and cascade a render.
+ */
+function initialState(worldId: string): {
+  status: "loading" | "ready" | "error";
+  world: Loaded | null;
+  error: string | null;
+} {
+  if (worldId !== DRAFT_ID) return { status: "loading", world: null, error: null };
+
+  const doc = loadDraft();
+  if (!doc) {
+    return {
+      status: "error",
+      world: null,
+      error: "This draft is not on this device any more.",
+    };
+  }
+  return {
+    status: "ready",
+    error: null,
+    world: {
+      parts: doc.parts,
+      spawn: doc.spawn,
+      name: doc.name,
+      // It is their draft by definition: nobody else can reach this browser.
+      canEdit: true,
+    },
+  };
+}
+
 export default function PlayCanvas({ worldId }: { worldId: string }) {
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [error, setError] = useState<string | null>(null);
-  const [world, setWorld] = useState<Loaded | null>(null);
+  // One localStorage read, shared by the three pieces of state below.
+  const [initial] = useState(() => initialState(worldId));
+  const [status, setStatus] = useState(initial.status);
+  const [error, setError] = useState(initial.error);
+  const [world, setWorld] = useState(initial.world);
   // Drop the loading cover only once the scene has painted a frame — or after a
   // hard timeout, so a device that never gets a WebGL context isn't stranded on
   // the spinner forever.
@@ -141,6 +177,13 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
 
   useEffect(() => {
     let cancelled = false;
+
+    // A draft has no row to fetch — it was resolved during the first render.
+    // Without that branch someone building without an account could never
+    // press Play, and "place a block, hit play, you are standing on it" is
+    // the whole product.
+    if (worldId === DRAFT_ID) return;
+
     (async () => {
       try {
         const res = await fetch(`/api/worlds/${worldId}`);
