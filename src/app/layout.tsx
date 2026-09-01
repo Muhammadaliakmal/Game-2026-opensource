@@ -31,9 +31,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      {/*
+        `h-dvh` (not `min-h-full`) is deliberate: the R3F <Canvas> sizes itself
+        to height:100% of its parent, which only resolves if every ancestor has
+        a *definite* height. A min-height chain leaves the canvas collapsed to a
+        thin strip. The shell owns the viewport; <main> owns the scrolling.
+      */}
+      <body className="flex h-dvh flex-col overflow-hidden">
         <ClerkProvider>
-          <header className="flex items-center justify-between gap-3 border-b border-black/[.08] px-4 py-3 sm:px-6 dark:border-white/[.145]">
+          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-black/[.08] px-4 py-3 sm:px-6 dark:border-white/[.145]">
             <Link href="/" className="font-semibold tracking-tight">
               Blockworld
             </Link>
@@ -47,7 +53,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </Show>
             </div>
           </header>
-          {children}
+          {/* min-h-0 lets this actually shrink inside the flex column; without
+              it a tall child would push the shell past the viewport. */}
+          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            {children}
+          </main>
         </ClerkProvider>
       </body>
     </html>

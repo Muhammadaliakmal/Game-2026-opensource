@@ -95,7 +95,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
   }
 
   return (
-    <div className="relative flex-1 bg-zinc-950">
+    <div className="relative min-h-0 flex-1 bg-zinc-950">
       <Canvas
         shadows
         camera={{ position: [8, 6, 8], fov: 65 }}

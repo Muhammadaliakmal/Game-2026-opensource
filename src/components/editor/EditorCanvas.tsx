@@ -71,7 +71,7 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
   }
 
   return (
-    <div className="relative flex-1 bg-zinc-950">
+    <div className="relative min-h-0 flex-1 bg-zinc-950">
       <Canvas
         // "demand" means we only render when something actually changed —
         // an idle editor should not burn GPU at 60fps.
