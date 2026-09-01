@@ -27,6 +27,8 @@ export function useJumpFeel(
 ) {
   const coyote = useRef(0);
   const buffer = useRef(0);
+  // True from the moment we launch a jump until it's either cut or we land.
+  const cutArmed = useRef(false);
 
   useFrame((_, dt) => {
     const h = handleRef.current;
@@ -41,22 +43,32 @@ export function useJumpFeel(
       ? FEEL.jumpBuffer
       : Math.max(0, buffer.current - dt);
 
+    if (h.isOnGround) cutArmed.current = false;
+
     if (buffer.current > 0 && coyote.current > 0) {
       h.setMovement({ jump: true });
       // Consume both so one press can't produce two jumps.
       buffer.current = 0;
       coyote.current = 0;
+      cutArmed.current = true;
     } else {
       h.setMovement({ jump: false });
     }
 
     // Cut the rise short when the button is released mid-ascent.
-    if (!jumpHeld() && h.verticalSpeed > 0) {
+    //
+    // Exactly once per jump, and only for a jump we actually launched. Testing
+    // `verticalSpeed > 0` alone fires while simply standing still: ecctrl holds
+    // the character on a spring, so its vertical velocity oscillates around
+    // zero on the ground. Scaling velocity every frame then fought that spring
+    // and shook the character in place.
+    if (cutArmed.current && !jumpHeld() && h.verticalSpeed > 0) {
       const v = h.body.linvel();
       h.body.setLinvel(
         { x: v.x, y: v.y * FEEL.jumpCutMultiplier, z: v.z },
         true
       );
+      cutArmed.current = false;
     }
   });
 }

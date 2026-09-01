@@ -17,8 +17,9 @@ import { look } from "./camera-rig";
  * the live EcctrlHandle, so the animation always matches the physics rather
  * than being a clip that drifts out of sync.
  *
- * It occupies roughly -0.6..+0.6 in Y to sit inside the 0.3/0.3 capsule
- * collider. The model is cosmetic only; nothing here touches physics.
+ * The model is cosmetic only; nothing here touches physics. But it has to be
+ * planted on the same ground the collider is standing on, or the character
+ * reads as hovering — see GROUND_OFFSET.
  */
 
 // Geometry is shared across every instance — one allocation per shape, ever.
@@ -34,6 +35,21 @@ const G = {
 // Forward is -Z (matching the follow camera, which sits behind on +X/+Z).
 const SWING = 0.85; // radians at full sprint
 const LEAN = 0.22;
+
+/**
+ * Drops the model so its soles meet the floor.
+ *
+ * ecctrl holds the capsule on a spring a `floatHeight` gap above the ground,
+ * so the contact point is not the body origin: it's
+ * `-(capsuleHalfHeight + capsuleRadius + floatHeight)` = -(0.3 + 0.3 + 0.2).
+ * The limbs bottom out at -0.54 in model space, so without this the character
+ * renders a quarter of a unit in the air.
+ *
+ * These must stay in step with the <Ecctrl> props in Player.tsx.
+ */
+const CONTACT_Y = -(0.3 + 0.3 + 0.2);
+const SOLE_Y = -0.54;
+const GROUND_OFFSET = CONTACT_Y - SOLE_Y;
 
 export function CharacterModel({
   handleRef,
@@ -122,72 +138,76 @@ export function CharacterModel({
   });
 
   return (
-    <group ref={root}>
-      <group ref={rig}>
-        {/* ── Torso ── */}
-        <mesh geometry={G.torso} position={[0, -0.02, 0]} castShadow>
-          <meshStandardMaterial color="#4f46e5" roughness={0.42} metalness={0.25} />
-        </mesh>
-        {/* Chest core */}
-        <mesh geometry={G.core} position={[0, 0.02, -0.15]}>
-          <meshStandardMaterial
-            color="#22d3ee"
-            emissive="#22d3ee"
-            emissiveIntensity={2.4}
-            toneMapped={false}
-          />
-        </mesh>
-
-        {/* ── Head ── */}
-        <group ref={head} position={[0, 0.42, 0]}>
-          <mesh geometry={G.head} castShadow>
-            <meshStandardMaterial color="#e8ecff" roughness={0.35} metalness={0.1} />
+    // Static plant on the floor; `root` stays free for squash and lean so
+    // those still scale and pivot about the body rather than the feet.
+    <group position={[0, GROUND_OFFSET, 0]}>
+      <group ref={root}>
+        <group ref={rig}>
+          {/* ── Torso ── */}
+          <mesh geometry={G.torso} position={[0, -0.02, 0]} castShadow>
+            <meshStandardMaterial color="#4f46e5" roughness={0.42} metalness={0.25} />
           </mesh>
-          {/* Visor reads as the "face", so forward direction is unmistakable. */}
-          <mesh geometry={G.visor} position={[0, 0.01, -0.19]}>
+          {/* Chest core */}
+          <mesh geometry={G.core} position={[0, 0.02, -0.15]}>
             <meshStandardMaterial
-              ref={visorMat}
-              color="#0b1024"
+              color="#22d3ee"
               emissive="#22d3ee"
-              emissiveIntensity={1.8}
+              emissiveIntensity={2.4}
               toneMapped={false}
             />
           </mesh>
-          <mesh geometry={G.antenna} position={[0.13, 0.26, 0]} rotation={[0, 0, -0.25]}>
-            <meshStandardMaterial color="#94a3b8" roughness={0.3} metalness={0.8} />
-          </mesh>
-          <mesh geometry={G.core} position={[0.155, 0.36, 0]} scale={0.62}>
-            <meshStandardMaterial
-              color="#a3e635"
-              emissive="#a3e635"
-              emissiveIntensity={2.6}
-              toneMapped={false}
-            />
-          </mesh>
-        </group>
 
-        {/* ── Arms — pivot at the shoulder, so rotation.x swings properly ── */}
-        <group ref={armL} position={[-0.26, 0.14, 0]}>
-          <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
-            <meshStandardMaterial color="#7c3aed" roughness={0.45} metalness={0.2} />
-          </mesh>
-        </group>
-        <group ref={armR} position={[0.26, 0.14, 0]}>
-          <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
-            <meshStandardMaterial color="#7c3aed" roughness={0.45} metalness={0.2} />
-          </mesh>
-        </group>
+          {/* ── Head ── */}
+          <group ref={head} position={[0, 0.42, 0]}>
+            <mesh geometry={G.head} castShadow>
+              <meshStandardMaterial color="#e8ecff" roughness={0.35} metalness={0.1} />
+            </mesh>
+            {/* Visor reads as the "face", so forward direction is unmistakable. */}
+            <mesh geometry={G.visor} position={[0, 0.01, -0.19]}>
+              <meshStandardMaterial
+                ref={visorMat}
+                color="#0b1024"
+                emissive="#22d3ee"
+                emissiveIntensity={1.8}
+                toneMapped={false}
+              />
+            </mesh>
+            <mesh geometry={G.antenna} position={[0.13, 0.26, 0]} rotation={[0, 0, -0.25]}>
+              <meshStandardMaterial color="#94a3b8" roughness={0.3} metalness={0.8} />
+            </mesh>
+            <mesh geometry={G.core} position={[0.155, 0.36, 0]} scale={0.62}>
+              <meshStandardMaterial
+                color="#a3e635"
+                emissive="#a3e635"
+                emissiveIntensity={2.6}
+                toneMapped={false}
+              />
+            </mesh>
+          </group>
 
-        {/* ── Legs — pivot at the hip ── */}
-        <group ref={legL} position={[-0.1, -0.24, 0]}>
-          <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
-            <meshStandardMaterial color="#312e81" roughness={0.5} metalness={0.2} />
-          </mesh>
-        </group>
-        <group ref={legR} position={[0.1, -0.24, 0]}>
-          <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
-            <meshStandardMaterial color="#312e81" roughness={0.5} metalness={0.2} />
-          </mesh>
+          {/* ── Arms — pivot at the shoulder, so rotation.x swings properly ── */}
+          <group ref={armL} position={[-0.26, 0.14, 0]}>
+            <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
+              <meshStandardMaterial color="#7c3aed" roughness={0.45} metalness={0.2} />
+            </mesh>
+          </group>
+          <group ref={armR} position={[0.26, 0.14, 0]}>
+            <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
+              <meshStandardMaterial color="#7c3aed" roughness={0.45} metalness={0.2} />
+            </mesh>
+          </group>
+
+          {/* ── Legs — pivot at the hip ── */}
+          <group ref={legL} position={[-0.1, -0.24, 0]}>
+            <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
+              <meshStandardMaterial color="#312e81" roughness={0.5} metalness={0.2} />
+            </mesh>
+          </group>
+          <group ref={legR} position={[0.1, -0.24, 0]}>
+            <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
+              <meshStandardMaterial color="#312e81" roughness={0.5} metalness={0.2} />
+            </mesh>
+          </group>
         </group>
       </group>
     </group>

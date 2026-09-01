@@ -48,6 +48,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </span>
             </Link>
             <div className="flex items-center gap-3">
+              <Link
+                href="/browse"
+                className="hud-chip hidden sm:inline-flex"
+              >
+                Browse
+              </Link>
               <Show when="signed-out">
                 <SignInButton />
                 <SignUpButton />

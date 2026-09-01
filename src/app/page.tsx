@@ -133,11 +133,22 @@ export default async function Home() {
               />
               <div className="flex items-start justify-between gap-2">
                 <h2 className="min-w-0 truncate font-bold">{w.name}</h2>
-                <WorldCardMenu worldId={w.id} worldName={w.name} />
+                <WorldCardMenu
+                  worldId={w.id}
+                  worldName={w.name}
+                  published={w.published === 1}
+                />
               </div>
-              <p className="hud-label mt-1.5">
-                {w.doc.parts.length.toLocaleString()} parts ·{" "}
-                {new Date(w.updatedAt).toLocaleDateString()}
+              <p className="hud-label mt-1.5 flex flex-wrap items-center gap-x-1.5">
+                <span>{w.doc.parts.length.toLocaleString()} parts</span>
+                {w.published === 1 && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span className="text-mint">
+                      Public · {w.playCount.toLocaleString()} plays
+                    </span>
+                  </>
+                )}
               </p>
               <div className="mt-4 flex gap-2">
                 <Link href={`/build/${w.id}`} className="hud-chip">

@@ -71,7 +71,9 @@ export function JumpParticles({
 
     const spawn = (count: number, spread: number) => {
       const fx = h.currPos.x;
-      const fy = h.currPos.y - 0.55; // roughly the feet
+      // The capsule's ground contact, matching CharacterModel's GROUND_OFFSET:
+      // -(capsuleHalfHeight + capsuleRadius + floatHeight).
+      const fy = h.currPos.y - 0.8;
       const fz = h.currPos.z;
       for (let n = 0; n < count; n++) {
         const i = s.cursor;

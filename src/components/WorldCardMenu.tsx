@@ -17,14 +17,17 @@ import { useRouter } from "next/navigation";
 export function WorldCardMenu({
   worldId,
   worldName,
+  published,
 }: {
   worldId: string;
   worldName: string;
+  published: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [arming, setArming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
 
@@ -61,6 +64,37 @@ export function WorldCardMenu({
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
+
+  async function setPublished(next: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/worlds/${worldId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ published: next }),
+      });
+      if (!res.ok) throw new Error(`Could not update (${res.status})`);
+      setOpen(false);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not update");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/play/${worldId}`
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setError("Clipboard unavailable");
+    }
+  }
 
   async function remove() {
     setBusy(true);
@@ -100,6 +134,31 @@ export function WorldCardMenu({
           className="hud-panel absolute right-0 z-20 mt-1.5 w-48 overflow-hidden p-1.5"
         >
           {!arming ? (
+            <>
+            <button
+              role="menuitem"
+              onClick={() => setPublished(!published)}
+              disabled={busy}
+              className="text-muted hover:bg-raised hover:text-ink flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold tracking-wide uppercase transition-colors disabled:opacity-50"
+            >
+              <span
+                className={`h-2 w-2 shrink-0 rounded-full ${
+                  published
+                    ? "bg-mint shadow-[0_0_8px_var(--color-mint)]"
+                    : "bg-dim"
+                }`}
+              />
+              {published ? "Unpublish" : "Publish"}
+            </button>
+            <button
+              role="menuitem"
+              onClick={copyLink}
+              className="text-muted hover:bg-raised hover:text-ink flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold tracking-wide uppercase transition-colors"
+            >
+              <span className="w-2 shrink-0" />
+              {copied ? "Link copied" : "Copy play link"}
+            </button>
+            <span className="bg-line my-1 block h-px" />
             <button
               role="menuitem"
               onClick={() => setArming(true)}
@@ -118,6 +177,8 @@ export function WorldCardMenu({
               </svg>
               Delete world
             </button>
+            {error && <p className="text-flare px-2.5 py-1 text-xs">{error}</p>}
+            </>
           ) : (
             <div className="p-1">
               <p className="text-muted mb-2 text-xs leading-snug">

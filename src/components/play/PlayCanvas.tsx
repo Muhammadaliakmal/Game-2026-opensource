@@ -123,6 +123,12 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
         if (cancelled) return;
         setWorld({ parts: doc.parts, spawn: doc.spawn, name: doc.name });
         setStatus("ready");
+
+        // Fire-and-forget: a lost play count is never worth interrupting
+        // someone's game over, and the server skips the owner's own replays.
+        void fetch(`/api/worlds/${worldId}/play`, { method: "POST" }).catch(
+          () => {}
+        );
       } catch (e) {
         if (cancelled) return;
         setError(e instanceof Error ? e.message : "Failed to load world");

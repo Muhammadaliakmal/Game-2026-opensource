@@ -27,23 +27,44 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
 
-  // `from` remixes a built-in world into a row the caller owns — the only way
-  // to edit one, since the originals are generated and read-only.
-  const source = typeof body?.from === "string" ? getBuiltInWorld(body.from) : undefined;
-  const name =
-    typeof body?.name === "string" && body.name.trim()
-      ? body.name.trim()
-      : source
-        ? `${source.name} (remix)`
-        : "Untitled World";
+  // `from` remixes an existing world into a row the caller owns: a built-in
+  // slug (the only way to edit one, since those are generated and read-only)
+  // or the id of any published world. SPEC §9 #4 calls remix the strongest UGC
+  // retention driver, and it's nearly free once the doc is already a value.
+  const from = typeof body?.from === "string" ? body.from : undefined;
+  const builtIn = from ? getBuiltInWorld(from) : undefined;
 
   // Generate the row id up front so it can be embedded in the WorldDoc itself
   // (the doc's `id` and the row's primary key must match — e.g. for /build/[id]).
   const id = crypto.randomUUID();
-  const seed = source
-    ? { ...buildBuiltInDoc(source.slug, userId)!, id, name }
-    : parkourWorldDoc(id, userId, name);
-  const doc = parseWorldDoc(seed);
+
+  let seed;
+  let sourceName: string | undefined;
+
+  if (builtIn) {
+    seed = buildBuiltInDoc(builtIn.slug, userId)!;
+    sourceName = builtIn.name;
+  } else if (from) {
+    // Only published worlds can be remixed — anything else must 404 rather
+    // than reveal that a private world exists.
+    const [src] = await db.select().from(worlds).where(eq(worlds.id, from));
+    if (!src || src.published !== 1) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    seed = src.doc;
+    sourceName = src.name;
+  } else {
+    seed = parkourWorldDoc(id, userId, "Untitled World");
+  }
+
+  const name =
+    typeof body?.name === "string" && body.name.trim()
+      ? body.name.trim()
+      : sourceName
+        ? `${sourceName} (remix)`
+        : "Untitled World";
+
+  const doc = parseWorldDoc({ ...seed, id, ownerId: userId, name });
 
   const [row] = await db
     .insert(worlds)

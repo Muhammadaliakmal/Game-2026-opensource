@@ -8,26 +8,29 @@ import { buildBuiltInDoc, isBuiltInWorld } from "@/lib/built-in-worlds";
 
 type Params = { params: Promise<{ id: string }> };
 
-/** GET /api/worlds/:id — owner-only for now; published worlds open up in Phase 4. */
+/**
+ * GET /api/worlds/:id
+ *
+ * Readable without signing in when the world is a built-in or has been
+ * published — that's what makes a shared link work for the person you sent it
+ * to (SPEC §9 #4). Unpublished worlds stay owner-only.
+ */
 export async function GET(_req: Request, { params }: Params) {
   const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const { id } = await params;
 
   // Built-ins are generated, not stored. This has to come before the query:
   // `worlds.id` is a uuid column, so a slug like "parkour" is a Postgres error
   // rather than an empty result.
-  const builtIn = buildBuiltInDoc(id, userId);
+  const builtIn = buildBuiltInDoc(id, userId ?? "");
   if (builtIn) {
     return NextResponse.json({
       id,
-      ownerId: userId,
+      ownerId: userId ?? "",
       name: builtIn.name,
       doc: builtIn,
       builtIn: true,
+      published: 1,
     });
   }
 
@@ -36,10 +39,14 @@ export async function GET(_req: Request, { params }: Params) {
   if (!row) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  if (row.ownerId !== userId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const isOwner = Boolean(userId) && row.ownerId === userId;
+  if (!isOwner && row.published !== 1) {
+    // 404 rather than 403: a private world shouldn't confirm it exists.
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  return NextResponse.json(row);
+
+  return NextResponse.json({ ...row, isOwner });
 }
 
 /** PUT /api/worlds/:id — save the whole WorldDoc. */
@@ -79,6 +86,43 @@ export async function PUT(req: Request, { params }: Params) {
   const [row] = await db
     .update(worlds)
     .set({ doc: { ...doc, name }, name, updatedAt: new Date() })
+    .where(and(eq(worlds.id, id), eq(worlds.ownerId, userId)))
+    .returning();
+
+  if (!row) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  return NextResponse.json(row);
+}
+
+/**
+ * PATCH /api/worlds/:id — metadata only.
+ *
+ * Separate from PUT because publishing shouldn't require the client to hold
+ * and round-trip the entire WorldDoc just to flip one integer.
+ */
+export async function PATCH(req: Request, { params }: Params) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  if (isBuiltInWorld(id)) {
+    return NextResponse.json(
+      { error: "Built-in worlds are read-only." },
+      { status: 403 }
+    );
+  }
+
+  const body = await req.json().catch(() => null);
+  if (typeof body?.published !== "boolean") {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  }
+
+  const [row] = await db
+    .update(worlds)
+    .set({ published: body.published ? 1 : 0, updatedAt: new Date() })
     .where(and(eq(worlds.id, id), eq(worlds.ownerId, userId)))
     .returning();
 
