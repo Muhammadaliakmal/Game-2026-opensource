@@ -120,7 +120,7 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
         </div>
       )}
 
-      <Toolbar onSave={save} />
+      <Toolbar worldId={worldId} onSave={save} />
     </div>
   );
 }

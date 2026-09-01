@@ -1,11 +1,34 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useEditorStore } from "@/stores/editor-store";
 import { PALETTE, FINISHES, type Shape } from "@/lib/worlddoc";
 import { SHAPE_NAMES } from "./shapes";
 
 /** DOM overlay, deliberately outside the Canvas — HTML is far cheaper than in-scene UI. */
-export function Toolbar({ onSave }: { onSave: () => void }) {
+export function Toolbar({
+  worldId,
+  onSave,
+}: {
+  worldId: string;
+  onSave: () => void | Promise<void>;
+}) {
+  const router = useRouter();
+  const [entering, setEntering] = useState(false);
+
+  // Play loads the world from the DB, so unsaved edits would vanish on the jump.
+  // Save first, then navigate.
+  async function play() {
+    setEntering(true);
+    try {
+      await onSave();
+      router.push(`/play/${worldId}`);
+    } finally {
+      setEntering(false);
+    }
+  }
+
   const shape = useEditorStore((s) => s.shape);
   const colorIndex = useEditorStore((s) => s.colorIndex);
   const finish = useEditorStore((s) => s.finish);
@@ -49,6 +72,14 @@ export function Toolbar({ onSave }: { onSave: () => void }) {
           className="rounded bg-blue-600 px-3 py-1 font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save"}
+        </button>
+        <button
+          onClick={play}
+          disabled={saving || entering}
+          className="rounded bg-emerald-600 px-3 py-1 font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+          title="Save and walk around your world"
+        >
+          {entering ? "Entering…" : "Play"}
         </button>
         {lastSavedAt && !saving && (
           <span className="text-xs text-emerald-400">Saved</span>
