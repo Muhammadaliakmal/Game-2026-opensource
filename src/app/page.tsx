@@ -11,18 +11,37 @@ export default async function Home() {
 
   if (!userId) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-        <h1 className="text-4xl font-semibold tracking-tight">Blockworld</h1>
-        <p className="max-w-md text-zinc-600 dark:text-zinc-400">
-          Build worlds out of blocks, then walk around inside them.
-        </p>
-        <Show when="signed-out">
-          <SignInButton>
-            <button className="rounded-full bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-500">
-              Sign in to start building
-            </button>
-          </SignInButton>
-        </Show>
+      <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 text-center">
+        {/* Ambient wash so the void isn't flat black behind the hero. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute top-1/2 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 -translate-y-1/2 rounded-full opacity-40 blur-3xl"
+          style={{
+            background:
+              "radial-gradient(circle, var(--color-plasma) 0%, transparent 65%)",
+          }}
+        />
+        <div className="relative flex flex-col items-center gap-5">
+          <span className="hud-label text-neon">Build · Play · Remix</span>
+          <h1 className="max-w-2xl text-5xl font-black tracking-tight sm:text-6xl">
+            Build worlds out of{" "}
+            <span className="from-neon to-plasma bg-gradient-to-r bg-clip-text text-transparent">
+              blocks
+            </span>
+            , then walk around inside them.
+          </h1>
+          <p className="text-muted max-w-md text-sm">
+            A voxel editor and a platformer in the same browser tab. Place a
+            block, hit play, and you&apos;re standing on it.
+          </p>
+          <Show when="signed-out">
+            <SignInButton>
+              <button className="hud-chip hud-chip--neon mt-2 !px-7 !py-3.5 !text-xs">
+                Start building
+              </button>
+            </SignInButton>
+          </Show>
+        </div>
       </div>
     );
   }
@@ -34,47 +53,51 @@ export default async function Home() {
     .orderBy(desc(worlds.updatedAt));
 
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-      <div className="mb-8 flex items-center justify-between gap-4">
+    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Your worlds</h1>
-          <p className="text-sm text-zinc-500">
+          <span className="hud-label text-neon">Your worlds</span>
+          <h1 className="mt-1 text-3xl font-black tracking-tight">
             {myWorlds.length === 0
-              ? "Nothing here yet — make your first one."
+              ? "Nothing here yet"
               : `${myWorlds.length} world${myWorlds.length === 1 ? "" : "s"}`}
-          </p>
+          </h1>
         </div>
         <NewWorldButton />
       </div>
 
       {myWorlds.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-zinc-300 p-12 text-center text-zinc-500 dark:border-zinc-700">
-          Hit “New World” and start placing blocks.
+        <div className="border-line text-muted rounded-2xl border border-dashed p-12 text-center text-sm">
+          Hit <span className="text-neon font-semibold">New World</span> and
+          start placing blocks.
         </div>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {myWorlds.map((w) => (
             <li
               key={w.id}
-              className="rounded-xl border border-zinc-200 p-4 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
+              className="hud-panel group hover:border-neon/60 relative overflow-hidden p-4 transition-colors"
             >
-              <h2 className="truncate font-medium">{w.name}</h2>
-              <p className="mt-1 text-xs text-zinc-500">
-                {w.doc.parts.length.toLocaleString()} parts · updated{" "}
+              {/* Accent edge that lights up on hover — cheap way to make a
+                  list of cards feel like a game menu rather than a table. */}
+              <span
+                aria-hidden
+                className="from-neon to-plasma absolute inset-x-0 top-0 h-px bg-gradient-to-r opacity-0 transition-opacity group-hover:opacity-100"
+              />
+              <h2 className="truncate font-bold">{w.name}</h2>
+              <p className="hud-label mt-1.5">
+                {w.doc.parts.length.toLocaleString()} parts ·{" "}
                 {new Date(w.updatedAt).toLocaleDateString()}
               </p>
               <div className="mt-4 flex gap-2">
-                <Link
-                  href={`/build/${w.id}`}
-                  className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-black dark:hover:bg-white"
-                >
+                <Link href={`/build/${w.id}`} className="hud-chip">
                   Build
                 </Link>
                 <Link
                   href={`/play/${w.id}`}
-                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white transition-colors hover:bg-blue-500"
+                  className="hud-chip hud-chip--mint"
                 >
-                  Play
+                  ▶ Play
                 </Link>
               </div>
             </li>

@@ -1,34 +1,164 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+  "Neon Voxel" — the Blockworld design system.
+  Source of truth: the Figma file "Blockworld — Game UI" (collection "Neon Voxel").
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  The app commits to one dark palette rather than following the OS theme: this is
+  a game, and the 3D canvas is always a dark void — a light chrome around it read
+  as a document viewer, not a world.
+*/
+@theme {
+  --color-void: #080b1a;
+  --color-panel: #0e1330;
+  --color-panel2: #161c42;
+  --color-raised: #1e2554;
+  --color-line: #2a3268;
+
+  --color-ink: #e8ecff;
+  --color-muted: #8a93c4;
+  --color-dim: #5a628f;
+
+  --color-neon: #22d3ee; /* primary action / build */
+  --color-plasma: #a855f7; /* secondary / finishes */
+  --color-mint: #34d399; /* play / go */
+  --color-flare: #fb7185; /* destructive / erase */
+  --color-gold: #fbbf24; /* warning */
+  --color-acid: #a3e635;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  overscroll-behavior: none;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-void);
+  color: var(--color-ink);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* The editor and play routes fill the viewport; stop the page itself from
-   scrolling so the fixed tool overlays stay put. */
-html,
-body {
-  overscroll-behavior: none;
+/* Dark form controls and a neon caret, so the world-name field matches the HUD. */
+input {
+  caret-color: var(--color-neon);
+}
+::selection {
+  background: color-mix(in oklab, var(--color-neon) 35%, transparent);
+}
+
+/* ── HUD primitives ──────────────────────────────────────────────────────
+   Written as plain classes rather than repeated utility strings: every HUD
+   surface shares one recipe (glass fill, hairline border, inner top highlight),
+   and the highlight in particular is what stops the panels reading as flat
+   rectangles pasted over the canvas. */
+
+.hud-panel {
+  background: color-mix(in oklab, var(--color-panel) 88%, transparent);
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 10px 34px rgb(2 4 16 / 0.55),
+    inset 0 1px 0 rgb(255 255 255 / 0.07);
+}
+
+.hud-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+  border-radius: 0.7rem;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  background: rgb(255 255 255 / 0.05);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+.hud-chip:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.11);
+  color: var(--color-ink);
+}
+.hud-chip:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.hud-chip:disabled {
+  opacity: 0.35;
+}
+
+/* Accent variants — the glow is what makes an active tool read as "armed". */
+.hud-chip--neon,
+.hud-chip--plasma,
+.hud-chip--mint,
+.hud-chip--flare {
+  color: #05101c;
+}
+.hud-chip--neon {
+  background: var(--color-neon);
+  box-shadow: 0 0 20px -4px var(--color-neon);
+}
+.hud-chip--neon:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--color-neon) 88%, white);
+  color: #05101c;
+}
+.hud-chip--plasma {
+  background: var(--color-plasma);
+  color: #fff;
+  box-shadow: 0 0 20px -4px var(--color-plasma);
+}
+.hud-chip--plasma:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--color-plasma) 88%, white);
+  color: #fff;
+}
+.hud-chip--mint {
+  background: var(--color-mint);
+  box-shadow: 0 0 20px -4px var(--color-mint);
+}
+.hud-chip--mint:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--color-mint) 88%, white);
+  color: #05101c;
+}
+.hud-chip--flare {
+  background: var(--color-flare);
+  box-shadow: 0 0 20px -4px var(--color-flare);
+}
+.hud-chip--flare:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--color-flare) 88%, white);
+  color: #05101c;
+}
+
+.hud-divider {
+  flex-shrink: 0;
+  width: 1px;
+  align-self: stretch;
+  margin-inline: 0.15rem;
+  background: var(--color-line);
+}
+
+/* Horizontally scrollable clusters: keep the scrollbar out of the chrome. */
+.hud-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hud-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.hud-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-dim);
 }

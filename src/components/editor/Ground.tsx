@@ -17,7 +17,7 @@ export const Ground = forwardRef<THREE.Mesh>(function Ground(_props, ref) {
   return (
     <group>
       <gridHelper
-        args={[GROUND_SIZE, GROUND_SIZE, "#64748b", "#334155"]}
+        args={[GROUND_SIZE, GROUND_SIZE, "#22d3ee", "#232a5c"]}
         position={[0, 0.001, 0]}
       />
       <mesh
@@ -28,7 +28,7 @@ export const Ground = forwardRef<THREE.Mesh>(function Ground(_props, ref) {
       >
         <planeGeometry args={[GROUND_SIZE, GROUND_SIZE]} />
         {/* Very dark and nearly matte so the grid lines stay legible on top. */}
-        <meshStandardMaterial color="#0f172a" roughness={1} />
+        <meshStandardMaterial color="#0b1024" roughness={1} />
       </mesh>
     </group>
   );

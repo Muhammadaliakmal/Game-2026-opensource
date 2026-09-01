@@ -64,14 +64,14 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
 
   if (status === "error") {
     return (
-      <div className="flex flex-1 items-center justify-center bg-zinc-950 p-8 text-center text-red-400">
+      <div className="bg-void text-flare flex min-h-0 flex-1 items-center justify-center p-8 text-center text-sm font-semibold">
         {error}
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-0 flex-1 bg-zinc-950">
+    <div className="bg-void relative min-h-0 flex-1">
       <Canvas
         // "demand" means we only render when something actually changed —
         // an idle editor should not burn GPU at 60fps.
@@ -80,10 +80,10 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
         camera={{ position: [16, 16, 16], fov: 50 }}
         gl={{ powerPreference: "high-performance", preserveDrawingBuffer: true }}
         onCreated={({ scene }) => {
-          scene.background = new THREE.Color("#0b1120");
+          scene.background = new THREE.Color("#080b1a");
         }}
       >
-        <hemisphereLight args={["#dbeafe", "#0f172a", 1.1]} />
+        <hemisphereLight args={["#a5b4fc", "#0b1024", 1.15]} />
         <directionalLight
           position={[20, 30, 12]}
           intensity={1.8}
@@ -115,9 +115,9 @@ export default function EditorCanvas({ worldId }: { worldId: string }) {
       </Canvas>
 
       {status === "loading" && (
-        <div className="absolute inset-0 flex items-center justify-center gap-3 bg-zinc-950/70 text-sm text-zinc-300">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent" />
-          Loading world…
+        <div className="bg-void/80 absolute inset-0 flex flex-col items-center justify-center gap-4 backdrop-blur-sm">
+          <span className="border-neon h-8 w-8 animate-spin rounded-full border-2 border-t-transparent shadow-[0_0_18px_-4px_var(--color-neon)]" />
+          <span className="hud-label">Loading world</span>
         </div>
       )}
 

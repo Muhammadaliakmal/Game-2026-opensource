@@ -13,21 +13,12 @@ import { FullscreenButton } from "@/components/FullscreenButton";
  *
  * Layout: the outer layer is `pointer-events-none` so clicks fall through to
  * the canvas; each panel re-enables pointer events for itself. On narrow
- * viewports the tool cluster scrolls horizontally rather than stacking into a
- * tall wall that would eat the build view.
+ * viewports the clusters scroll horizontally rather than stacking into a tall
+ * wall that would eat the build view.
+ *
+ * Styling comes from the `.hud-*` primitives in globals.css — see the
+ * "Neon Voxel" Figma file for the source design.
  */
-
-const PANEL =
-  "pointer-events-auto rounded-xl bg-zinc-950/80 ring-1 ring-white/10 backdrop-blur";
-const BTN =
-  "shrink-0 rounded-md px-2.5 py-1.5 text-xs sm:text-sm transition-colors";
-const BTN_OFF = "bg-white/5 text-zinc-300 hover:bg-white/10";
-const BTN_ON = "bg-blue-600 text-white";
-
-function Divider() {
-  return <span className="mx-0.5 h-5 w-px shrink-0 bg-white/15" />;
-}
-
 export function Toolbar({
   worldId,
   onSave,
@@ -73,72 +64,68 @@ export function Toolbar({
 
   return (
     <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-2 p-2 sm:p-3">
-      {/* ── Top row: identity on the left, primary actions on the right ── */}
+      {/* ── Top row: identity left, primary actions right ── */}
       <div className="flex items-start justify-between gap-2">
-        <div className={`${PANEL} flex min-w-0 items-center gap-2 px-2.5 py-1.5`}>
+        <div className="hud-panel pointer-events-auto flex min-w-0 items-center gap-3 px-3 py-2">
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full ${
+              saving
+                ? "bg-gold shadow-[0_0_10px_var(--color-gold)]"
+                : "bg-mint shadow-[0_0_10px_var(--color-mint)]"
+            }`}
+            title={saving ? "Saving" : lastSavedAt ? "Saved" : "Unsaved"}
+          />
           <input
             value={name}
             onChange={(e) => useEditorStore.getState().setName(e.target.value)}
-            className="min-w-0 flex-1 bg-transparent text-sm font-medium text-zinc-100 outline-none placeholder:text-zinc-500 focus:underline sm:w-48 sm:flex-none"
+            className="text-ink placeholder:text-dim min-w-0 flex-1 bg-transparent text-sm font-bold outline-none sm:w-44 sm:flex-none"
             aria-label="World name"
             placeholder="World name"
           />
           <span
-            className={`hidden shrink-0 text-xs tabular-nums sm:inline ${
-              count > 40000 ? "text-amber-400" : "text-zinc-500"
+            className={`hud-label hidden shrink-0 tabular-nums sm:inline ${
+              count > 40000 ? "text-gold" : ""
             }`}
             title="Parts placed (soft ceiling 50,000)"
           >
-            {count.toLocaleString()}
+            {count.toLocaleString()} parts
           </span>
         </div>
 
-        <div className={`${PANEL} flex shrink-0 items-center gap-1.5 px-2 py-1.5`}>
-          <FullscreenButton
-            className={`${BTN} ${BTN_OFF} hidden items-center gap-1.5 sm:inline-flex`}
-          />
-          <span
-            className={`hidden text-xs sm:inline ${
-              saving
-                ? "text-amber-400"
-                : lastSavedAt
-                  ? "text-emerald-400"
-                  : "text-transparent"
-            }`}
-          >
-            {saving ? "Saving…" : "Saved"}
-          </span>
+        <div className="hud-panel pointer-events-auto flex shrink-0 items-center gap-1.5 p-1.5">
+          <FullscreenButton className="hud-chip hidden sm:inline-flex" />
           <button
             onClick={onSave}
             disabled={saving}
-            className={`${BTN} bg-blue-600 font-medium text-white hover:bg-blue-500 disabled:opacity-50`}
+            className="hud-chip hud-chip--neon"
           >
             {saving ? "Saving…" : "Save"}
           </button>
           <button
             onClick={play}
             disabled={saving || entering}
-            className={`${BTN} bg-emerald-600 font-medium text-white hover:bg-emerald-500 disabled:opacity-50`}
+            className="hud-chip hud-chip--mint"
             title="Save and walk around your world"
           >
-            {entering ? "Entering…" : "Play"}
+            {entering ? "Entering…" : "▶ Play"}
           </button>
         </div>
       </div>
 
-      {/* ── Bottom stack: palette above the tool cluster ── */}
+      {/* ── Bottom dock: palette over the tool cluster ── */}
       <div className="flex flex-col items-center gap-2">
-        <div
-          className={`${PANEL} flex max-w-[min(94vw,44rem)] gap-1 overflow-x-auto p-1.5 sm:flex-wrap sm:justify-center sm:overflow-x-visible`}
-        >
+        <div className="hud-panel hud-scroll pointer-events-auto flex max-w-[min(94vw,44rem)] gap-1.5 overflow-x-auto p-2 sm:flex-wrap sm:justify-center">
           {PALETTE.map((hex, i) => (
             <button
               key={hex + i}
               onClick={() => useEditorStore.getState().setColorIndex(i)}
-              style={{ background: hex }}
-              className={`h-6 w-6 shrink-0 rounded transition-transform hover:scale-110 sm:h-7 sm:w-7 ${
+              style={{
+                background: hex,
+                boxShadow: colorIndex === i ? `0 0 16px -2px ${hex}` : undefined,
+              }}
+              className={`h-7 w-7 shrink-0 rounded-lg transition-transform hover:scale-110 ${
                 colorIndex === i
-                  ? "ring-2 ring-white ring-offset-1 ring-offset-zinc-950"
+                  ? "ring-ink ring-offset-panel scale-110 ring-2 ring-offset-2"
                   : "ring-1 ring-white/10"
               }`}
               aria-label={`Colour ${i}`}
@@ -147,45 +134,39 @@ export function Toolbar({
           ))}
         </div>
 
-        <div
-          className={`${PANEL} flex max-w-[calc(100vw-1rem)] items-center gap-1.5 overflow-x-auto p-1.5`}
-        >
-          <div className="flex shrink-0 items-center gap-1">
-            {SHAPE_NAMES.map((label, i) => (
-              <button
-                key={label}
-                onClick={() => useEditorStore.getState().setShape(i as Shape)}
-                className={`${BTN} ${shape === i ? BTN_ON : BTN_OFF}`}
-                title={`${label} (${i + 1})`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        <div className="hud-panel hud-scroll pointer-events-auto flex max-w-[calc(100vw-1rem)] items-center gap-1.5 p-2">
+          {SHAPE_NAMES.map((label, i) => (
+            <button
+              key={label}
+              onClick={() => useEditorStore.getState().setShape(i as Shape)}
+              className={`hud-chip ${shape === i ? "hud-chip--neon" : ""}`}
+              title={`${label} (${i + 1})`}
+            >
+              {label}
+            </button>
+          ))}
 
-          <Divider />
+          <span className="hud-divider" />
 
-          <div className="flex shrink-0 items-center gap-1">
-            {FINISHES.map((label, i) => (
-              <button
-                key={label}
-                onClick={() => useEditorStore.getState().setFinish(i)}
-                className={`${BTN} capitalize ${finish === i ? BTN_ON : BTN_OFF}`}
-                title={`${label} finish`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {FINISHES.map((label, i) => (
+            <button
+              key={label}
+              onClick={() => useEditorStore.getState().setFinish(i)}
+              className={`hud-chip ${finish === i ? "hud-chip--plasma" : ""}`}
+              title={`${label} finish`}
+            >
+              {label}
+            </button>
+          ))}
 
-          <Divider />
+          <span className="hud-divider" />
 
           <button
             onClick={() => useEditorStore.getState().rotateBrush()}
-            className={`${BTN} ${BTN_OFF}`}
+            className="hud-chip"
             title="Rotate (R)"
           >
-            Rotate {rot * 90}°
+            ⟳ {rot * 90}°
           </button>
           <button
             onClick={() =>
@@ -193,31 +174,29 @@ export function Toolbar({
                 .getState()
                 .setTool(tool === "erase" ? "place" : "erase")
             }
-            className={`${BTN} ${
-              tool === "erase" ? "bg-red-600 text-white" : BTN_OFF
-            }`}
+            className={`hud-chip ${tool === "erase" ? "hud-chip--flare" : ""}`}
             title="Toggle erase (E)"
           >
             {tool === "erase" ? "Erasing" : "Erase"}
           </button>
 
-          <Divider />
+          <span className="hud-divider" />
 
           <button
             onClick={() => useEditorStore.getState().undo()}
             disabled={!canUndo}
-            className={`${BTN} ${BTN_OFF} disabled:opacity-40`}
+            className="hud-chip"
             title="Undo (Ctrl+Z)"
           >
-            Undo
+            ↶ Undo
           </button>
           <button
             onClick={() => useEditorStore.getState().redo()}
             disabled={!canRedo}
-            className={`${BTN} ${BTN_OFF} disabled:opacity-40`}
+            className="hud-chip"
             title="Redo (Ctrl+Y)"
           >
-            Redo
+            ↷ Redo
           </button>
         </div>
       </div>

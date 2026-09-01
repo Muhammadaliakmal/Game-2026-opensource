@@ -114,12 +114,12 @@ function CharacterModel({
     <group ref={group}>
       <mesh castShadow position={[0, 0, 0]}>
         <capsuleGeometry args={[0.3, 0.6, 8, 16]} />
-        <meshStandardMaterial color="#38bdf8" roughness={0.4} />
+        <meshStandardMaterial color="#22d3ee" roughness={0.35} emissive="#22d3ee" emissiveIntensity={0.35} />
       </mesh>
       {/* A nose, so facing direction is readable. */}
       <mesh position={[0, 0.15, -0.3]} castShadow>
         <boxGeometry args={[0.16, 0.16, 0.16]} />
-        <meshStandardMaterial color="#0ea5e9" />
+        <meshStandardMaterial color="#0e7490" />
       </mesh>
     </group>
   );

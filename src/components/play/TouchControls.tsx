@@ -43,12 +43,13 @@ export function TouchControls() {
           width: 116,
           height: 116,
           background: "rgba(255,255,255,0.06)",
-          border: "2px solid rgba(255,255,255,0.18)",
+          border: "2px solid rgba(34,211,238,0.35)",
         }}
         joystickKnobStyle={{
           width: 62,
           height: 62,
-          background: "rgba(255,255,255,0.85)",
+          background: "#e8ecff",
+          boxShadow: "0 0 20px -2px #22d3ee",
         }}
       />
 
@@ -65,8 +66,9 @@ export function TouchControls() {
         buttonCapStyle={{
           width: 62,
           height: 62,
-          background: "rgba(16,185,129,0.9)",
-          color: "white",
+          background: "#34d399",
+          color: "#05101c",
+          boxShadow: "0 0 24px -4px #34d399",
         }}
       />
 
@@ -83,8 +85,9 @@ export function TouchControls() {
         buttonCapStyle={{
           width: 52,
           height: 52,
-          background: "rgba(59,130,246,0.9)",
-          color: "white",
+          background: "#22d3ee",
+          color: "#05101c",
+          boxShadow: "0 0 24px -4px #22d3ee",
         }}
       />
     </>

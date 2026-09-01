@@ -27,15 +27,15 @@ export function NewWorldButton() {
   }
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-end gap-2">
       <button
         onClick={create}
         disabled={creating}
-        className="rounded-full bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+        className="hud-chip hud-chip--neon !px-5 !py-3"
       >
-        {creating ? "Creating…" : "New World"}
+        {creating ? "Creating…" : "+ New World"}
       </button>
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-flare text-sm">{error}</p>}
     </div>
   );
 }

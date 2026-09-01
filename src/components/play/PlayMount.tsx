@@ -12,8 +12,8 @@ import dynamic from "next/dynamic";
 const PlayCanvas = dynamic(() => import("./PlayCanvas"), {
   ssr: false,
   loading: () => (
-    <div className="flex min-h-0 flex-1 items-center justify-center gap-3 bg-zinc-950 text-sm text-zinc-400">
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-transparent" />
+    <div className="bg-void flex min-h-0 flex-1 flex-col items-center justify-center gap-4">
+      <span className="border-neon h-8 w-8 animate-spin rounded-full border-2 border-t-transparent shadow-[0_0_18px_-4px_var(--color-neon)]" />
       Loading…
     </div>
   ),

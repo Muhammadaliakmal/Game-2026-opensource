@@ -90,12 +90,9 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
 
   if (status === "error") {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-zinc-950 p-8 text-center text-zinc-100">
-        <p className="text-red-400">{error}</p>
-        <Link
-          href={`/build/${worldId}`}
-          className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-white"
-        >
+      <div className="bg-void flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+        <p className="text-flare text-sm font-semibold">{error}</p>
+        <Link href={`/build/${worldId}`} className="hud-chip hud-chip--neon">
           Back to build
         </Link>
       </div>
@@ -103,7 +100,7 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
   }
 
   return (
-    <div className="relative min-h-0 flex-1 bg-zinc-950">
+    <div className="bg-void relative min-h-0 flex-1">
       <Canvas
         shadows
         camera={{ position: [8, 6, 8], fov: 65 }}
@@ -111,10 +108,13 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
         // (`gl.domElement.toDataURL()`) doesn't need a Canvas config change.
         gl={{ powerPreference: "high-performance", preserveDrawingBuffer: true }}
         onCreated={({ scene }) => {
-          scene.background = new THREE.Color("#0b1120");
+          scene.background = new THREE.Color("#080b1a");
+          // Distance fade into the void — without it the world just stops at a
+          // hard edge and the level reads as a floating diorama.
+          scene.fog = new THREE.Fog("#080b1a", 40, 130);
         }}
       >
-        <hemisphereLight args={["#dbeafe", "#0f172a", 1.1]} />
+        <hemisphereLight args={["#a5b4fc", "#0b1024", 1.15]} />
         <directionalLight
           position={[20, 30, 12]}
           intensity={1.8}
@@ -152,7 +152,12 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
             >
               <mesh scale={[8, 1, 8]} receiveShadow>
                 <boxGeometry />
-                <meshStandardMaterial color="#0f172a" roughness={1} />
+                <meshStandardMaterial
+                  color="#161c42"
+                  roughness={0.85}
+                  emissive="#22d3ee"
+                  emissiveIntensity={0.06}
+                />
               </mesh>
             </RigidBody>
           </Physics>
@@ -161,23 +166,26 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
 
       {/* DOM HUD, outside the Canvas — cheaper than in-scene UI. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-2 sm:p-3">
-        <div className="pointer-events-auto max-w-[70vw] truncate rounded-xl bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 ring-1 ring-white/10 backdrop-blur">
-          {world?.name ?? "Loading…"}
+        <div className="hud-panel pointer-events-auto flex min-w-0 items-center gap-2.5 px-3 py-2">
+          <span className="bg-mint h-2 w-2 shrink-0 rounded-full shadow-[0_0_10px_var(--color-mint)]" />
+          <span className="max-w-[52vw] truncate text-[0.6875rem] font-bold tracking-[0.09em] uppercase">
+            {world?.name ?? "Loading…"}
+          </span>
         </div>
-        <div className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-xl bg-zinc-950/80 p-1 ring-1 ring-white/10 backdrop-blur">
-          <FullscreenButton className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 transition-colors hover:bg-white/10 sm:text-sm" />
-          <span className="h-5 w-px bg-white/15" />
+        <div className="hud-panel pointer-events-auto flex shrink-0 items-center gap-1.5 p-1.5">
+          <FullscreenButton className="hud-chip" />
+          <span className="hud-divider" />
           <Link
             href={`/build/${worldId}`}
             onClick={leaveFullscreen}
-            className="rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 transition-colors hover:bg-white/10 sm:text-sm"
+            className="hud-chip"
           >
             Edit
           </Link>
           <Link
             href="/"
             onClick={leaveFullscreen}
-            className="rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-zinc-200 transition-colors hover:bg-red-600 hover:text-white sm:text-sm"
+            className="hud-chip hud-chip--flare"
             title="Leave the game and go back to your worlds"
           >
             Exit
@@ -189,8 +197,19 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
           it would sit right under the joystick. */}
       {!touch && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2 sm:p-3">
-          <div className="rounded-xl bg-zinc-950/70 px-3 py-2 text-[11px] text-zinc-300 ring-1 ring-white/10 backdrop-blur sm:text-xs">
-            WASD move · Shift run · Space jump
+          <div className="hud-panel flex items-center gap-2.5 px-3.5 py-2">
+            {[
+              ["WASD", "move"],
+              ["Shift", "run"],
+              ["Space", "jump"],
+            ].map(([key, action]) => (
+              <span key={key} className="flex items-center gap-1.5">
+                <kbd className="bg-raised text-ink rounded-md px-1.5 py-0.5 font-mono text-[0.625rem] font-bold ring-1 ring-white/10">
+                  {key}
+                </kbd>
+                <span className="hud-label">{action}</span>
+              </span>
+            ))}
           </div>
         </div>
       )}
@@ -198,9 +217,9 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
       {touch && status === "ready" && <TouchControls />}
 
       {status === "loading" && (
-        <div className="absolute inset-0 flex items-center justify-center gap-3 bg-zinc-950/70 text-sm text-zinc-300">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-500 border-t-transparent" />
-          Loading world…
+        <div className="bg-void/80 absolute inset-0 flex flex-col items-center justify-center gap-4 backdrop-blur-sm">
+          <span className="border-neon h-8 w-8 animate-spin rounded-full border-2 border-t-transparent shadow-[0_0_18px_-4px_var(--color-neon)]" />
+          <span className="hud-label">Loading world</span>
         </div>
       )}
 

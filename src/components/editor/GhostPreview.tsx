@@ -32,7 +32,7 @@ export function GhostPreview() {
 
   // Erase mode previews in red rather than the brush colour, so the two modes
   // are never confusable at a glance.
-  material.color.set(tool === "erase" ? "#ef4444" : PALETTE[colorIndex]);
+  material.color.set(tool === "erase" ? "#fb7185" : PALETTE[colorIndex]);
 
   return (
     <group
@@ -43,7 +43,7 @@ export function GhostPreview() {
       {/* Wireframe edge so the ghost reads clearly against same-coloured blocks. */}
       <lineSegments>
         <edgesGeometry args={[SHAPE_GEOMETRIES[shape]]} />
-        <lineBasicMaterial color={tool === "erase" ? "#ef4444" : "#ffffff"} />
+        <lineBasicMaterial color={tool === "erase" ? "#fb7185" : "#22d3ee"} />
       </lineSegments>
     </group>
   );

@@ -39,9 +39,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       */}
       <body className="flex h-dvh flex-col overflow-hidden">
         <ClerkProvider>
-          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-black/[.08] px-4 py-3 sm:px-6 dark:border-white/[.145]">
-            <Link href="/" className="font-semibold tracking-tight">
-              Blockworld
+          <header className="border-line bg-panel/60 flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2.5 backdrop-blur sm:px-6">
+            <Link href="/" className="group flex items-center gap-2.5">
+              {/* A little isometric mark — three faces of a voxel. */}
+              <span className="from-neon to-plasma block h-6 w-6 rotate-45 rounded-[7px] bg-gradient-to-br shadow-[0_0_18px_-4px_var(--color-neon)] transition-transform group-hover:rotate-[135deg]" />
+              <span className="text-sm font-bold tracking-[0.16em] uppercase">
+                Blockworld
+              </span>
             </Link>
             <div className="flex items-center gap-3">
               <Show when="signed-out">
