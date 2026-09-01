@@ -95,7 +95,7 @@ export function Toolbar({
 
         <div className={`${PANEL} flex shrink-0 items-center gap-1.5 px-2 py-1.5`}>
           <FullscreenButton
-            className={`${BTN} hidden ${BTN_OFF} sm:block`}
+            className={`${BTN} ${BTN_OFF} hidden items-center gap-1.5 sm:inline-flex`}
           />
           <span
             className={`hidden text-xs sm:inline ${

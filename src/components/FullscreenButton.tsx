@@ -50,11 +50,30 @@ export function FullscreenButton({ className }: { className?: string }) {
     <button
       onClick={toggle}
       className={className}
-      title="Toggle fullscreen"
+      title={isFs ? "Leave fullscreen" : "Enter fullscreen"}
       aria-label="Toggle fullscreen"
       aria-pressed={isFs}
     >
-      {isFs ? "Exit full screen" : "Full screen"}
+      {/* Icon-only under sm so the HUD stays compact on phones. */}
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-4 w-4"
+        aria-hidden="true"
+      >
+        {isFs ? (
+          <path d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6" />
+        ) : (
+          <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
+        )}
+      </svg>
+      <span className="hidden sm:inline">
+        {isFs ? "Windowed" : "Full screen"}
+      </span>
     </button>
   );
 }

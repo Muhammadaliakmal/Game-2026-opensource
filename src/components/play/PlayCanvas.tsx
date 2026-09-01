@@ -11,6 +11,7 @@ import { parseWorldDoc, type PartTuple, type Vec3 } from "@/lib/worlddoc";
 import { InstancedWorld } from "./InstancedWorld";
 import { WorldColliders } from "./WorldColliders";
 import { Player } from "./Player";
+import { TouchControls, useTouchControls } from "./TouchControls";
 import { FullscreenButton } from "@/components/FullscreenButton";
 
 // Live game-feel tuning panel — dev only. `dynamic` keeps leva out of the main
@@ -57,6 +58,13 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [world, setWorld] = useState<Loaded | null>(null);
+  const touch = useTouchControls();
+
+  // Leaving the game while still fullscreen strands the user in a chromeless
+  // window, so drop out of it on the way to another route.
+  const leaveFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen?.();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -156,24 +164,38 @@ export default function PlayCanvas({ worldId }: { worldId: string }) {
         <div className="pointer-events-auto max-w-[70vw] truncate rounded-xl bg-zinc-950/80 px-3 py-2 text-sm text-zinc-100 ring-1 ring-white/10 backdrop-blur">
           {world?.name ?? "Loading…"}
         </div>
-        <div className="pointer-events-auto flex shrink-0 items-center gap-1.5 rounded-xl bg-zinc-950/80 p-1 ring-1 ring-white/10 backdrop-blur">
-          <FullscreenButton className="rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 transition-colors hover:bg-white/10 sm:text-sm" />
+        <div className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-xl bg-zinc-950/80 p-1 ring-1 ring-white/10 backdrop-blur">
+          <FullscreenButton className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 transition-colors hover:bg-white/10 sm:text-sm" />
           <span className="h-5 w-px bg-white/15" />
           <Link
             href={`/build/${worldId}`}
+            onClick={leaveFullscreen}
             className="rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 transition-colors hover:bg-white/10 sm:text-sm"
           >
             Edit
           </Link>
+          <Link
+            href="/"
+            onClick={leaveFullscreen}
+            className="rounded-lg bg-white/5 px-2.5 py-1.5 text-xs text-zinc-200 transition-colors hover:bg-red-600 hover:text-white sm:text-sm"
+            title="Leave the game and go back to your worlds"
+          >
+            Exit
+          </Link>
         </div>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2 sm:p-3">
-        <div className="rounded-xl bg-zinc-950/70 px-3 py-2 text-[11px] text-zinc-300 ring-1 ring-white/10 backdrop-blur sm:text-xs">
-          <span className="hidden sm:inline">WASD move · Shift run · Space jump</span>
-          <span className="sm:hidden">WASD · Shift · Space</span>
+      {/* The keyboard legend is noise once thumb controls are on screen — and
+          it would sit right under the joystick. */}
+      {!touch && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2 sm:p-3">
+          <div className="rounded-xl bg-zinc-950/70 px-3 py-2 text-[11px] text-zinc-300 ring-1 ring-white/10 backdrop-blur sm:text-xs">
+            WASD move · Shift run · Space jump
+          </div>
         </div>
-      </div>
+      )}
+
+      {touch && status === "ready" && <TouchControls />}
 
       {status === "loading" && (
         <div className="absolute inset-0 flex items-center justify-center gap-3 bg-zinc-950/70 text-sm text-zinc-300">

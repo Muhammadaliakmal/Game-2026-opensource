@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useKeyboardControls } from "@react-three/drei";
 import { Ecctrl, type EcctrlHandle } from "ecctrl";
+import { useButtonStore, useJoystickStore } from "ecctrl/input";
 import { FEEL } from "@/lib/feel";
 import type { Vec3 } from "@/lib/worlddoc";
 import { useJumpFeel } from "./feel/useJumpFeel";
@@ -129,15 +130,20 @@ export function Player({ spawn }: { spawn: Vec3 }) {
   const [, getKeys] = useKeyboardControls();
   const prevJump = useRef(false);
 
+  // Space or the on-screen JUMP button — both feed the same forgiveness layer,
+  // so coyote time / buffering / variable height work identically on touch.
+  const jumpDown = () =>
+    Boolean(getKeys().jump) || Boolean(useButtonStore.getState().buttons.jump);
+
   // Rising-edge detection: distinguishes a fresh press from a held button, so
   // holding jump doesn't retrigger every frame.
   const jumpPressedEdge = () => {
-    const now = getKeys().jump as boolean;
+    const now = jumpDown();
     const edge = now && !prevJump.current;
     prevJump.current = now;
     return edge;
   };
-  const jumpHeld = () => getKeys().jump as boolean;
+  const jumpHeld = () => jumpDown();
 
   // ecctrl v2 ships no keyboard handling of its own — <KeyboardControls> only
   // fills a store, so the directional keys have to be forwarded to the
@@ -147,12 +153,18 @@ export function Player({ spawn }: { spawn: Vec3 }) {
     const h = ref.current;
     if (!h) return;
     const k = getKeys();
+    // The on-screen thumbstick and RUN button write to ecctrl's own input
+    // stores, which <Ecctrl> also doesn't read on its own — so they get
+    // forwarded here too. Keyboard and touch are additive, never exclusive.
+    const stick = useJoystickStore.getState().joysticks.default;
+    const buttons = useButtonStore.getState().buttons;
     h.setMovement({
       forward: !!k.forward,
       backward: !!k.backward,
       leftward: !!k.leftward,
       rightward: !!k.rightward,
-      run: !!k.run,
+      run: Boolean(k.run) || Boolean(buttons.run),
+      joystick: { x: stick?.x ?? 0, y: stick?.y ?? 0 },
     });
   });
 
