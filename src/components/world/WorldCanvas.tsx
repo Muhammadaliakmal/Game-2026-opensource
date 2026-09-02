@@ -38,6 +38,7 @@ import { WorldColliders } from "@/components/play/WorldColliders";
 import { PropColliders } from "@/components/play/PropColliders";
 import { Player } from "@/components/play/Player";
 import { Peers } from "@/components/play/Peers";
+import { GoalZone } from "@/components/play/GoalZone";
 import { TouchControls } from "@/components/play/TouchControls";
 import { useTouchControls } from "@/lib/use-media-query";
 import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
@@ -79,6 +80,8 @@ interface Snapshot {
   parts: PartTuple[];
   props: PropInstance[];
   spawn: [number, number, number];
+  /** Undefined unless this world is a course — see WorldDoc.goal. */
+  goal?: [number, number, number];
 }
 
 function toSnapshot(doc: WorldDoc): Snapshot {
@@ -86,6 +89,7 @@ function toSnapshot(doc: WorldDoc): Snapshot {
     parts: doc.parts,
     props: doc.props,
     spawn: [doc.spawn[0], doc.spawn[1], doc.spawn[2]],
+    goal: doc.goal ? [doc.goal[0], doc.goal[1], doc.goal[2]] : undefined,
   };
 }
 
@@ -544,6 +548,13 @@ export default function WorldCanvas({
             avatar that moves between frames nobody asked for would either
             stutter or force the editor to render continuously. */}
         {playing && <Peers />}
+        {/* Only for a world that is a course. Outside <Physics> because the
+            finish is a trigger volume we test ourselves, not a collider —
+            giving it a real sensor would mean a rigid body that the character
+            can be pushed off by. */}
+        {playing && snapshot?.goal && (
+          <GoalZone goal={snapshot.goal} worldId={worldId} />
+        )}
 
         {!playing && (
           <>

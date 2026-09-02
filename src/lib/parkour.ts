@@ -160,6 +160,18 @@ export function parkourParts(): PartTuple[] {
 /** Spawn sits one cell above the plaza surface so the player drops onto it. */
 export const PARKOUR_SPAWN: Vec3 = [0, 2, 0];
 
+/**
+ * The top of the finish tower — the lit block on the podium at cell (88, 9, 0).
+ *
+ * A world position rather than a cell, like PARKOUR_SPAWN, and set at the
+ * height a player's body occupies when standing on that block rather than the
+ * block's own centre. The detection radius covers the whole 3x3 podium beneath
+ * it, so climbing the last cell is a flourish and not a requirement: the course
+ * is won by arriving, and losing a run to a one-cell hop you did not know was
+ * being asked of you is the cheapest kind of bad.
+ */
+export const PARKOUR_GOAL: Vec3 = [88.5, 10, 0.5];
+
 /** A new world: the parkour course, ready to play or to build on top of. */
 export function parkourWorldDoc(
   id: string,
@@ -172,6 +184,7 @@ export function parkourWorldDoc(
     name,
     ownerId,
     spawn: PARKOUR_SPAWN,
+    goal: PARKOUR_GOAL,
     sky: 0,
     parts: parkourParts(),
     props: [],

@@ -42,6 +42,8 @@ interface EditorState {
   worldId: string | null;
   name: string;
   spawn: Vec3;
+  /** Undefined for a world that is not a course. See WorldDoc.goal. */
+  goal: Vec3 | undefined;
   sky: number;
   props: PropInstance[];
   /** Catalog id of the prop the "prop" tool places next — see PropBrowser. */
@@ -195,6 +197,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
   worldId: null,
   name: "Untitled World",
   spawn: [0, 1, 0],
+  goal: undefined,
   sky: 0,
   props: [],
   activePropId: null,
@@ -419,6 +422,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       worldId: doc.id,
       name: doc.name,
       spawn: doc.spawn,
+      goal: doc.goal,
       sky: doc.sky,
       props: doc.props,
       selectedProp: null,
@@ -439,6 +443,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
       name: s.name,
       ownerId,
       spawn: s.spawn,
+      // Verbatim, for the same reason as props below: nothing in the editor
+      // moves the goal yet, and dropping it here would quietly un-finish every
+      // remix of the course.
+      goal: s.goal,
       sky: s.sky,
       parts: [...s.parts.values()],
       // Verbatim: nothing in the editor edits props yet, and saving [] here

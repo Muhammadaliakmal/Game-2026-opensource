@@ -5,6 +5,7 @@ import Link from "next/link";
 import { recenterPitch, useViewStore } from "@/components/play/camera-rig";
 import { useMoveMode } from "@/components/play/move-mode";
 import { onRespawned, requestRespawn } from "@/components/play/play-actions";
+import { formatTime, useCourse } from "@/components/play/course";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { RemixButton } from "@/components/RemixButton";
@@ -44,9 +45,12 @@ export function PlayHud({
       <LockOnBadge />
 
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 sm:p-3">
-        <div className="hud-panel pointer-events-auto flex min-w-0 items-center gap-2.5 px-3 py-2">
-          <span className="bg-signal h-1.5 w-1.5 shrink-0" aria-hidden />
-          <span className="truncate text-2xs font-medium">{name}</span>
+        <div className="pointer-events-auto flex min-w-0 items-center gap-2">
+          <div className="hud-panel flex min-w-0 items-center gap-2.5 px-3 py-2">
+            <span className="bg-signal h-1.5 w-1.5 shrink-0" aria-hidden />
+            <span className="truncate text-2xs font-medium">{name}</span>
+          </div>
+          <RunTimer />
         </div>
 
         <PlayMenu
@@ -57,6 +61,8 @@ export function PlayHud({
           onEdit={onEdit}
         />
       </div>
+
+      <CourseComplete canEdit={canEdit} onEdit={onEdit} />
 
       {/* The keyboard legend is noise once thumb controls are on screen — and
           it would sit right under the joystick. */}
@@ -82,6 +88,107 @@ export function PlayHud({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * The run clock, for worlds that are courses.
+ *
+ * Ticks on an interval rather than a frame loop: the display only changes in
+ * hundredths, a 60Hz re-render of a DOM node would be 55 wasted renders a
+ * second, and the clock itself is a timestamp in the store — this only decides
+ * how often anyone looks at it.
+ */
+function RunTimer() {
+  const startedAt = useCourse((s) => s.startedAt);
+  const finishedMs = useCourse((s) => s.finishedMs);
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (startedAt === null || finishedMs !== null) return;
+    // The clock is read here and never during render. A render may happen at
+    // any moment for reasons that have nothing to do with time, and it has to
+    // produce the same output for the same state — so the elapsed value is
+    // sampled on a schedule we control and held in state.
+    const id = setInterval(
+      () => setElapsed(performance.now() - startedAt),
+      60
+    );
+    return () => clearInterval(id);
+  }, [startedAt, finishedMs]);
+
+  if (startedAt === null) return null;
+  const ms = finishedMs ?? elapsed;
+
+  return (
+    <div className="hud-panel flex shrink-0 items-center px-3 py-2">
+      <span className="tabular text-2xs font-medium">{formatTime(ms)}</span>
+    </div>
+  );
+}
+
+/**
+ * The end of a run.
+ *
+ * A panel rather than the wash used for respawns: SPEC bans modals for things
+ * that interrupt play, and this is the opposite case — play is over, and the
+ * one moment a course has earned the screen is the moment you finish it.
+ *
+ * It does not stop the character. You keep control of the world behind it, so
+ * the panel is a result and not a cage, and "Run again" is a respawn rather
+ * than a reload — the same quarter-second cost as any other attempt.
+ */
+function CourseComplete({
+  canEdit,
+  onEdit,
+}: {
+  canEdit: boolean;
+  onEdit: () => void;
+}) {
+  const finishedMs = useCourse((s) => s.finishedMs);
+  const best = useCourse((s) => s.best);
+  if (finishedMs === null) return null;
+
+  const isBest = best !== null && Math.abs(best - finishedMs) < 1;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
+      <div className="hud-panel panel-enter pointer-events-auto flex w-full max-w-xs flex-col items-center gap-4 px-6 py-6 text-center">
+        <div className="flex flex-col items-center gap-1">
+          <span className="hud-label">Course complete</span>
+          <span className="text-signal tabular text-3xl font-semibold">
+            {formatTime(finishedMs)}
+          </span>
+        </div>
+
+        {/* A best time only means something once there is a previous one to
+            beat, so the first run says nothing rather than congratulating
+            itself for being the only entry. */}
+        {best !== null && (
+          <span className="hud-label">
+            {isBest ? "New best time" : `Best ${formatTime(best)}`}
+          </span>
+        )}
+
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <button
+            onClick={requestRespawn}
+            className="hud-chip hud-chip--primary"
+            autoFocus
+          >
+            Run again
+          </button>
+          {canEdit && (
+            <button onClick={onEdit} className="hud-chip">
+              Edit
+            </button>
+          )}
+          <Link href="/" className="hud-chip">
+            Exit
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 

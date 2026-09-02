@@ -16,6 +16,15 @@ export interface WorldDoc {
   name: string;
   ownerId: string;
   spawn: Vec3;
+  /**
+   * Where the course is won, if it is a course at all.
+   *
+   * Optional because most worlds are not: the island and the cottage have
+   * nothing to complete, and giving them a goal would invent a failure state
+   * for worlds whose whole point is not having one. A world with no goal never
+   * shows a timer and never finishes.
+   */
+  goal?: Vec3;
   sky: number;
   parts: PartTuple[];
   props: PropInstance[];
@@ -54,6 +63,7 @@ export const worldDocSchema = z.object({
   name: z.string().min(1).max(80),
   ownerId: z.string(),
   spawn: vec3,
+  goal: vec3.optional(),
   sky: z.number().int().min(0),
   parts: z.array(partTuple).max(50000),
   props: z.array(propInstance).max(2000),
