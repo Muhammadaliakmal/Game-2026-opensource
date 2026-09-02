@@ -14,30 +14,39 @@ export interface Command {
  * messages a multiplayer room broadcasts, so multiplayer is a retrofit
  * rather than a rewrite.
  */
-export class CommandBus {
-  private past: Command[] = [];
-  private future: Command[] = [];
+export class CommandBus<M = unknown> {
+  private past: { c: Command; meta?: M }[] = [];
+  private future: { c: Command; meta?: M }[] = [];
   private max = 200;
 
-  execute(c: Command) {
+  /**
+   * `meta` rides along with the command and comes back out of undo/redo. The
+   * editor stores each edit's serializable `Op` there, which is what lets an
+   * undo be broadcast to peers as an ordinary edit (see stores/editor-store).
+   */
+  execute(c: Command, meta?: M) {
     c.do();
-    this.past.push(c);
+    this.past.push({ c, meta });
     if (this.past.length > this.max) this.past.shift();
     this.future = [];
   }
 
-  undo() {
-    const c = this.past.pop();
-    if (!c) return;
-    c.undo();
-    this.future.push(c);
+  /** Returns the undone command's meta, or undefined if there was nothing to undo. */
+  undo(): M | undefined {
+    const entry = this.past.pop();
+    if (!entry) return;
+    entry.c.undo();
+    this.future.push(entry);
+    return entry.meta;
   }
 
-  redo() {
-    const c = this.future.pop();
-    if (!c) return;
-    c.do();
-    this.past.push(c);
+  /** Returns the redone command's meta, or undefined if there was nothing to redo. */
+  redo(): M | undefined {
+    const entry = this.future.pop();
+    if (!entry) return;
+    entry.c.do();
+    this.past.push(entry);
+    return entry.meta;
   }
 
   clear() {

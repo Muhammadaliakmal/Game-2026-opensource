@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { useEditorStore } from "./editor-store";
+import { setOpSink, useEditorStore } from "./editor-store";
+import { parseOp, type Op } from "@/lib/ops";
 import { parkourWorldDoc } from "@/lib/parkour";
 import type { WorldDoc } from "@/lib/worlddoc";
 
@@ -192,4 +193,83 @@ test("switching away from the prop tool clears the selection", () => {
 
   useEditorStore.getState().setTool("place");
   assert.equal(useEditorStore.getState().selectedProp, null);
+});
+
+// --- the Phase 5 network seam ---------------------------------------------
+
+/** Collects everything the store would send to a room, then disconnects. */
+function withSink(fn: (sent: Op[]) => void) {
+  const sent: Op[] = [];
+  setOpSink((op) => sent.push(op));
+  try {
+    fn(sent);
+  } finally {
+    setOpSink(null);
+  }
+}
+
+test("a local edit is emitted as a serializable op", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  withSink((sent) => {
+    useEditorStore.getState().place([0, 20, 0]);
+
+    assert.equal(sent.length, 1);
+    // The real test is that it survives the wire, not just that it exists:
+    // anything the sink emits has to parse back on the far side.
+    const round = parseOp(JSON.parse(JSON.stringify(sent[0])));
+    assert.equal(round.t, "place");
+  });
+});
+
+test("a drag stroke emits one composite op, not one per painted cell", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  withSink((sent) => {
+    useEditorStore.getState().beginStroke();
+    for (let x = 0; x < 5; x++) useEditorStore.getState().place([x, 25, 0]);
+    assert.equal(sent.length, 0, "nothing is sent mid-stroke");
+
+    useEditorStore.getState().endStroke();
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].t, "composite");
+    assert.equal(sent[0].t === "composite" ? sent[0].ops.length : 0, 5);
+  });
+});
+
+test("undo emits the inverse op and redo emits the original", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  withSink((sent) => {
+    useEditorStore.getState().place([0, 21, 0]);
+    useEditorStore.getState().undo();
+    useEditorStore.getState().redo();
+
+    assert.deepEqual(sent.map((o) => o.t), ["place", "erase", "place"]);
+  });
+});
+
+test("no sink connected means nothing is emitted and editing still works", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  const before = useEditorStore.getState().parts.size;
+  useEditorStore.getState().place([0, 22, 0]);
+  assert.equal(useEditorStore.getState().parts.size, before + 1);
+});
+
+test("a peer's edit applies but never lands on the local undo stack", () => {
+  // The collaborative-editor bug this exists to prevent: pressing Ctrl+Z and
+  // deleting a block somebody else just placed.
+  useEditorStore.getState().loadDoc(freshDoc());
+  useEditorStore.getState().place([0, 23, 0]);
+  const mine = useEditorStore.getState().parts.size;
+
+  useEditorStore.getState().applyRemoteOp({
+    t: "place",
+    key: "0,24,0",
+    part: [0, 24, 0, 0, 5, 0, 0],
+  });
+  assert.equal(useEditorStore.getState().parts.size, mine + 1);
+
+  useEditorStore.getState().undo();
+  // One undo took back my block; the peer's is untouched.
+  assert.equal(useEditorStore.getState().parts.has("0,24,0"), true);
+  assert.equal(useEditorStore.getState().parts.has("0,23,0"), false);
+  assert.equal(useEditorStore.getState().bus.canUndo, false);
 });

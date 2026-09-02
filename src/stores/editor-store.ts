@@ -2,18 +2,23 @@ import { create } from "zustand";
 import type { PartTuple, PropInstance, Shape, WorldDoc, Vec3 } from "@/lib/worlddoc";
 import {
   CommandBus,
-  placeCmd,
-  eraseCmd,
-  replaceCmd,
   compositeCmd,
-  addPropCmd,
-  removePropCmd,
-  movePropCmd,
   type Command,
   type PartsHost,
   type PropsHost,
 } from "@/lib/command-bus";
+import { commandFor, invertOp, type LeafOp, type Op, type OpHost } from "@/lib/ops";
 import { keyOf, parseKey } from "@/lib/grid";
+
+/**
+ * Where locally-made edits go once they have been applied. Null until a
+ * multiplayer room connects (Phase 5) — with no sink, every edit path below
+ * behaves exactly as it did before ops existed.
+ */
+let sink: ((op: Op) => void) | null = null;
+export const setOpSink = (fn: ((op: Op) => void) | null) => {
+  sink = fn;
+};
 
 /**
  * Build and erase are the two that mutate geometry. Paint recolours a block
@@ -78,7 +83,7 @@ interface EditorState {
   // The cell the cursor is currently over, or null when pointing at nothing.
   hoverCell: [number, number, number] | null;
 
-  bus: CommandBus;
+  bus: CommandBus<Op>;
   /** Bumped whenever undo/redo availability changes, so toolbars can react. */
   historyTick: number;
 
@@ -108,6 +113,12 @@ interface EditorState {
   endStroke(): void;
   undo(): void;
   redo(): void;
+  /**
+   * Applies a peer's edit. Deliberately NOT pushed onto the undo stack —
+   * Ctrl+Z undoing someone else's block is the classic collaborative-editor
+   * bug, and it is much easier to never write than to fix later.
+   */
+  applyRemoteOp(op: Op): void;
 
   setActivePropId(id: string | null): void;
   /** Places a new instance of `activePropId` and selects it. No-op without one. */
@@ -142,19 +153,39 @@ export const useEditorStore = create<EditorState>((set, get) => {
     markDirty: get().markDirty,
   });
 
+  const opHost: OpHost = {
+    parts: partsHost,
+    props: propsHost,
+    setSpawn: (spawn) => set({ spawn }),
+    markDirty: () => get().markDirty(),
+  };
+
   // Non-null while a drag-paint stroke is in progress. Kept outside the store
   // object because it changes on every painted cell and nothing renders from it.
-  let stroke: Command[] | null = null;
+  // Commands and ops are banked in step: the commands drive undo, the ops are
+  // what the stroke sends as a single message when it ends.
+  let stroke: { cmds: Command[]; ops: LeafOp[] } | null = null;
 
   /** Run a command now, or bank it into the open stroke. */
-  const submit = (c: Command) => {
+  const submit = (c: Command, op: Op) => {
     if (stroke) {
       c.do();
-      stroke.push(c);
+      stroke.cmds.push(c);
     } else {
-      get().bus.execute(c);
+      get().bus.execute(c, op);
       set((st) => ({ historyTick: st.historyTick + 1 }));
     }
+  };
+
+  /**
+   * The single path every local edit takes: apply it here, then hand the same
+   * edit — as data — to the network. Mid-stroke edits are banked and sent once
+   * at endStroke, so a drag is one undo step and one message, not fifty.
+   */
+  const dispatch = (op: LeafOp) => {
+    submit(commandFor(op, opHost), op);
+    if (stroke) stroke.ops.push(op);
+    else sink?.(op);
   };
 
   return {
@@ -182,7 +213,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
 
   hoverCell: null,
 
-  bus: new CommandBus(),
+  bus: new CommandBus<Op>(),
   historyTick: 0,
 
   saving: false,
@@ -216,17 +247,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     const next: Vec3 = [cell[0] + 0.5, cell[1] + 1.2, cell[2] + 0.5];
     if (prev[0] === next[0] && prev[1] === next[1] && prev[2] === next[2]) return;
 
-    submit({
-      label: "spawn",
-      do() {
-        set({ spawn: next });
-        get().markDirty();
-      },
-      undo() {
-        set({ spawn: prev });
-        get().markDirty();
-      },
-    });
+    dispatch({ t: "spawn", prev, next });
   },
 
   setHoverCell: (hoverCell) => {
@@ -262,9 +283,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     // Placing an identical part is a no-op — don't pollute the undo stack.
     if (prev && prev.every((v, i) => v === part[i])) return;
 
-    submit(
-      prev ? replaceCmd(key, part, prev, partsHost) : placeCmd(key, part, partsHost)
-    );
+    dispatch(prev ? { t: "replace", key, next: part, prev } : { t: "place", key, part });
   },
 
   erase: (cell) => {
@@ -274,7 +293,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     const prev = s.parts.get(key);
     if (!prev) return;
 
-    submit(eraseCmd(key, prev, partsHost));
+    dispatch({ t: "erase", key, prev });
   },
 
   paint: (cell) => {
@@ -294,7 +313,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       s.finish,
       prev[6],
     ];
-    submit(replaceCmd(key, next, prev, partsHost));
+    dispatch({ t: "replace", key, next, prev });
   },
 
   pick: (cell) => {
@@ -306,28 +325,40 @@ export const useEditorStore = create<EditorState>((set, get) => {
   },
 
   beginStroke: () => {
-    stroke = [];
+    stroke = { cmds: [], ops: [] };
   },
 
   endStroke: () => {
-    const cmds = stroke;
+    const banked = stroke;
     stroke = null;
-    if (!cmds || cmds.length === 0) return;
+    if (!banked || banked.cmds.length === 0) return;
     // execute() re-runs do(), which re-applies edits already made during the
     // drag. That's safe — every command is an idempotent Map set/delete — and
     // it keeps redo working, which a no-op do() would have broken.
-    get().bus.execute(compositeCmd(cmds));
+    const op: Op =
+      banked.ops.length === 1 ? banked.ops[0] : { t: "composite", ops: banked.ops };
+    get().bus.execute(compositeCmd(banked.cmds), op);
     set((st) => ({ historyTick: st.historyTick + 1 }));
+    sink?.(op);
   },
 
+  // An undo is an edit like any other as far as peers are concerned: they get
+  // the inverse op, not a "someone undid something" message they would have to
+  // reason about against their own history.
   undo: () => {
-    get().bus.undo();
+    const op = get().bus.undo();
     set((s) => ({ historyTick: s.historyTick + 1 }));
+    if (op) sink?.(invertOp(op));
   },
 
   redo: () => {
-    get().bus.redo();
+    const op = get().bus.redo();
     set((s) => ({ historyTick: s.historyTick + 1 }));
+    if (op) sink?.(op);
+  },
+
+  applyRemoteOp: (op) => {
+    commandFor(op, opHost).do();
   },
 
   setActivePropId: (activePropId) => set({ activePropId }),
@@ -341,7 +372,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       rot: [0, 0, 0],
       scale: [1, 1, 1],
     };
-    submit(addPropCmd(instance, propsHost));
+    dispatch({ t: "prop-add", instance });
     set((st) => ({ selectedProp: instance, selectionEpoch: st.selectionEpoch + 1 }));
   },
 
@@ -351,7 +382,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
   deleteSelectedProp: () => {
     const s = get();
     if (s.readOnly || !s.selectedProp) return;
-    submit(removePropCmd(s.selectedProp, propsHost));
+    dispatch({ t: "prop-remove", instance: s.selectedProp });
     set({ selectedProp: null });
   },
 
@@ -376,7 +407,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
     const { dragOrigin, selectedProp } = s;
     set({ dragOrigin: null });
     if (!dragOrigin || !selectedProp || dragOrigin === selectedProp) return;
-    submit(movePropCmd(dragOrigin, selectedProp, propsHost));
+    dispatch({ t: "prop-move", prev: dragOrigin, next: selectedProp });
   },
 
   loadDoc: (doc) => {

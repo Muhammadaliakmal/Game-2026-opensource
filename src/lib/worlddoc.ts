@@ -32,8 +32,8 @@ export const PALETTE: string[] = [
 ];
 export const FINISHES = ["matte", "glossy", "metal", "emissive"] as const;
 
-const vec3 = z.tuple([z.number(), z.number(), z.number()]);
-const partTuple = z.tuple([
+export const vec3 = z.tuple([z.number(), z.number(), z.number()]);
+export const partTuple = z.tuple([
   z.number().int(),
   z.number().int(),
   z.number().int(),
@@ -42,6 +42,12 @@ const partTuple = z.tuple([
   z.number().int().min(0).max(3), // finish
   z.number().int().min(0).max(3), // rot
 ]);
+export const propInstance = z.object({
+  assetId: z.string(),
+  pos: vec3,
+  rot: vec3,
+  scale: vec3,
+});
 export const worldDocSchema = z.object({
   v: z.literal(1),
   id: z.string(),
@@ -50,9 +56,7 @@ export const worldDocSchema = z.object({
   spawn: vec3,
   sky: z.number().int().min(0),
   parts: z.array(partTuple).max(50000),
-  props: z.array(
-    z.object({ assetId: z.string(), pos: vec3, rot: vec3, scale: vec3 })
-  ).max(2000),
+  props: z.array(propInstance).max(2000),
 });
 export const parseWorldDoc = (u: unknown): WorldDoc =>
   worldDocSchema.parse(u) as WorldDoc;
