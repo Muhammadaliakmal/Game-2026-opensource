@@ -12,10 +12,11 @@ import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
  * ops burden on the other. Sorting is by play count, which is a fact rather
  * than an editorial decision.
  *
- * Cards carry no thumbnail yet. Rendering live 3D previews in a grid would
- * destroy the frame budget, and the offscreen-render-at-publish route needs
- * the R2 bucket that is not configured yet, so the card leads with the facts
- * it can actually stand behind: size and play count.
+ * Cards show a static cover image, not a live 3D preview — rendering dozens
+ * of R3F canvases in a grid would destroy the frame budget. The image is a
+ * downscaled capture of the builder's own canvas taken on save (see
+ * lib/canvas-thumbnail.ts), so a world with no thumbnail yet is simply one
+ * that hasn't been saved since this shipped.
  */
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function BrowsePage() {
       id: worlds.id,
       name: worlds.name,
       playCount: worlds.playCount,
+      thumbnailUrl: worlds.thumbnailUrl,
       partCount: sql<number>`jsonb_array_length(${worlds.doc} -> 'parts')`
         .mapWith(Number),
     })
@@ -74,6 +76,15 @@ export default async function BrowsePage() {
               key={w.id}
               className="card hover:border-signal/50 p-4 transition-colors"
             >
+              {w.thumbnailUrl && (
+                // A data URI or (later) an R2 URL — next/image has nothing to optimize here.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={w.thumbnailUrl}
+                  alt=""
+                  className="mb-3 aspect-video w-full rounded-[var(--radius)] object-cover"
+                />
+              )}
               <h3 className="truncate text-sm font-semibold">{w.name}</h3>
               <p className="hud-label num mt-1">
                 {w.partCount.toLocaleString()} parts ·{" "}

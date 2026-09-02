@@ -9,6 +9,9 @@ import { isUuid } from "@/lib/ids";
 
 type Params = { params: Promise<{ id: string }> };
 
+/** Matches the downscale target in lib/canvas-thumbnail.ts's captureThumbnail. */
+const THUMBNAIL_MAX_LENGTH = 200_000;
+
 /**
  * GET /api/worlds/:id
  *
@@ -91,11 +94,27 @@ export async function PUT(req: Request, { params }: Params) {
   const name =
     typeof body.name === "string" && body.name.trim() ? body.name.trim() : doc.name;
 
+  // A capture failure (no WebGL context yet, a tainted canvas) sends null —
+  // leave whatever thumbnail the world already has rather than blanking it.
+  // The cap matches lib/canvas-thumbnail.ts's own downscale target; anything
+  // past it didn't come from that helper, so it's dropped rather than trusted.
+  const thumbnailUrl =
+    typeof body.thumbnail === "string" &&
+    body.thumbnail.startsWith("data:image/") &&
+    body.thumbnail.length <= THUMBNAIL_MAX_LENGTH
+      ? body.thumbnail
+      : undefined;
+
   // The ownerId in the WHERE clause is the authorisation check: a row belonging
   // to someone else simply matches nothing rather than leaking its existence.
   const [row] = await db
     .update(worlds)
-    .set({ doc: { ...doc, name }, name, updatedAt: new Date() })
+    .set({
+      doc: { ...doc, name },
+      name,
+      ...(thumbnailUrl !== undefined && { thumbnailUrl }),
+      updatedAt: new Date(),
+    })
     .where(and(eq(worlds.id, id), eq(worlds.ownerId, userId)))
     .returning();
 

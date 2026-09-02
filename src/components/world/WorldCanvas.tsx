@@ -24,6 +24,7 @@ import {
   newDraftDoc,
   saveDraft,
 } from "@/lib/draft";
+import { captureThumbnail } from "@/lib/canvas-thumbnail";
 
 import { InstancedParts } from "@/components/editor/InstancedParts";
 import { GhostPreview } from "@/components/editor/GhostPreview";
@@ -229,6 +230,10 @@ export default function WorldCanvas({
 
   const name = useEditorStore((s) => s.name);
 
+  // Stashed from the Canvas's onCreated rather than read via useThree: save()
+  // runs in this outer component, outside the R3F tree that hook needs.
+  const glRef = useRef<THREE.WebGLRenderer | null>(null);
+
   // Drop the loading cover once the scene has painted, or after a hard
   // timeout, so a device that never gets a WebGL context is not stranded.
   useEffect(() => {
@@ -367,10 +372,16 @@ export default function WorldCanvas({
     try {
       // ownerId is authoritative on the server; "" is a placeholder it replaces.
       const doc: WorldDoc = s.toDoc("");
+      // Only from the build camera, never Play's — this always runs before
+      // enterPlay() flips `mode`, so the canvas is still showing the build
+      // view whichever caller triggered this save.
+      const thumbnail = glRef.current
+        ? captureThumbnail(glRef.current.domElement)
+        : null;
       const res = await fetch(`/api/worlds/${worldId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: s.name, doc }),
+        body: JSON.stringify({ name: s.name, doc, thumbnail }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -495,6 +506,7 @@ export default function WorldCanvas({
         // one GPU to pick anyway.
         gl={{ preserveDrawingBuffer: true, failIfMajorPerformanceCaveat: false }}
         onCreated={({ scene, gl }) => {
+          glRef.current = gl;
           scene.background = new THREE.Color("#14171a");
           // A locally-generated room probe: without an environment map the
           // `metal` finish has nothing to reflect and renders as a flat dark

@@ -33,6 +33,7 @@ export default async function Home() {
         id: worlds.id,
         name: worlds.name,
         playCount: worlds.playCount,
+        thumbnailUrl: worlds.thumbnailUrl,
         partCount: sql<number>`jsonb_array_length(${worlds.doc} -> 'parts')`
           .mapWith(Number),
       })
@@ -101,6 +102,14 @@ export default async function Home() {
                     key={w.id}
                     className="card hover:border-signal/50 p-4 transition-colors"
                   >
+                    {w.thumbnailUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={w.thumbnailUrl}
+                        alt=""
+                        className="mb-3 aspect-video w-full rounded-[var(--radius)] object-cover"
+                      />
+                    )}
                     <h3 className="truncate text-sm font-semibold">{w.name}</h3>
                     <p className="hud-label num mt-1">
                       {w.partCount.toLocaleString()} parts ·{" "}
@@ -132,6 +141,7 @@ export default async function Home() {
       name: worlds.name,
       published: worlds.published,
       playCount: worlds.playCount,
+      thumbnailUrl: worlds.thumbnailUrl,
       partCount: sql<number>`jsonb_array_length(${worlds.doc} -> 'parts')`
         .mapWith(Number),
     })
@@ -194,6 +204,14 @@ export default async function Home() {
               key={w.id}
               className="card hover:border-signal/50 relative p-4 transition-colors"
             >
+              {w.thumbnailUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={w.thumbnailUrl}
+                  alt=""
+                  className="mb-3 aspect-video w-full rounded-[var(--radius)] object-cover"
+                />
+              )}
               <div className="flex items-start justify-between gap-2">
                 <h3 className="min-w-0 truncate text-sm font-semibold">
                   {w.name}
