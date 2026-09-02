@@ -108,3 +108,88 @@ test("a drag stroke collapses into a single undo step", () => {
   useEditorStore.getState().undo();
   assert.equal(useEditorStore.getState().parts.size, before);
 });
+
+test("placing a prop selects it and is undoable", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  const before = useEditorStore.getState().props.length;
+
+  useEditorStore.getState().setActivePropId("crate");
+  useEditorStore.getState().placeProp([3, 0, 3]);
+
+  const s = useEditorStore.getState();
+  assert.equal(s.props.length, before + 1);
+  assert.equal(s.selectedProp?.assetId, "crate");
+  assert.deepEqual(s.selectedProp?.pos, [3, 0, 3]);
+
+  useEditorStore.getState().undo();
+  assert.equal(useEditorStore.getState().props.length, before);
+
+  useEditorStore.getState().redo();
+  assert.equal(useEditorStore.getState().props.length, before + 1);
+});
+
+test("placing a prop with no active catalog id is a no-op", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  const before = useEditorStore.getState().props.length;
+
+  useEditorStore.getState().setActivePropId(null);
+  useEditorStore.getState().placeProp([3, 0, 3]);
+
+  assert.equal(useEditorStore.getState().props.length, before);
+});
+
+test("deleting the selected prop is undoable and clears the selection", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  const before = useEditorStore.getState().props.length;
+
+  useEditorStore.getState().setActivePropId("crate");
+  useEditorStore.getState().placeProp([3, 0, 3]);
+  useEditorStore.getState().deleteSelectedProp();
+
+  const s = useEditorStore.getState();
+  assert.equal(s.props.length, before);
+  assert.equal(s.selectedProp, null);
+
+  useEditorStore.getState().undo();
+  assert.equal(useEditorStore.getState().props.length, before + 1);
+});
+
+test("a PivotControls drag collapses into a single undo step", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  useEditorStore.getState().setActivePropId("crate");
+  useEditorStore.getState().placeProp([0, 0, 0]);
+  const placed = useEditorStore.getState().selectedProp!;
+
+  useEditorStore.getState().beginPropDrag();
+  // A drag calls this every frame; only the final position should matter.
+  for (let x = 1; x <= 5; x++) {
+    useEditorStore.getState().updatePropLive({ ...placed, pos: [x, 0, 0] });
+  }
+  useEditorStore.getState().endPropDrag();
+
+  const moved = useEditorStore.getState().selectedProp;
+  assert.deepEqual(moved?.pos, [5, 0, 0]);
+
+  useEditorStore.getState().undo();
+  assert.deepEqual(
+    useEditorStore.getState().props.find((p) => p.assetId === "crate")?.pos,
+    [0, 0, 0]
+  );
+
+  useEditorStore.getState().redo();
+  assert.deepEqual(
+    useEditorStore.getState().props.find((p) => p.assetId === "crate")?.pos,
+    [5, 0, 0]
+  );
+});
+
+test("switching away from the prop tool clears the selection", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  useEditorStore.getState().setTool("prop");
+  useEditorStore.getState().setActivePropId("crate");
+  useEditorStore.getState().placeProp([0, 0, 0]);
+  assert.ok(useEditorStore.getState().selectedProp);
+
+  useEditorStore.getState().setTool("place");
+  assert.equal(useEditorStore.getState().selectedProp, null);
+});

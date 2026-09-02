@@ -1,4 +1,4 @@
-import type { PartTuple } from "./worlddoc";
+import type { PartTuple, PropInstance } from "./worlddoc";
 
 export interface Command {
   do(): void;
@@ -114,6 +114,78 @@ export const replaceCmd = (
   undo() {
     const h = host();
     h.parts.set(key, prev);
+    h.markDirty();
+  },
+});
+
+/**
+ * Minimal surface the prop commands need. Unlike the voxel Map, `props` is
+ * ordinary zustand state — placements are discrete, user-paced actions (not
+ * one edit per pointer-move), so there's no case here for the imperative,
+ * outside-React pattern the parts Map needs. Each command replaces the array
+ * rather than mutating it in place, so React (the prop browser, the
+ * PivotControls-selected instance) re-renders normally.
+ */
+export interface PropsHost {
+  props: PropInstance[];
+  setProps(next: PropInstance[]): void;
+  markDirty(): void;
+}
+
+export const addPropCmd = (
+  instance: PropInstance,
+  host: () => PropsHost
+): Command => ({
+  label: "add-prop",
+  do() {
+    const h = host();
+    h.setProps([...h.props, instance]);
+    h.markDirty();
+  },
+  undo() {
+    const h = host();
+    h.setProps(h.props.filter((p) => p !== instance));
+    h.markDirty();
+  },
+});
+
+export const removePropCmd = (
+  instance: PropInstance,
+  host: () => PropsHost
+): Command => ({
+  label: "remove-prop",
+  do() {
+    const h = host();
+    h.setProps(h.props.filter((p) => p !== instance));
+    h.markDirty();
+  },
+  undo() {
+    const h = host();
+    h.setProps([...h.props, instance]);
+    h.markDirty();
+  },
+});
+
+/**
+ * Replaces one placed instance's transform (a PivotControls drag). Identifies
+ * the instance by object reference rather than array index, so an undo/redo
+ * elsewhere in the stack that changes the array's length can never make this
+ * command patch the wrong element.
+ */
+export const movePropCmd = (
+  prev: PropInstance,
+  next: PropInstance,
+  host: () => PropsHost
+): Command => ({
+  label: "move-prop",
+  do() {
+    const h = host();
+    h.setProps(h.props.map((p) => (p === prev ? next : p)));
+    h.markDirty();
+  },
+  undo() {
+    const h = host();
+    h.setProps(h.props.map((p) => (p === next ? prev : p)));
     h.markDirty();
   },
 });

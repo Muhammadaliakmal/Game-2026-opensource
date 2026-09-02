@@ -58,6 +58,15 @@ export function useEditorHotkeys(onSave?: () => void | Promise<boolean>) {
         case "s":
           s.setTool(s.tool === "spawn" ? "place" : "spawn");
           return;
+        case "p":
+          s.setTool(s.tool === "prop" ? "place" : "prop");
+          return;
+        case "delete":
+        case "backspace":
+          // Guarded by tool, not just "is something selected" — Backspace is
+          // too common a key to hijack outside the one mode props use it in.
+          if (s.tool === "prop") s.deleteSelectedProp();
+          return;
       }
 
       // Digits pick a palette colour (1-9 = the first nine swatches), and

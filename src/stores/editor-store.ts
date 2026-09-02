@@ -6,17 +6,23 @@ import {
   eraseCmd,
   replaceCmd,
   compositeCmd,
+  addPropCmd,
+  removePropCmd,
+  movePropCmd,
   type Command,
   type PartsHost,
+  type PropsHost,
 } from "@/lib/command-bus";
 import { keyOf, parseKey } from "@/lib/grid";
 
 /**
  * Build and erase are the two that mutate geometry. Paint recolours a block
  * without rebuilding it, pick adopts a block's settings as the brush (the
- * eyedropper), and spawn moves where Play starts you.
+ * eyedropper), spawn moves where Play starts you, and prop places/selects
+ * catalog props (SPEC §12 Phase 3) — free-transform, not grid-snapped, so it
+ * doesn't share the other tools' cell-based click handling.
  */
-export type Tool = "place" | "erase" | "paint" | "pick" | "spawn";
+export type Tool = "place" | "erase" | "paint" | "pick" | "spawn" | "prop";
 
 interface EditorState {
   /**
@@ -32,11 +38,26 @@ interface EditorState {
   name: string;
   spawn: Vec3;
   sky: number;
-  /**
-   * Props are not editable yet (Phase 3), but they must survive a round trip:
-   * loading a doc and saving it back used to drop them on the floor.
-   */
   props: PropInstance[];
+  /** Catalog id of the prop the "prop" tool places next — see PropBrowser. */
+  activePropId: string | null;
+  /**
+   * The placed instance PivotControls is currently attached to, identified
+   * by object reference rather than array index (see command-bus.ts's
+   * movePropCmd) so it survives adds/removes elsewhere in the array. Cleared
+   * whenever the instance it points to is deleted or undone away.
+   */
+  selectedProp: PropInstance | null;
+  /**
+   * Bumped only when *which* instance is selected changes (placeProp,
+   * selectProp) — never by the per-frame identity churn of updatePropLive.
+   * PropGizmo keys PivotControls off this, so a drag's continuous re-renders
+   * don't remount the gizmo, but picking a different prop does.
+   */
+  selectionEpoch: number;
+  /** Snapshot taken at drag start, so endPropDrag can build one undoable
+   * move from the whole gesture instead of one command per frame. */
+  dragOrigin: PropInstance | null;
 
   /**
    * Whether this world can be saved at all — false for a built-in and for
@@ -88,6 +109,20 @@ interface EditorState {
   undo(): void;
   redo(): void;
 
+  setActivePropId(id: string | null): void;
+  /** Places a new instance of `activePropId` and selects it. No-op without one. */
+  placeProp(pos: Vec3): void;
+  selectProp(instance: PropInstance | null): void;
+  /** Removes the selected instance; undoable like any other edit. */
+  deleteSelectedProp(): void;
+  /** PivotControls drag start: remembers the pre-drag transform to diff against. */
+  beginPropDrag(): void;
+  /** Applied on every drag frame — NOT pushed onto the undo stack itself
+   * (see endPropDrag), so dragging doesn't fill history with per-frame steps. */
+  updatePropLive(next: PropInstance): void;
+  /** Turns the whole drag gesture into one undoable move. */
+  endPropDrag(): void;
+
   loadDoc(doc: WorldDoc): void;
   toDoc(ownerId: string): WorldDoc;
   partCount(): number;
@@ -98,6 +133,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
   // live Map rather than a snapshot captured when the command was created.
   const partsHost = (): PartsHost => ({
     parts: get().parts,
+    markDirty: get().markDirty,
+  });
+
+  const propsHost = (): PropsHost => ({
+    props: get().props,
+    setProps: (props) => set({ props }),
     markDirty: get().markDirty,
   });
 
@@ -125,6 +166,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
   spawn: [0, 1, 0],
   sky: 0,
   props: [],
+  activePropId: null,
+  selectedProp: null,
+  selectionEpoch: 0,
+  dragOrigin: null,
 
   readOnly: false,
   dirty: false,
@@ -151,7 +196,10 @@ export const useEditorStore = create<EditorState>((set, get) => {
   setColorIndex: (colorIndex) => set({ colorIndex }),
   setFinish: (finish) => set({ finish }),
   rotateBrush: () => set((s) => ({ rot: (s.rot + 1) % 4 })),
-  setTool: (tool) => set({ tool }),
+  setTool: (tool) =>
+    // Leaving the prop tool drops the PivotControls selection — otherwise a
+    // stale selection would keep rendering handles over a build/erase pass.
+    set((s) => (s.tool === "prop" && tool !== "prop" ? { tool, selectedProp: null } : { tool })),
   setName: (name) => set({ name, dirty: true }),
   setReadOnly: (readOnly) => set({ readOnly }),
   markSaved: () => set({ dirty: false, lastSavedAt: Date.now() }),
@@ -282,6 +330,55 @@ export const useEditorStore = create<EditorState>((set, get) => {
     set((s) => ({ historyTick: s.historyTick + 1 }));
   },
 
+  setActivePropId: (activePropId) => set({ activePropId }),
+
+  placeProp: (pos) => {
+    const s = get();
+    if (s.readOnly || !s.activePropId) return;
+    const instance: PropInstance = {
+      assetId: s.activePropId,
+      pos,
+      rot: [0, 0, 0],
+      scale: [1, 1, 1],
+    };
+    submit(addPropCmd(instance, propsHost));
+    set((st) => ({ selectedProp: instance, selectionEpoch: st.selectionEpoch + 1 }));
+  },
+
+  selectProp: (selectedProp) =>
+    set((st) => ({ selectedProp, selectionEpoch: st.selectionEpoch + 1 })),
+
+  deleteSelectedProp: () => {
+    const s = get();
+    if (s.readOnly || !s.selectedProp) return;
+    submit(removePropCmd(s.selectedProp, propsHost));
+    set({ selectedProp: null });
+  },
+
+  beginPropDrag: () => set((s) => ({ dragOrigin: s.selectedProp })),
+
+  // Direct set, not `submit()`: a drag fires this every frame, and only the
+  // gesture as a whole (endPropDrag) should be one undo step.
+  updatePropLive: (next) => {
+    const s = get();
+    if (!s.selectedProp) return;
+    const prevRef = s.selectedProp;
+    set((st) => ({
+      props: st.props.map((p) => (p === prevRef ? next : p)),
+      selectedProp: next,
+      dirty: true,
+      dirtyTick: st.dirtyTick + 1,
+    }));
+  },
+
+  endPropDrag: () => {
+    const s = get();
+    const { dragOrigin, selectedProp } = s;
+    set({ dragOrigin: null });
+    if (!dragOrigin || !selectedProp || dragOrigin === selectedProp) return;
+    submit(movePropCmd(dragOrigin, selectedProp, propsHost));
+  },
+
   loadDoc: (doc) => {
     const parts = new Map<string, PartTuple>();
     for (const p of doc.parts) parts.set(keyOf(p[0], p[1], p[2]), p);
@@ -293,6 +390,8 @@ export const useEditorStore = create<EditorState>((set, get) => {
       spawn: doc.spawn,
       sky: doc.sky,
       props: doc.props,
+      selectedProp: null,
+      dragOrigin: null,
       // A freshly loaded world has nothing unsaved in it yet.
       dirty: false,
       lastSavedAt: null,
