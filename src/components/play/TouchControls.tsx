@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Joystick } from "ecctrl/input";
-import { useMediaQuery } from "@/lib/use-media-query";
-import { touchInput, useRunStore } from "./touch-input";
+import { touchInput } from "./touch-input";
+import { useMoveMode } from "./move-mode";
 
 /**
  * On-screen controls for touch devices (SPEC §1 put mobile out of v1; this is
@@ -19,10 +19,6 @@ import { touchInput, useRunStore } from "./touch-input";
  * starts on a control never reaches the canvas's drag-to-look listener. That's
  * what lets the left thumb drive while the right thumb looks.
  */
-
-/** True on touch/pen devices, or any viewport small enough to want thumb controls. */
-export const useTouchControls = () =>
-  useMediaQuery("(pointer: coarse), (max-width: 900px)");
 
 function ActionButton({
   label,
@@ -97,11 +93,14 @@ function ActionButton({
 }
 
 export function TouchControls() {
-  const running = useRunStore((s) => s.running);
-  const toggleRun = useRunStore((s) => s.toggle);
+  const running = useMoveMode((s) => s.running);
+  // Sprint only — deliberately NOT the Shift lock-on. On a phone the whole
+  // point is that the character turns to face wherever the stick is pushed;
+  // pinning its facing to the camera would take that away.
+  const toggleRun = useMoveMode((s) => s.toggleRun);
 
   // Don't leave sprint armed for the next world you open.
-  useEffect(() => useRunStore.getState().reset, []);
+  useEffect(() => useMoveMode.getState().reset, []);
 
   return (
     <>

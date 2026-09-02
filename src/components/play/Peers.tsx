@@ -58,7 +58,13 @@ function PeerAvatar({ id }: { id: string }) {
 
     const m = samplePeer(peer, Date.now());
     g.position.set(m.x, m.y, m.z);
-    g.rotation.y = m.yaw;
+    // A peer sends its *camera* yaw, and the camera looks back down its own
+    // offset — so the direction it is facing is (-sin yaw, 0, -cos yaw). The
+    // avatar's face is on local +Z (see CharacterModel's MODEL_FACING), which
+    // a group rotation of θ points at (sin θ, 0, cos θ). Half a turn reconciles
+    // the two. This used to be a bare `= m.yaw`, which was right only while the
+    // avatar itself was built backwards.
+    g.rotation.y = m.yaw + Math.PI;
     motion.current.moveSpeed = m.moveSpeed;
     motion.current.verticalSpeed = m.verticalSpeed;
     motion.current.isOnGround = m.isOnGround;

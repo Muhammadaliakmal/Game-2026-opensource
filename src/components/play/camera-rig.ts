@@ -81,6 +81,15 @@ export function recenterPitch() {
 interface ViewState {
   firstPerson: boolean;
   toggleFirstPerson(): void;
+  /**
+   * Whether the browser has handed us the mouse.
+   *
+   * Mirrored from `document.pointerLockElement` by the look controls rather
+   * than set by whoever asked for the lock: the user can drop it at any time
+   * with Esc, and the HUD hint has to follow the browser, not our intent.
+   */
+  pointerLocked: boolean;
+  setPointerLocked(locked: boolean): void;
 }
 
 /** Low-frequency, so this one is real store state the HUD can render from. */
@@ -88,4 +97,7 @@ export const useViewStore = create<ViewState>((set) => ({
   firstPerson: false,
   toggleFirstPerson: () =>
     set((s) => ({ firstPerson: !s.firstPerson })),
+  pointerLocked: false,
+  setPointerLocked: (locked) =>
+    set((s) => (s.pointerLocked === locked ? s : { pointerLocked: locked })),
 }));

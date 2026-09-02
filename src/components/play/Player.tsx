@@ -9,24 +9,40 @@ import { Ecctrl, type EcctrlHandle } from "ecctrl";
 import { useJoystickStore } from "ecctrl/input";
 import { FEEL } from "@/lib/feel";
 import type { Vec3 } from "@/lib/worlddoc";
+import { useTouchControls } from "@/lib/use-media-query";
 import { useJumpFeel } from "./feel/useJumpFeel";
 import { useFootstepAudio } from "./feel/useFootstepAudio";
 import { JumpParticles } from "./feel/JumpParticles";
 import { CharacterModel } from "./CharacterModel";
-import { touchInput, useRunStore } from "./touch-input";
-import { consumeRespawn, notifyRespawned } from "./play-actions";
+import { touchInput } from "./touch-input";
+import { useMoveMode } from "./move-mode";
+import { consumeRespawn, notifyRespawned, requestRespawn } from "./play-actions";
 import { sendMove } from "@/lib/net/presence";
 import {
   applyLook,
   cameraHandoff,
   look,
   playerFocus,
+  recenterPitch,
   THIRD_PERSON_DISTANCE,
   useViewStore,
 } from "./camera-rig";
 
 /**
- * Drag-to-look, for mouse and touch through the same code path.
+ * Look controls: pointer lock for a mouse, drag for a finger.
+ *
+ * A mouse gets the shooter treatment — click the canvas once and the browser
+ * hands us the cursor, after which moving the mouse aims the camera with no
+ * button held. Esc gives it back. That is the only way to look *and* steer at
+ * the same time, which is what the Shift lock-on below is for.
+ *
+ * Drag-to-look stays underneath it, unchanged, because it is what touch has
+ * and because pointer lock can be refused (a headless browser, an iframe
+ * without allow="pointer-lock", a user who just pressed Esc — Chrome rate
+ * limits re-locking for a second or so afterwards). The two compose safely
+ * rather than being an either/or: while the pointer is locked the browser
+ * freezes clientX/clientY, so the drag path computes deltas of exactly zero
+ * and contributes nothing. Only `movementX/Y` moves the camera.
  *
  * Listeners sit on the WebGL canvas itself, so the touch overlays (thumbstick,
  * JUMP/RUN) naturally win any pointer that starts on them — which gives the
@@ -42,6 +58,12 @@ import {
  */
 function useLookControls() {
   const gl = useThree((s) => s.gl);
+  const setPointerLocked = useViewStore((s) => s.setPointerLocked);
+  // Never take the cursor away while the thumb overlays are on screen. On a
+  // narrow desktop window both are true at once — a mouse *and* a JUMP button
+  // — and a hidden cursor over a button you now cannot aim at is a worse deal
+  // than dragging to look.
+  const overlaysMounted = useTouchControls();
 
   useEffect(() => {
     const el = gl.domElement;
@@ -50,12 +72,28 @@ function useLookControls() {
     let lastX = 0;
     let lastY = 0;
 
+    const locked = () => document.pointerLockElement === el;
+
     const onDown = (e: PointerEvent) => {
+      // Only a mouse gets captured. Requesting a lock for a finger would take
+      // the cursor away on a hybrid laptop the moment someone taps the screen.
+      if (e.pointerType === "mouse" && !overlaysMounted && !locked()) {
+        // Returns a promise in current Chrome and undefined elsewhere; a
+        // refused lock is expected, not exceptional, so it is swallowed and
+        // the drag path below just keeps working.
+        void Promise.resolve(el.requestPointerLock?.()).catch(() => {});
+      }
+
       if (activeId !== null) return;
       activeId = e.pointerId;
       lastX = e.clientX;
       lastY = e.clientY;
-      el.setPointerCapture(e.pointerId);
+      // Capture throws if the pointer is already gone (or locked away).
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        /* not fatal — we still get the moves */
+      }
     };
     const onMove = (e: PointerEvent) => {
       if (e.pointerId !== activeId) return;
@@ -69,17 +107,94 @@ function useLookControls() {
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
     };
 
+    // Free look. `mousemove` rather than `pointermove`: movementX/Y is the
+    // only field that still means anything once the cursor is pinned.
+    const onRawMove = (e: MouseEvent) => {
+      if (!locked()) return;
+      applyLook(e.movementX, e.movementY);
+    };
+
+    const onLockChange = () => {
+      setPointerLocked(locked());
+      // A drag that was in flight when the lock engaged would otherwise sit
+      // there holding a stale pointer id.
+      if (locked()) activeId = null;
+    };
+
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerup", onUp);
     el.addEventListener("pointercancel", onUp);
+    document.addEventListener("mousemove", onRawMove);
+    document.addEventListener("pointerlockchange", onLockChange);
     return () => {
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("pointercancel", onUp);
+      document.removeEventListener("mousemove", onRawMove);
+      document.removeEventListener("pointerlockchange", onLockChange);
+      // Leaving Play with the cursor still captured strands the player in a
+      // world they can no longer click out of.
+      if (document.pointerLockElement === el) document.exitPointerLock?.();
+      setPointerLocked(false);
     };
-  }, [gl]);
+  }, [gl, setPointerLocked, overlaysMounted]);
+}
+
+/**
+ * The keys Play owns, as opposed to the movement map drei fills.
+ *
+ * These are events, not held directions, so they cannot live in
+ * `keyboardMap` — a KeyboardControls entry is a boolean you poll, and polling
+ * a toggle re-fires it every frame the key is down.
+ *
+ * Bound on `window` rather than the canvas so they work before the pointer has
+ * ever entered it, and mounted with the Player so they exist in exactly the
+ * modes that have a character: Play and Arena, never the editor (where R and V
+ * belong to the build tools).
+ */
+function usePlayHotkeys() {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      ) {
+        return;
+      }
+
+      switch (e.code) {
+        case "ShiftLeft":
+        case "ShiftRight":
+          // Tap to lock on and sprint, tap again to release both.
+          useMoveMode.getState().toggleLockOn();
+          break;
+        case "KeyV":
+          useViewStore.getState().toggleFirstPerson();
+          break;
+        case "KeyC":
+          recenterPitch();
+          break;
+        case "KeyR":
+          requestRespawn();
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+    };
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Never carry sprint or a lock-on into the next world you open.
+  useEffect(() => useMoveMode.getState().reset, []);
 }
 
 /**
@@ -287,6 +402,14 @@ export function Player({ spawn }: { spawn: Vec3 }) {
   // fills a store, so the directional keys have to be forwarded to the
   // controller every frame. (useJumpFeel owns the `jump` field separately;
   // setMovement merges per-field, so the two don't collide.)
+  // Mirrored into ecctrl only on change: setLockForward writes a ref, so
+  // calling it every frame would be harmless but pointless, and this way the
+  // one place the mode is decided is legible.
+  const lockedOn = useMoveMode((s) => s.lockedOn);
+  useEffect(() => {
+    ref.current?.setLockForward(lockedOn);
+  }, [lockedOn]);
+
   useFrame(() => {
     const h = ref.current;
     if (!h) return;
@@ -300,8 +423,10 @@ export function Player({ spawn }: { spawn: Vec3 }) {
       backward: !!k.backward,
       leftward: !!k.leftward,
       rightward: !!k.rightward,
-      // Shift is hold-to-run; the touch RUN button is a latch you tap once.
-      run: Boolean(k.run) || useRunStore.getState().running,
+      // Sprint is a latch: Shift arms it together with lock-on, the touch RUN
+      // button arms it alone. Holding Shift still runs while it is down, so
+      // the old muscle memory is not punished.
+      run: Boolean(k.run) || useMoveMode.getState().running,
       joystick: { x: stick?.x ?? 0, y: stick?.y ?? 0 },
     });
   });
@@ -309,6 +434,7 @@ export function Player({ spawn }: { spawn: Vec3 }) {
   useJumpFeel(ref, jumpHeld, jumpPressedEdge);
   useCameraRig(ref);
   useLookControls();
+  usePlayHotkeys();
   useFootstepAudio(ref);
 
   // Respawn on falling out of the world, or on demand. Near-instant by design:
@@ -375,8 +501,13 @@ export function Player({ spawn }: { spawn: Vec3 }) {
         springK={80}
         dampingC={11}
         groundDetection="shapeCast"
-        // Hold Shift to run, not tap-to-toggle — platformer convention.
+        // ecctrl's own tap-to-toggle is off: sprint is latched by us instead,
+        // in `move-mode`, so Shift and the touch RUN button drive one state.
         enableToggleRun={false}
+        // Off at mount; usePlayHotkeys drives it from here on. When it is on,
+        // ecctrl turns the body to the camera's forward instead of the
+        // direction of travel, which is what makes strafing read as aiming.
+        lockForward={false}
       >
         <CharacterModel handleRef={ref} />
       </Ecctrl>

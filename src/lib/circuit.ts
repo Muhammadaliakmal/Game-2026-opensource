@@ -37,12 +37,21 @@ const GLOSSY = 1;
 const METAL = 2;
 const GLOW = 3;
 
-// Rounded-rectangle centreline: a box half-extent plus a corner radius.
-const BX = 14;
-const BZ = 8;
-const CORNER = 6;
-/** Half the track width. 2.6 gives a five-to-six cell racing line. */
-const HALF_WIDTH = 2.6;
+/**
+ * Rounded-rectangle centreline: a box half-extent plus a corner radius.
+ *
+ * Scaled up from 14x8x6. The lap was short enough that sprint speed carried
+ * you around it in well under half a minute, which meant the corners arrived
+ * before the run-up to them had gone anywhere — the whole world was one
+ * continuous turn. At this size the straights are long enough to be straights,
+ * which is the only thing that makes a sprint button worth pressing.
+ */
+const BX = 25;
+const BZ = 15;
+const CORNER = 9;
+/** Half the track width. 3.4 gives a seven-cell racing line — one wider than
+ *  before, because a longer straight invites taking a corner two abreast. */
+const HALF_WIDTH = 3.4;
 const RAIL_BAND = 0.9;
 
 /** Signed distance from a cell centre to the circuit centreline. */

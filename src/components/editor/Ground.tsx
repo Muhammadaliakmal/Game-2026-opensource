@@ -10,19 +10,26 @@ import { forwardRef } from "react";
  * This has to contain everything the game ships. The default parkour course
  * runs from x=-5 to x=90, so at the old 64 (±32) more than half of the course
  * every new world starts with sat *outside* the grid: visible, but impossible
- * to erase or build against, with no ground under it. ±96 covers the course
- * with room to keep building past it.
+ * to erase or build against, with no ground under it.
+ *
+ * ±192 rather than the ±96 that was merely enough for the course: the plane is
+ * the ceiling on how big anything anyone builds can ever get, and it costs two
+ * triangles and a grid helper to raise. The built-in worlds are the floor of
+ * what a world can be, not the roof.
  */
-export const GROUND_SIZE = 192;
+export const GROUND_SIZE = 384;
 
 /**
- * 1-unit cells only near the origin. A 192-cell fine grid seen at a shallow
+ * 1-unit cells only near the origin. A full-extent fine grid seen at a shallow
  * angle is a moiré field, and it's the first few dozen cells that anyone
- * actually aims at; further out a coarse 8-unit grid is enough to read
+ * actually aims at; further out a coarse 16-unit grid is enough to read
  * distance and direction by.
+ *
+ * The coarse step scales with the plane — at 8 units a 384-wide plane is 48
+ * divisions of hairlines that alias into grey mush at any distance.
  */
 const FINE_GRID = 64;
-const COARSE_STEP = 8;
+const COARSE_STEP = 16;
 
 /**
  * The build plane: grid overlays plus an invisible pickable plane.

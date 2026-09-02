@@ -36,3 +36,16 @@ export function useMediaQuery(query: string): boolean {
  * would be nonsense.
  */
 export const useCoarsePointer = () => useMediaQuery("(pointer: coarse)");
+
+/**
+ * Whether the on-screen thumb controls should be mounted.
+ *
+ * Wider than `useCoarsePointer` on purpose: a narrow window gets the thumb
+ * layout too, because at that size the HUD is already stacked for a phone.
+ *
+ * It lives here rather than beside <TouchControls> because it is no longer
+ * only that component's business — the look controls have to know whether
+ * there are overlay buttons on screen before they take the cursor away.
+ */
+export const useTouchControls = () =>
+  useMediaQuery("(pointer: coarse), (max-width: 900px)");

@@ -38,7 +38,8 @@ import { WorldColliders } from "@/components/play/WorldColliders";
 import { PropColliders } from "@/components/play/PropColliders";
 import { Player } from "@/components/play/Player";
 import { Peers } from "@/components/play/Peers";
-import { TouchControls, useTouchControls } from "@/components/play/TouchControls";
+import { TouchControls } from "@/components/play/TouchControls";
+import { useTouchControls } from "@/lib/use-media-query";
 import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
 import { PlayHud } from "./PlayHud";
 import { FollowSun } from "@/components/FollowSun";
@@ -570,7 +571,10 @@ export default function WorldCanvas({
               touches={{ ONE: undefined, TWO: THREE.TOUCH.DOLLY_ROTATE }}
               maxPolarAngle={Math.PI / 2 - 0.02}
               minDistance={3}
-              maxDistance={260}
+              // Far enough out to frame the whole build plane, which is now
+              // 384 units across — capping short of it means the corners of
+              // your own world are somewhere you cannot pull back to see.
+              maxDistance={520}
               enableDamping
               dampingFactor={0.12}
             />

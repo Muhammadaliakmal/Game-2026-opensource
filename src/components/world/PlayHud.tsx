@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { recenterPitch, useViewStore } from "@/components/play/camera-rig";
+import { useMoveMode } from "@/components/play/move-mode";
 import { onRespawned, requestRespawn } from "@/components/play/play-actions";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
@@ -47,6 +48,7 @@ export function PlayHud({
     <>
       <RespawnFade />
       {canEdit && <EscHint />}
+      <LockOnBadge />
 
       <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-start gap-2 p-2 sm:flex-row sm:flex-wrap sm:justify-between sm:p-3">
         <div className="hud-panel pointer-events-auto flex max-w-full min-w-0 items-center gap-2.5 px-3 py-2">
@@ -112,9 +114,9 @@ export function PlayHud({
           <div className="hud-panel flex items-center gap-2.5 px-3.5 py-2">
             {[
               ["WASD", "move"],
-              ["Shift", "run"],
+              ["Click", "aim"],
+              ["Shift", "lock on"],
               ["Space", "jump"],
-              ["Drag", "look"],
               ["V", "view"],
               ["R", "respawn"],
             ].map(([key, action]) => (
@@ -129,6 +131,30 @@ export function PlayHud({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * The lock-on readout.
+ *
+ * Shift changes how the character relates to the camera, and a mode you can
+ * enter by accident and cannot see is a mode that reads as a bug — the player
+ * strafes past a ledge wondering why the body will not turn. One chip, only
+ * while it is on, in the corner the thumb controls do not use.
+ */
+function LockOnBadge() {
+  const lockedOn = useMoveMode((s) => s.lockedOn);
+  if (!lockedOn) return null;
+
+  return (
+    // top-28, not top-16: the "Esc to edit" hint owns that row for its first
+    // three seconds, and two overlapping panels read as a rendering fault.
+    <div className="pointer-events-none absolute inset-x-0 top-28 flex justify-center px-3">
+      <div className="hud-panel border-signal/60 text-signal flex items-center gap-2 border px-3 py-1.5 text-2xs font-semibold tracking-widest">
+        <span className="bg-signal h-1.5 w-1.5 animate-pulse rounded-full" aria-hidden />
+        LOCK ON
+      </div>
+    </div>
   );
 }
 

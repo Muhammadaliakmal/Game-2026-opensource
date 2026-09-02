@@ -32,7 +32,24 @@ const G = {
   antenna: new THREE.CylinderGeometry(0.012, 0.012, 0.18, 6),
 };
 
-// Forward is -Z (matching the follow camera, which sits behind on +X/+Z).
+/**
+ * The model is built facing its own local -Z, and then the whole thing is
+ * turned around by MODEL_FACING (below) so that it faces +Z in the space its
+ * parent gives it.
+ *
+ * That is not decoration, it is the contract with the physics: ecctrl's
+ * `turnCharacter` rotates the rigid body until its local **+Z** points along
+ * the direction of travel (`characterZAxis` starts life as `(0, 0, 1)`). The
+ * avatar used to be dropped in facing -Z, so it ran, jumped and landed with
+ * the back of its head pointed at wherever it was going — visibly backwards in
+ * third person, and the reason the character looked wrong when steered with a
+ * thumbstick.
+ *
+ * Everything inside the flip stays in the original -Z space, so the forward
+ * lean and the gait keep their signs and stay consistent with the face.
+ */
+const MODEL_FACING = Math.PI;
+
 const SWING = 0.85; // radians at full sprint
 const LEAN = 0.22;
 
@@ -157,9 +174,10 @@ export function CharacterModel({
   });
 
   return (
-    // Static plant on the floor; `root` stays free for squash and lean so
-    // those still scale and pivot about the body rather than the feet.
-    <group position={[0, GROUND_OFFSET, 0]}>
+    // Static plant on the floor, and the half-turn that puts the visor on the
+    // engine's forward axis; `root` stays free for squash and lean so those
+    // still scale and pivot about the body rather than the feet.
+    <group position={[0, GROUND_OFFSET, 0]} rotation={[0, MODEL_FACING, 0]}>
       <group ref={root}>
         <group ref={rig}>
           {/* ── Torso ── */}
@@ -181,7 +199,8 @@ export function CharacterModel({
             <mesh geometry={G.head} castShadow>
               <meshStandardMaterial color="#e8ecff" roughness={0.35} metalness={0.1} />
             </mesh>
-            {/* Visor reads as the "face", so forward direction is unmistakable. */}
+            {/* Visor reads as the "face", so forward direction is unmistakable.
+                Local -Z, which MODEL_FACING turns into world forward. */}
             <mesh geometry={G.visor} position={[0, 0.01, -0.19]}>
               <meshStandardMaterial
                 ref={visorMat}
