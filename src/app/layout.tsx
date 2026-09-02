@@ -86,6 +86,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/browse" className="hud-chip">
                 Browse
               </Link>
+              {/* Racing was reachable only by typing the URL, which is the same
+                  as not shipping it. Hidden on the narrowest screens so the
+                  header does not wrap behind the sign-in buttons. */}
+              <Link href="/race" className="hud-chip hidden xs:inline-flex sm:inline-flex">
+                Race
+              </Link>
               <Show when="signed-out">
                 {/* Modal, not a page: UI spec §3.5 — signing in must not take
                     someone away from the world they are in the middle of

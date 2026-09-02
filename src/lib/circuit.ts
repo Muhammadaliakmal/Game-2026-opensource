@@ -1,4 +1,13 @@
 import type { PartTuple, Shape, Vec3, WorldDoc } from "./worlddoc";
+import {
+  BX,
+  BZ,
+  CORNER,
+  HALF_WIDTH,
+  RAIL_BAND,
+  START_LINE_Z,
+  trackDistance,
+} from "./race-track";
 
 /**
  * "Neon Circuit" — a closed loop to run.
@@ -38,27 +47,17 @@ const METAL = 2;
 const GLOW = 3;
 
 /**
- * Rounded-rectangle centreline: a box half-extent plus a corner radius.
+ * The shape of the loop lives in race-track.ts.
  *
- * Scaled up from 14x8x6. The lap was short enough that sprint speed carried
- * you around it in well under half a minute, which meant the corners arrived
- * before the run-up to them had gone anywhere — the whole world was one
- * continuous turn. At this size the straights are long enough to be straights,
- * which is the only thing that makes a sprint button worth pressing.
+ * It was inlined here until the track had to be raced on: the room server
+ * counts laps and has to agree with this geometry exactly, and two copies of a
+ * distance field is two copies that can drift. See race-track.ts for the
+ * numbers and for why the loop is the size it is.
  */
-const BX = 25;
-const BZ = 15;
-const CORNER = 9;
-/** Half the track width. 3.4 gives a seven-cell racing line — one wider than
- *  before, because a longer straight invites taking a corner two abreast. */
-const HALF_WIDTH = 3.4;
-const RAIL_BAND = 0.9;
 
-/** Signed distance from a cell centre to the circuit centreline. */
+/** Signed distance from a CELL to the centreline, evaluated at its centre. */
 function distanceToLine(x: number, z: number): number {
-  const dx = Math.max(Math.abs(x + 0.5) - BX, 0);
-  const dz = Math.max(Math.abs(z + 0.5) - BZ, 0);
-  return Math.hypot(dx, dz) - CORNER;
+  return trackDistance(x + 0.5, z + 0.5);
 }
 
 export function circuitParts(): PartTuple[] {
@@ -112,28 +111,48 @@ export function circuitParts(): PartTuple[] {
   }
 
   // ── Start / finish ──────────────────────────────────────────────────────
-  // On the bottom straight, where the spawn drops you.
-  const lineZ = BZ + CORNER;
-  for (let x = -3; x <= 3; x++) {
-    for (let i = 0; i < 2; i++) {
-      const chequer = (x + i) % 2 === 0;
-      put(x, 1, lineZ - 1 + i, SLAB, chequer ? LINE : ASPHALT_DARK, MATTE);
+  /*
+    Across the track, not along it.
+    
+    At x = 0 the loop's straight runs parallel to X and its WIDTH is in Z, so a
+    line spanning x = -3..3 (as this did) was a patch lying lengthwise down the
+    middle of the road. A start line has to be something you cross, which means
+    two cells deep in the direction of travel and as wide as the track is.
+    
+    The extent is measured off the same distance field the surface is stamped
+    from rather than hardcoded, so it stays exactly track-width if the loop is
+    ever resized again.
+  */
+  const lineZ = Math.round(START_LINE_Z);
+  const edge = Math.ceil(HALF_WIDTH + RAIL_BAND) + 1;
+
+  for (let z = lineZ - edge; z <= lineZ + edge; z++) {
+    for (const x of [-1, 0]) {
+      if (Math.abs(distanceToLine(x, z)) > HALF_WIDTH) continue;
+      const chequer = (x + z) % 2 === 0;
+      put(x, 1, z, SLAB, chequer ? LINE : ASPHALT_DARK, MATTE);
     }
   }
 
-  // A gantry over the line, so the start reads from a distance.
+  // A gantry over the line, so the start reads from a distance. Its posts stand
+  // just outside the rail on either side, which is also across the track.
+  const postA = lineZ - edge;
+  const postB = lineZ + edge;
   for (let y = 3; y <= 6; y++) {
-    put(-4, y, lineZ, BLOCK, PIT, METAL);
-    put(4, y, lineZ, BLOCK, PIT, METAL);
+    put(0, y, postA, BLOCK, PIT, METAL);
+    put(0, y, postB, BLOCK, PIT, METAL);
   }
-  for (let x = -4; x <= 4; x++) put(x, 7, lineZ, BLOCK, PIT, METAL);
-  for (const x of [-2, 0, 2]) put(x, 6, lineZ, BLOCK, START, GLOW);
+  for (let z = postA; z <= postB; z++) put(0, 7, z, BLOCK, PIT, METAL);
+  // Start lights, spaced across the beam.
+  for (const z of [lineZ - 2, lineZ, lineZ + 2]) {
+    put(0, 6, z, BLOCK, START, GLOW);
+  }
 
   return [...cells.values()];
 }
 
-/** On the start line, above the track surface. */
-export const CIRCUIT_SPAWN: Vec3 = [0.5, 2.4, BZ + CORNER - 0.5];
+/** Just behind the start line, on the racing surface. */
+export const CIRCUIT_SPAWN: Vec3 = [-2.5, 2.4, START_LINE_Z];
 
 export function circuitWorldDoc(
   id: string,

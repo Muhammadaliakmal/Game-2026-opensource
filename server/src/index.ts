@@ -2,6 +2,7 @@ import "dotenv/config";
 import { defineRoom, defineServer, listen } from "colyseus";
 import { BuildRoom } from "./rooms/BuildRoom.ts";
 import { ArenaRoom } from "./rooms/ArenaRoom.ts";
+import { RaceRoom } from "./rooms/RaceRoom.ts";
 import { httpWorldSource, setWorldSource } from "./world-source.ts";
 
 /**
@@ -25,6 +26,9 @@ const server = defineServer({
     // Matches are found by their code, not by their world: two people share a
     // link to their own duel, and it never collides with anyone else's.
     arena: defineRoom(ArenaRoom).filterBy(["code"]),
+    // Races are found by code too, for the same reason duels are — and the
+    // track is fixed, so there is no world to filter on.
+    race: defineRoom(RaceRoom).filterBy(["code"]),
   },
 });
 

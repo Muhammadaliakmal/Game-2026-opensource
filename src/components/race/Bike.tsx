@@ -1,0 +1,225 @@
+"use client";
+
+import * as THREE from "three";
+import { useEffect, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { CuboidCollider } from "@react-three/rapier";
+import { useKeyboardControls } from "@react-three/drei";
+import {
+  EcctrlVehicle,
+  ShapeCastWheel,
+  type EcctrlVehicleHandle,
+} from "ecctrl/vehicle";
+import { useJoystickStore } from "ecctrl/input";
+import { playerFocus } from "@/components/play/camera-rig";
+import { setGridListener, type GridPose } from "@/lib/net/race";
+import { sendMove } from "@/lib/net/presence";
+import { useRaceStore } from "@/stores/race-store";
+import { GRID_YAW } from "@/lib/race-track";
+import { BikeModel, bikeColor } from "./BikeModel";
+import type { RaceControl } from "./controls";
+import { raceTouch } from "./race-touch";
+
+/**
+ * The player's bike.
+ *
+ * ecctrl's vehicle controller does the driving: ShapeCastWheels take drive,
+ * steer and brake demands, evaluate slip through baked tyre curves and apply
+ * grip impulses to the body. That is a real car model, and a bike is where it
+ * needs the most help — see the wheel layout below.
+ */
+
+/**
+ * Four contact points, in two narrow pairs.
+ *
+ * A genuine two-wheeler falls over: nothing holds it upright below the speed
+ * at which gyroscopic effects would, and every fix is an invisible torque
+ * fighting the rider's own steering. Two tight pairs 0.18 apart give the
+ * solver a base to stand on while reading, at any distance anyone plays at, as
+ * the two wheels the model actually draws.
+ *
+ * The honest alternative was an arcade controller that never falls over
+ * because it has no roll axis at all. This keeps real suspension, load
+ * transfer under braking and tyre slip — the things that make a corner feel
+ * like something — and pays for them with a track width nobody can see.
+ */
+const HALF_TRACK = 0.18;
+const WHEELBASE = 0.75;
+
+/**
+ * Engine and transmission.
+ *
+ * Light, revvy and short-geared, because a bike is. These are a starting point
+ * rather than a finished tune — the numbers that decide whether a vehicle feels
+ * good are the ones you find by driving it.
+ */
+const BIKE_ENGINE = {
+  engineHorsepower: 180,
+  engineMaxRPM: 11_000,
+  gearRatios: [2.9, 2.0, 1.55, 1.25, 1.0, 0.86],
+  finalDriveRatio: 13,
+  transmissionMode: "auto" as const,
+  shiftUpRPM: 9_400,
+  shiftDownRPM: 4_200,
+  shiftCooldown: 0.25,
+  steerRate: 5,
+  maxSteerAngle: 0.55,
+};
+
+/** Chase camera: behind and above, easing toward wherever the bike points. */
+const CAM_BACK = 6.5;
+const CAM_HEIGHT = 2.6;
+const CAM_LAG = 0.06;
+
+export function Bike({ spawn }: { spawn: [number, number, number] }) {
+  const ref = useRef<EcctrlVehicleHandle>(null);
+  const [, getKeys] = useKeyboardControls<RaceControl>();
+  const camera = useThree((s) => s.camera);
+  const selfId = useRaceStore((s) => s.selfId);
+  const phase = useRaceStore((s) => s.phase);
+
+  const color = selfId ? bikeColor(selfId) : "#22d3ee";
+
+  /**
+   * The server forms the grid, so it also places the bike.
+   *
+   * A teleport is a frame-loop job — the same reason play-actions.ts exists for
+   * respawns — so the message only leaves a pose here and the loop below acts
+   * on it. Setting a rigid body's translation from a socket callback races the
+   * physics step that is already in flight.
+   */
+  const pending = useRef<GridPose | null>(null);
+  useEffect(() => {
+    setGridListener((pose) => {
+      pending.current = pose;
+    });
+    return () => setGridListener(null);
+  }, []);
+
+  const quat = useRef(new THREE.Quaternion());
+  const eye = useRef(new THREE.Vector3());
+  const want = useRef(new THREE.Vector3());
+  const fwd = useRef(new THREE.Vector3());
+  const primed = useRef(false);
+
+  useFrame((_, dt) => {
+    const h = ref.current;
+    if (!h) return;
+
+    // ── Grid placement ────────────────────────────────────────────────────
+    const grid = pending.current;
+    if (grid) {
+      pending.current = null;
+      h.body.setTranslation({ x: grid.x, y: grid.y, z: grid.z }, true);
+      quat.current.setFromAxisAngle(new THREE.Vector3(0, 1, 0), grid.yaw);
+      h.body.setRotation(quat.current, true);
+      h.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      h.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      primed.current = false;
+    }
+
+    // ── Input ─────────────────────────────────────────────────────────────
+    const k = getKeys();
+    const stick = useJoystickStore.getState().joysticks.default;
+    // Nobody drives before the lights. Holding the throttle through the
+    // countdown is fine and expected — it simply does nothing until "racing",
+    // which is also what stops anyone jumping the start.
+    const armed = phase === "racing";
+
+    h.setMovement({
+      forward: armed && (Boolean(k.forward) || raceTouch.throttle),
+      backward: armed && (Boolean(k.backward) || raceTouch.reverse),
+      steerLeft: armed && Boolean(k.steerLeft),
+      steerRight: armed && Boolean(k.steerRight),
+      // Braking is allowed at any time: it is the only way to stop rolling
+      // backwards off a grid slot on a track that is not perfectly flat.
+      brake: Boolean(k.brake) || raceTouch.brake,
+      // The thumbstick steers. Its x is negated inside the controller, so
+      // pushing right steers right — no sign correction needed here.
+      joystickL: { x: armed ? (stick?.x ?? 0) : 0, y: 0 },
+    });
+
+    // ── Presence ──────────────────────────────────────────────────────────
+    const p = h.currPos;
+    playerFocus.set(p.x, p.y, p.z);
+
+    // Facing from the body, not the camera: on a bike where you are pointed is
+    // the whole state a rival needs, and it is what the server's sector test
+    // has to agree with.
+    fwd.current.set(0, 0, 1).applyQuaternion(h.currQuat);
+    const yaw = Math.atan2(fwd.current.x, fwd.current.z);
+    sendMove(p.x, p.y, p.z, yaw);
+
+    // ── Chase camera ──────────────────────────────────────────────────────
+    // Behind along the bike's own heading rather than a free look: a racing
+    // camera that does not point where the vehicle points is a camera you
+    // cannot take a corner with.
+    want.current.set(
+      p.x - fwd.current.x * CAM_BACK,
+      p.y + CAM_HEIGHT,
+      p.z - fwd.current.z * CAM_BACK
+    );
+
+    if (!primed.current) {
+      primed.current = true;
+      eye.current.copy(want.current);
+    } else {
+      // Frame-rate independent, like the on-foot rig: without the dt scaling
+      // the lag would differ between a 60Hz and a 144Hz display.
+      eye.current.lerp(want.current, 1 - Math.pow(CAM_LAG, dt));
+    }
+
+    camera.position.copy(eye.current);
+    camera.lookAt(p.x, p.y + 0.8, p.z);
+  });
+
+  return (
+    <EcctrlVehicle
+      ref={ref}
+      position={spawn}
+      rotation={[0, GRID_YAW, 0]}
+      carConfig={BIKE_ENGINE}
+    >
+      {/* Narrow and long, so the mass sits where the model looks like it does. */}
+      <CuboidCollider args={[0.22, 0.28, 0.85]} position={[0, 0.1, 0]} />
+
+      {/* Front pair steers and brakes; rear pair drives and brakes — a bike is
+          rear-wheel drive, and giving the front wheels torque would let it pull
+          itself out of a slide in a way no rider would recognise. */}
+      <ShapeCastWheel
+        position={[-HALF_TRACK, 0, WHEELBASE]}
+        steerWheel
+        brakeWheel
+        rayShapeR={0.33}
+        rayShapeH={0.08}
+        rayLength={0.4}
+      />
+      <ShapeCastWheel
+        position={[HALF_TRACK, 0, WHEELBASE]}
+        steerWheel
+        brakeWheel
+        rayShapeR={0.33}
+        rayShapeH={0.08}
+        rayLength={0.4}
+      />
+      <ShapeCastWheel
+        position={[-HALF_TRACK, 0, -WHEELBASE]}
+        driveWheel
+        brakeWheel
+        rayShapeR={0.33}
+        rayShapeH={0.08}
+        rayLength={0.4}
+      />
+      <ShapeCastWheel
+        position={[HALF_TRACK, 0, -WHEELBASE]}
+        driveWheel
+        brakeWheel
+        rayShapeR={0.33}
+        rayShapeH={0.08}
+        rayLength={0.4}
+      />
+
+      <BikeModel color={color} />
+    </EcctrlVehicle>
+  );
+}
