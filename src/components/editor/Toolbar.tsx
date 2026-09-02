@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEditorStore, type Tool } from "@/stores/editor-store";
 import { PALETTE, FINISHES, type Shape } from "@/lib/worlddoc";
 import { SHAPE_NAMES } from "./shapes";
+import { PropBrowser } from "./PropBrowser";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { useCoarsePointer } from "@/lib/use-media-query";
@@ -34,6 +35,8 @@ const CONTROLS: Array<[string, string]> = [
   ["B / E", "build / erase"],
   ["G / I", "paint / pick"],
   ["S", "move the spawn point"],
+  ["P", "place / select props"],
+  ["Delete", "remove the selected prop"],
   ["1 – 9", "pick a colour"],
   ["Shift + 1 – 4", "pick a shape"],
   ["R", "rotate the brush"],
@@ -89,9 +92,14 @@ const TOOL_ICONS: Record<
     label: "Spawn",
     key: "S",
   },
+  prop: {
+    path: "M12 2l3.5 6.5L22 10l-5 4.5L18.5 21 12 17.5 5.5 21 7 14.5 2 10l6.5-1.5L12 2z",
+    label: "Props",
+    key: "P",
+  },
 };
 
-const TOOL_ORDER: Tool[] = ["place", "erase", "paint", "pick", "spawn"];
+const TOOL_ORDER: Tool[] = ["place", "erase", "paint", "pick", "spawn", "prop"];
 
 /** The keyboard/mouse legend. Shown automatically the first time only. */
 function HelpPanel({ onClose }: { onClose: () => void }) {
@@ -440,28 +448,34 @@ export function Toolbar({
       {/* ── Bottom: tools and palette left, readout right ── */}
       <div className="flex items-end justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-2">
-          {/* Palette: 0-radius swatches, because blocks are not round and a
-              pill stops reading as a block. */}
-          <div className="hud-panel hud-scroll pointer-events-auto flex max-w-[min(92vw,32rem)] flex-nowrap gap-1 overflow-x-auto p-1.5 sm:flex-wrap">
-            {PALETTE.map((hex, i) => (
-              <button
-                key={hex + i}
-                onClick={() => useEditorStore.getState().setColorIndex(i)}
-                style={{ background: hex }}
-                className="swatch relative"
-                aria-label={`Colour ${i + 1}`}
-                aria-pressed={colorIndex === i}
-                title={i < 9 ? `Colour ${i + 1} (${i + 1})` : `Colour ${i + 1}`}
-              >
-                {/* Number-key hint on the first nine, per the spec. */}
-                {i < 9 && (
-                  <span className="pointer-events-none absolute right-0.5 bottom-0 text-[11px] leading-none font-semibold text-white/80 mix-blend-difference">
-                    {i + 1}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
+          {/* Colour and shape don't apply to a placed prop — the prop tool
+              gets its own browser instead of these. */}
+          {tool === "prop" ? (
+            <PropBrowser />
+          ) : (
+            /* Palette: 0-radius swatches, because blocks are not round and a
+               pill stops reading as a block. */
+            <div className="hud-panel hud-scroll pointer-events-auto flex max-w-[min(92vw,32rem)] flex-nowrap gap-1 overflow-x-auto p-1.5 sm:flex-wrap">
+              {PALETTE.map((hex, i) => (
+                <button
+                  key={hex + i}
+                  onClick={() => useEditorStore.getState().setColorIndex(i)}
+                  style={{ background: hex }}
+                  className="swatch relative"
+                  aria-label={`Colour ${i + 1}`}
+                  aria-pressed={colorIndex === i}
+                  title={i < 9 ? `Colour ${i + 1} (${i + 1})` : `Colour ${i + 1}`}
+                >
+                  {/* Number-key hint on the first nine, per the spec. */}
+                  {i < 9 && (
+                    <span className="pointer-events-none absolute right-0.5 bottom-0 text-[11px] leading-none font-semibold text-white/80 mix-blend-difference">
+                      {i + 1}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="hud-scroll flex max-w-[calc(100vw-1rem)] items-center gap-2 overflow-x-auto">
             {/* Tool group */}
@@ -499,38 +513,41 @@ export function Toolbar({
               </button>
             </div>
 
-            {/* Brush: shape, finish, rotation */}
-            <div className="hud-panel pointer-events-auto flex shrink-0 items-center gap-1 p-1">
-              {SHAPE_NAMES.map((label, i) => (
+            {/* Brush: shape, finish, rotation — meaningless for a prop, which
+                is transformed via its own PivotControls handles instead. */}
+            {tool !== "prop" && (
+              <div className="hud-panel pointer-events-auto flex shrink-0 items-center gap-1 p-1">
+                {SHAPE_NAMES.map((label, i) => (
+                  <button
+                    key={label}
+                    onClick={() => useEditorStore.getState().setShape(i as Shape)}
+                    className={`hud-chip ${shape === i ? "is-active" : ""}`}
+                    title={`${label} (Shift+${i + 1})`}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <span className="hud-divider" />
+                {FINISHES.map((label, i) => (
+                  <button
+                    key={label}
+                    onClick={() => useEditorStore.getState().setFinish(i)}
+                    className={`hud-chip ${finish === i ? "is-active" : ""}`}
+                    title={`${label} finish`}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <span className="hud-divider" />
                 <button
-                  key={label}
-                  onClick={() => useEditorStore.getState().setShape(i as Shape)}
-                  className={`hud-chip ${shape === i ? "is-active" : ""}`}
-                  title={`${label} (Shift+${i + 1})`}
+                  onClick={() => useEditorStore.getState().rotateBrush()}
+                  className="hud-chip num"
+                  title="Rotate (R)"
                 >
-                  {label}
+                  {rot * 90}°
                 </button>
-              ))}
-              <span className="hud-divider" />
-              {FINISHES.map((label, i) => (
-                <button
-                  key={label}
-                  onClick={() => useEditorStore.getState().setFinish(i)}
-                  className={`hud-chip ${finish === i ? "is-active" : ""}`}
-                  title={`${label} finish`}
-                >
-                  {label}
-                </button>
-              ))}
-              <span className="hud-divider" />
-              <button
-                onClick={() => useEditorStore.getState().rotateBrush()}
-                className="hud-chip num"
-                title="Rotate (R)"
-              >
-                {rot * 90}°
-              </button>
-            </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -52,6 +52,16 @@ export function Builder({ children }: { children: React.ReactNode }) {
       const s = useEditorStore.getState();
       if (s.readOnly) return;
 
+      // Props are free-standing, not grid-snapped, so they skip the cell
+      // machinery entirely and place straight at the raycast hit point.
+      // Selecting an *existing* prop is handled by PlacedProps' own
+      // onPointerDown (with stopPropagation) before this ever runs.
+      if (s.tool === "prop") {
+        if (!inBounds([Math.floor(e.point.x), 0, Math.floor(e.point.z)])) return;
+        s.placeProp([e.point.x, e.point.y, e.point.z]);
+        return;
+      }
+
       // Build and spawn target the empty cell in front of the face you
       // clicked (that is where a block, or the character, would go). Erase,
       // paint and pick target the block you actually clicked on.
@@ -95,10 +105,11 @@ export function Builder({ children }: { children: React.ReactNode }) {
       const cell = cellFor(e, s.tool === "place" || s.tool === "spawn");
       s.setHoverCell(inBounds(cell) ? cell : null);
 
-      // Spawn and pick are single-shot: dragging either one would spam the
-      // undo stack (or the brush) with one action per cell crossed.
+      // Spawn, pick and prop are single-shot: dragging any of them would spam
+      // the undo stack (or the brush) with one action per cell crossed —
+      // and for prop, one new instance per pixel moved.
       const tool = useEditorStore.getState().tool;
-      if (painting.current && tool !== "spawn" && tool !== "pick") {
+      if (painting.current && tool !== "spawn" && tool !== "pick" && tool !== "prop") {
         applyAt(e);
       }
     },

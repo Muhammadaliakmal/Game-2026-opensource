@@ -16,7 +16,7 @@ import {
 import { Physics, RigidBody } from "@react-three/rapier";
 
 import { useEditorStore } from "@/stores/editor-store";
-import { parseWorldDoc, type PartTuple, type WorldDoc } from "@/lib/worlddoc";
+import { parseWorldDoc, type PartTuple, type PropInstance, type WorldDoc } from "@/lib/worlddoc";
 import {
   clearDraft,
   DRAFT_ID,
@@ -33,8 +33,11 @@ import { Builder } from "@/components/editor/Builder";
 import { Toolbar } from "@/components/editor/Toolbar";
 import { FrameWorld } from "@/components/editor/FrameWorld";
 import { useEditorHotkeys } from "@/components/editor/useEditorHotkeys";
+import { PlacedProps } from "@/components/editor/PlacedProps";
+import { PropGizmo } from "@/components/editor/PropGizmo";
 
 import { WorldColliders } from "@/components/play/WorldColliders";
+import { PropColliders } from "@/components/play/PropColliders";
 import { Player } from "@/components/play/Player";
 import { TouchControls, useTouchControls } from "@/components/play/TouchControls";
 import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
@@ -73,12 +76,14 @@ export type Mode = "build" | "play";
 /** A frozen copy of a world, handed to physics. */
 interface Snapshot {
   parts: PartTuple[];
+  props: PropInstance[];
   spawn: [number, number, number];
 }
 
 function toSnapshot(doc: WorldDoc): Snapshot {
   return {
     parts: doc.parts,
+    props: doc.props,
     spawn: [doc.spawn[0], doc.spawn[1], doc.spawn[2]],
   };
 }
@@ -108,6 +113,22 @@ const DEV = process.env.NODE_ENV !== "production";
 const FeelTuner = dynamic(() => import("@/components/play/feel/FeelTuner"), {
   ssr: false,
 });
+
+/**
+ * Build mode's props layer, isolated in its own component so a PivotControls
+ * drag (which updates the store every frame) re-renders only this leaf
+ * rather than the whole WorldCanvas tree.
+ */
+function LivePlacedProps() {
+  const props = useEditorStore((s) => s.props);
+  const selectedProp = useEditorStore((s) => s.selectedProp);
+  return (
+    <>
+      <PlacedProps props={props} exclude={selectedProp} interactive />
+      <PropGizmo />
+    </>
+  );
+}
 
 /**
  * Fires once, on the first rendered frame. Standing up Rapier and thousands of
@@ -494,11 +515,20 @@ export default function WorldCanvas({
         {/* One renderer for both modes: the world can never flash or disagree
             with itself on the way through the transition. */}
         <InstancedParts />
+        {/* Play mode's read-only view of the same props Build edits live —
+            colliders for these are the PropColliders inside <Physics> below. */}
+        {playing && snapshot && <PlacedProps props={snapshot.props} />}
 
         {!playing && (
           <>
             <Builder>
               <Ground />
+              {/* Inside Builder's group so a click on an existing prop can
+                  stopPropagation() and pre-empt a new placement behind it
+                  (see PlacedProps' onPointerDown and Builder's own "prop"
+                  branch) — the same bubbling relationship Ground relies on
+                  for erase/paint/pick. */}
+              <LivePlacedProps />
             </Builder>
             <GhostPreview />
             <SpawnMarker />
@@ -539,6 +569,7 @@ export default function WorldCanvas({
                 <Player spawn={snapshot.spawn} />
               </KeyboardControls>
               <WorldColliders parts={snapshot.parts} />
+              <PropColliders props={snapshot.props} />
 
               {/* Safety pad for an empty world only: without ground under the
                   spawn a blank world is an endless fall/respawn loop, but in a

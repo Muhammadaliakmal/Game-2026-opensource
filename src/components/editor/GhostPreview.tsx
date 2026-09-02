@@ -71,6 +71,11 @@ export function GhostPreview() {
     return useEditorStore.subscribe(apply);
   }, [invalidate, spawnTool]);
 
+  // Props aren't grid-snapped and don't have a shape/colour brush, so a
+  // block-shaped ghost here would just be a wrong preview of the click.
+  // PlacedProps + PropGizmo show what actually happens instead.
+  if (tool === "prop") return null;
+
   return (
     <group ref={group} visible={false}>
       <group rotation={[0, spawnTool ? 0 : (rot * Math.PI) / 2, 0]}>
