@@ -8,11 +8,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import {
-  KeyboardControls,
-  OrbitControls,
-  type KeyboardControlsEntry,
-} from "@react-three/drei";
+import { KeyboardControls, OrbitControls } from "@react-three/drei";
 import { Physics, RigidBody } from "@react-three/rapier";
 
 import { useEditorStore } from "@/stores/editor-store";
@@ -46,6 +42,7 @@ import { TouchControls, useTouchControls } from "@/components/play/TouchControls
 import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
 import { PlayHud } from "./PlayHud";
 import { FollowSun } from "@/components/FollowSun";
+import { keyboardMap } from "@/components/play/controls";
 
 /**
  * Build and Play, on one canvas.
@@ -90,25 +87,6 @@ function toSnapshot(doc: WorldDoc): Snapshot {
     spawn: [doc.spawn[0], doc.spawn[1], doc.spawn[2]],
   };
 }
-
-type Control =
-  | "forward"
-  | "backward"
-  | "leftward"
-  | "rightward"
-  | "jump"
-  | "run";
-
-// drei only captures keys into a store — ecctrl v2 reads nothing on its own,
-// so Player forwards every field of this map into setMovement each frame.
-const keyboardMap: KeyboardControlsEntry<Control>[] = [
-  { name: "forward", keys: ["ArrowUp", "KeyW"] },
-  { name: "backward", keys: ["ArrowDown", "KeyS"] },
-  { name: "leftward", keys: ["ArrowLeft", "KeyA"] },
-  { name: "rightward", keys: ["ArrowRight", "KeyD"] },
-  { name: "jump", keys: ["Space"] },
-  { name: "run", keys: ["ShiftLeft", "ShiftRight"] },
-];
 
 // Live game-feel tuning panel — dev only. `dynamic` keeps leva out of the main
 // bundle; the DEV gate keeps it from ever rendering in a production build.

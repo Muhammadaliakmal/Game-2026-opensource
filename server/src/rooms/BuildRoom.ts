@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Player, RoomPresence } from "../state.ts";
 import { WorldSession } from "../world-session.ts";
 import { getWorldSource } from "../world-source.ts";
+import { verifyJoin } from "../auth.ts";
 
 /**
  * One room per world. The room owns the authoritative WorldDoc; clients own
@@ -37,15 +38,8 @@ export class BuildRoom extends Room<{ state: RoomPresence }> {
 
   session!: WorldSession;
 
-  /**
-   * Until 5d wires Clerk, a room accepts anyone — which is fine on a laptop and
-   * unacceptable anywhere else. Refusing to start without an explicit opt-in is
-   * the difference between "not built yet" and "quietly shipped wide open".
-   */
   static async onAuth(token: string) {
-    if (process.env.ALLOW_ANONYMOUS_ROOMS === "1") return { userId: "anonymous", name: "Builder" };
-    if (!token) throw new ServerError(401, "Sign-in required");
-    throw new ServerError(501, "Room authentication is not configured");
+    return verifyJoin(token);
   }
 
   async onCreate(options: BuildRoomOptions) {

@@ -6,6 +6,7 @@ import type { Op } from "@/lib/ops";
 import { setOpSink, useEditorStore } from "@/stores/editor-store";
 import { useNetStore } from "@/stores/net-store";
 import { addPeer, clearPeers, pushSample, removePeer } from "./peers";
+import { setPresenceSender } from "./presence";
 
 /**
  * The room connection.
@@ -16,9 +17,6 @@ import { addPeer, clearPeers, pushSample, removePeer } from "./peers";
  */
 export const MULTIPLAYER_URL = process.env.NEXT_PUBLIC_MULTIPLAYER_URL ?? "";
 export const multiplayerEnabled = MULTIPLAYER_URL.length > 0;
-
-/** ~12 Hz. Fast enough that 120 ms of interpolation always has a segment to walk. */
-const SEND_INTERVAL = 83;
 
 interface PlayerLike {
   name: string;
@@ -31,7 +29,6 @@ interface PlayerLike {
 
 let room: Room | null = null;
 let connecting = false;
-let lastSent = 0;
 let building = true;
 
 /**
@@ -84,6 +81,7 @@ export async function connectToWorld(worldId: string): Promise<() => void> {
     // Local edits go out from here. Set AFTER the handlers above so an op can
     // never be sent to a room that is not listening yet.
     setOpSink((op) => joined.send("op", op));
+    setPresenceSender((x, y, z, yaw) => joined.send("move", { x, y, z, yaw, building }));
 
     const $ = getStateCallbacks(joined);
     $(joined.state).players.onAdd((player: PlayerLike, id: string) => {
@@ -125,21 +123,13 @@ export async function connectToWorld(worldId: string): Promise<() => void> {
 
 export function disconnect() {
   setOpSink(null);
+  setPresenceSender(null);
   clearPeers();
   useNetStore.getState().reset();
   const leaving = room;
   room = null;
   connecting = false;
   void leaving?.leave();
-}
-
-/** Presence, throttled. Called every frame from the player; sends ~12 times a second. */
-export function sendMove(x: number, y: number, z: number, yaw: number) {
-  if (!room) return;
-  const now = Date.now();
-  if (now - lastSent < SEND_INTERVAL) return;
-  lastSent = now;
-  room.send("move", { x, y, z, yaw, building });
 }
 
 /** Build and Play are one canvas; peers still need to know which one we are in. */

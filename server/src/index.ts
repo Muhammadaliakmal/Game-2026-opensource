@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { defineRoom, defineServer, listen } from "colyseus";
 import { BuildRoom } from "./rooms/BuildRoom.ts";
+import { ArenaRoom } from "./rooms/ArenaRoom.ts";
 import { httpWorldSource, setWorldSource } from "./world-source.ts";
 
 /**
@@ -21,6 +22,9 @@ setWorldSource(httpWorldSource(APP_URL));
 const server = defineServer({
   rooms: {
     build: defineRoom(BuildRoom).filterBy(["worldId"]),
+    // Matches are found by their code, not by their world: two people share a
+    // link to their own duel, and it never collides with anyone else's.
+    arena: defineRoom(ArenaRoom).filterBy(["code"]),
   },
 });
 

@@ -15,7 +15,7 @@ import { JumpParticles } from "./feel/JumpParticles";
 import { CharacterModel } from "./CharacterModel";
 import { touchInput, useRunStore } from "./touch-input";
 import { consumeRespawn, notifyRespawned } from "./play-actions";
-import { sendMove } from "@/lib/net/room";
+import { sendMove } from "@/lib/net/presence";
 import {
   applyLook,
   cameraHandoff,
