@@ -20,7 +20,7 @@ import {
   type PartsHost,
   type PropsHost,
 } from "./command-bus";
-import { keyOf } from "./grid";
+import { keyOf } from "./cell-key";
 
 /**
  * The serializable form of an edit — the actual network seam for Phase 5.

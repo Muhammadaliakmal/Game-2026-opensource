@@ -1,11 +1,7 @@
 import * as THREE from "three";
 
-export const keyOf = (x: number, y: number, z: number) => `${x},${y},${z}`;
-
-export const parseKey = (key: string): [number, number, number] => {
-  const [x, y, z] = key.split(",").map(Number);
-  return [x, y, z];
-};
+// Re-exported so every existing `from "@/lib/grid"` import keeps working.
+export { keyOf, parseKey } from "./cell-key";
 
 /**
  * Turn a raycast hit into the integer grid cell to act on.

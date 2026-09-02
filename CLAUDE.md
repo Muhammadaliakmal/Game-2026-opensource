@@ -27,3 +27,14 @@ Neon `DATABASE_URL` via `neon env pull`.
 - `npm run dev` — dev server
 - `npm test` — unit tests (node:test via tsx)
 - `npx drizzle-kit generate` / `npx drizzle-kit migrate` — schema migrations
+
+## Room server (`server/`, Phase 5)
+
+A separate Node process — Colyseus 0.18 + `@colyseus/schema` 5. It imports the
+app's `src/lib/ops.ts` through a `@/*` path mapping rather than duplicating it,
+which is why `keyOf` lives in `lib/cell-key.ts`: everything else in `lib/grid.ts`
+pulls in three.js, and a headless server must not.
+
+- `cd server && npm run dev` — room server on :2567 (`npm test` for its tests)
+- Rooms refuse anonymous clients unless `ALLOW_ANONYMOUS_ROOMS=1`; real Clerk
+  verification lands in 5d. See `server/.env.example`.
