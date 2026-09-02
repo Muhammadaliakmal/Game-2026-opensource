@@ -66,6 +66,10 @@ const BIKE_ENGINE = {
   maxSteerAngle: 0.55,
 };
 
+/** Shared, because the grid can re-form mid-session and a frame loop should
+ *  never be the thing that allocates. */
+const UP = new THREE.Vector3(0, 1, 0);
+
 /** Chase camera: behind and above, easing toward wherever the bike points. */
 const CAM_BACK = 6.5;
 const CAM_HEIGHT = 2.6;
@@ -111,7 +115,7 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     if (grid) {
       pending.current = null;
       h.body.setTranslation({ x: grid.x, y: grid.y, z: grid.z }, true);
-      quat.current.setFromAxisAngle(new THREE.Vector3(0, 1, 0), grid.yaw);
+      quat.current.setFromAxisAngle(UP, grid.yaw);
       h.body.setRotation(quat.current, true);
       h.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
       h.body.setAngvel({ x: 0, y: 0, z: 0 }, true);

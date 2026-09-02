@@ -23,6 +23,7 @@ import { keyboardMap } from "@/components/play/controls";
 import { playerFocus } from "@/components/play/camera-rig";
 import { FollowSun } from "@/components/FollowSun";
 import { ArenaHud } from "./ArenaHud";
+import { useRenderQuality } from "@/lib/quality";
 
 /**
  * A match: the play half of WorldCanvas with the editor taken out.
@@ -48,6 +49,7 @@ export default function ArenaCanvas({
 }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [painted, setPainted] = useState(false);
+  const quality = useRenderQuality();
   const error = useArenaStore((s) => s.error);
 
   const onWorld = useCallback((doc: WorldDoc) => {
@@ -106,6 +108,10 @@ export default function ArenaCanvas({
     <div className="bg-steel-900 relative min-h-0 flex-1">
       <Canvas
         frameloop="always"
+        // Capped below the browser's own ratio on phones: a voxel world is
+        // fragment-bound, and a DPR-3 screen otherwise renders every pixel
+        // four times over. See lib/quality.ts.
+        dpr={quality.dpr}
         shadows
         camera={{ position: [16, 16, 16], fov: 50 }}
         gl={{ failIfMajorPerformanceCaveat: false }}

@@ -36,6 +36,28 @@ interface RiderSchema {
 let room: Room | null = null;
 let connecting = false;
 
+/**
+ * How often rider state is allowed to reach React.
+ *
+ * Every rider's schema fires onChange on every position packet, so with four
+ * riders at ~12 Hz the naive version wrote to the store around fifty times a
+ * second — each write allocating a fresh array and re-rendering the whole HUD,
+ * including a sort, to move a running order that changes perhaps twice a lap.
+ *
+ * Coalescing to ~7 Hz is still four times faster than anyone reads a position
+ * board. A phase change jumps the queue, because the start lights and the
+ * results panel are the two things that must never feel late.
+ */
+const HUD_SYNC_MS = 140;
+let syncTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearSyncTimer() {
+  if (syncTimer !== null) {
+    clearTimeout(syncTimer);
+    syncTimer = null;
+  }
+}
+
 /** Where the server wants this bike to sit when the grid forms. */
 export interface GridPose {
   x: number;
@@ -114,7 +136,9 @@ export async function joinRace(
     setPresenceSender((x, y, z, yaw) => joined.send("move", { x, y, z, yaw }));
 
     const $ = getStateCallbacks(joined);
-    const syncRace = () => {
+
+    const flush = () => {
+      clearSyncTimer();
       const state = joined.state as {
         phase: string;
         laps: number;
@@ -138,6 +162,23 @@ export async function joinRace(
         countdownMs: state.countdownMs || 0,
         riders,
       });
+    };
+
+    /**
+     * Rate-limits rider updates into React, but never a phase change.
+     *
+     * The phase check reads the schema directly rather than the store, so a
+     * lights-out that arrives in the same tick as a position update is not
+     * held behind that update's timer.
+     */
+    const syncRace = () => {
+      const phase = (joined.state as { phase: string }).phase || "waiting";
+      if (phase !== useRaceStore.getState().phase) {
+        flush();
+        return;
+      }
+      if (syncTimer !== null) return;
+      syncTimer = setTimeout(flush, HUD_SYNC_MS);
     };
 
     $(joined.state).riders.onAdd((rider: RiderSchema, id: string) => {
@@ -192,6 +233,7 @@ export async function joinRace(
 }
 
 export function leaveRace() {
+  clearSyncTimer();
   setPresenceSender(null);
   setGridListener(null);
   clearPeers();

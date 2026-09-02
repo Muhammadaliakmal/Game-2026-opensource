@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { useRaceStore, standings, formatLapTime } from "@/stores/race-store";
 import { requestRaceRematch, requestStart } from "@/lib/net/race";
@@ -15,10 +16,22 @@ import { MuteButton } from "@/components/MuteButton";
  * for the results panel.
  */
 export function RaceHud({ code }: { code: string }) {
-  const { connected, error, phase, laps, countdownMs, riders, selfId } =
-    useRaceStore();
+  // One selector per field rather than destructuring the whole store. A bare
+  // `useRaceStore()` subscribes to every key, so a rider's progress ticking
+  // re-rendered the chrome, the results panel and the start lights along with
+  // the position board.
+  const connected = useRaceStore((s) => s.connected);
+  const error = useRaceStore((s) => s.error);
+  const phase = useRaceStore((s) => s.phase);
+  const laps = useRaceStore((s) => s.laps);
+  const countdownMs = useRaceStore((s) => s.countdownMs);
+  const riders = useRaceStore((s) => s.riders);
+  const selfId = useRaceStore((s) => s.selfId);
 
-  const order = standings(riders);
+  // Sorting four riders is cheap; doing it on every render of a component that
+  // also renders during the countdown and the results is the part worth
+  // skipping, and it keeps the array identity stable for the rows below.
+  const order = useMemo(() => standings(riders), [riders]);
   const meIndex = order.findIndex((r) => r.id === selfId);
   const me = meIndex >= 0 ? order[meIndex] : null;
 

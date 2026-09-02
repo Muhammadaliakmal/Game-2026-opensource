@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import { useRenderQuality } from "@/lib/quality";
 
 /**
  * The key light, with its shadow camera kept over whatever the player is
@@ -27,6 +28,10 @@ export function FollowSun({
 }) {
   const light = useRef<THREE.DirectionalLight>(null);
   const scene = useThree((s) => s.scene);
+  // The sun follows the player, so its shadow map is re-rendered on most
+  // frames — which makes its size one of the few numbers that matters on a
+  // phone. Decided by device class in lib/quality.ts, not here.
+  const { shadowMap } = useRenderQuality();
   // The light aims at this rather than at the origin; three needs the target
   // to be in the scene graph for its world matrix to update.
   const target = useMemo(() => new THREE.Object3D(), []);
@@ -62,7 +67,7 @@ export function FollowSun({
       position={[24, 36, 15]}
       intensity={1.8}
       castShadow
-      shadow-mapSize={[2048, 2048]}
+      shadow-mapSize={[shadowMap, shadowMap]}
       shadow-camera-left={-extent}
       shadow-camera-right={extent}
       shadow-camera-top={extent}

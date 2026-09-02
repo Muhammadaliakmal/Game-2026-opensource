@@ -45,6 +45,7 @@ import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
 import { PlayHud } from "./PlayHud";
 import { FollowSun } from "@/components/FollowSun";
 import { keyboardMap } from "@/components/play/controls";
+import { useRenderQuality } from "@/lib/quality";
 
 /**
  * Build and Play, on one canvas.
@@ -183,6 +184,7 @@ export default function WorldCanvas({
   const router = useRouter();
   const { isSignedIn } = useAuth();
   const touch = useTouchControls();
+  const quality = useRenderQuality();
 
   const isDraft = worldId === DRAFT_ID;
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -512,6 +514,10 @@ export default function WorldCanvas({
         // Building renders on demand — an idle editor should not burn a GPU.
         // Playing needs every frame.
         frameloop={playing ? "always" : "demand"}
+        // Capped below the browser's own ratio on phones: a voxel world is
+        // fragment-bound, and a DPR-3 screen otherwise renders every pixel
+        // four times over. See lib/quality.ts.
+        dpr={quality.dpr}
         shadows
         camera={{ position: [16, 16, 16], fov: 50 }}
         // `powerPreference` is deliberately left at the default: pairing
