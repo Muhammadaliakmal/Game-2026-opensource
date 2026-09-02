@@ -9,7 +9,7 @@ import { Ecctrl, type EcctrlHandle } from "ecctrl";
 import { useJoystickStore } from "ecctrl/input";
 import { FEEL } from "@/lib/feel";
 import type { Vec3 } from "@/lib/worlddoc";
-import { useTouchControls } from "@/lib/use-media-query";
+import { useCoarsePointer, useTouchControls } from "@/lib/use-media-query";
 import { useJumpFeel } from "./feel/useJumpFeel";
 import { useFootstepAudio } from "./feel/useFootstepAudio";
 import { JumpParticles } from "./feel/JumpParticles";
@@ -20,12 +20,17 @@ import { consumeRespawn, notifyRespawned, requestRespawn } from "./play-actions"
 import { sendMove } from "@/lib/net/presence";
 import {
   applyLook,
+  approachYaw,
+  AUTO_FOLLOW_DELAY,
+  AUTO_FOLLOW_MIN_SPEED,
+  AUTO_FOLLOW_RATE,
   cameraHandoff,
   look,
   playerFocus,
   recenterPitch,
   THIRD_PERSON_DISTANCE,
   useViewStore,
+  yawTowards,
 } from "./camera-rig";
 
 /**
@@ -222,9 +227,14 @@ function usePlayHotkeys() {
 const CAMERA_MIN_DISTANCE = 0.55;
 /** Stop short of the surface: sitting exactly on it still clips the near plane. */
 const CAMERA_PAD = 0.32;
-function useCameraRig(handleRef: React.RefObject<EcctrlHandle | null>) {
+function useCameraRig(
+  handleRef: React.RefObject<EcctrlHandle | null>,
+  /** Steer the camera toward the run. Touch only — see the block below. */
+  autoFollow: boolean
+) {
   const camera = useThree((s) => s.camera);
   const firstPerson = useViewStore((s) => s.firstPerson);
+  const lockedOn = useMoveMode((s) => s.lockedOn);
   const { world, rapier } = useRapier();
 
   // Held in a ref and mutated per frame, like every other scratch object in
@@ -310,6 +320,47 @@ function useCameraRig(handleRef: React.RefObject<EcctrlHandle | null>) {
       1 - Math.pow(0.0001, dt)
     );
 
+    /**
+     * Touch: swing the view around to look where the player is running.
+     *
+     * A thumbstick has no second stick to aim with, so without this the only
+     * way to see where you are going is to stop and drag — which is why
+     * running sideways on a phone felt like being dragged by the collar. It
+     * applies in first person as much as third: there the camera IS the
+     * character's head, so "face the way you move" and "look the way you
+     * move" are the same requirement.
+     *
+     * Deliberately not run wherever there is a mouse. There the mouse owns the
+     * camera, and a view that creeps while you are trying to hold an angle is
+     * a bug — which is why the caller passes `useCoarsePointer`, not the wider
+     * predicate that decides whether to mount the thumb controls.
+     *
+     * Three things switch it off: a thumb currently on the look area (via
+     * `manualAt`, for AUTO_FOLLOW_DELAY afterwards), standing still, and
+     * lock-on — the whole point of which is to hold a heading the movement
+     * does not get a vote on.
+     *
+     * Direction comes from actual velocity rather than the stick, so it
+     * follows where the character really ended up going — into a wall it
+     * slides along, off a ledge, down a slope — instead of where it was
+     * pushed.
+     */
+    if (autoFollow && !lockedOn) {
+      const vx = h.currLinVel.x;
+      const vz = h.currLinVel.z;
+      const groundSpeed = Math.hypot(vx, vz);
+      if (
+        groundSpeed > AUTO_FOLLOW_MIN_SPEED &&
+        performance.now() - look.manualAt > AUTO_FOLLOW_DELAY
+      ) {
+        look.yaw = approachYaw(
+          look.yaw,
+          yawTowards(vx, vz),
+          1 - Math.pow(AUTO_FOLLOW_RATE, dt)
+        );
+      }
+    }
+
     // Unit vector from the character toward the eye.
     const cp = Math.cos(look.pitch);
     offset.current.set(
@@ -381,6 +432,17 @@ function useCameraRig(handleRef: React.RefObject<EcctrlHandle | null>) {
 
 export function Player({ spawn }: { spawn: Vec3 }) {
   const ref = useRef<EcctrlHandle>(null);
+  /**
+   * Strictly "there is no mouse here", not "the window is narrow".
+   *
+   * The self-steering camera exists because a thumbstick has no second stick
+   * to aim with. A narrow desktop window mounts the thumb controls too, but it
+   * still has a mouse — and a camera that creeps while someone is holding an
+   * angle with one is a bug, not a convenience. `(pointer: coarse)` reports
+   * the PRIMARY pointer, so a touchscreen laptop with a mouse plugged in
+   * correctly stays on the desktop side of this.
+   */
+  const coarsePointer = useCoarsePointer();
   const [, getKeys] = useKeyboardControls();
   const prevJump = useRef(false);
 
@@ -432,7 +494,7 @@ export function Player({ spawn }: { spawn: Vec3 }) {
   });
 
   useJumpFeel(ref, jumpHeld, jumpPressedEdge);
-  useCameraRig(ref);
+  useCameraRig(ref, coarsePointer);
   useLookControls();
   usePlayHotkeys();
   useFootstepAudio(ref);

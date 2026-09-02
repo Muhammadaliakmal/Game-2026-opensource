@@ -54,6 +54,14 @@ const SWING = 0.85; // radians at full sprint
 const LEAN = 0.22;
 
 /**
+ * How square-on to the facing a step has to be before it is allowed to decide
+ * which way the legs cycle. cos(75 deg) — so running forward or backing up
+ * flips the stride, while a pure sideways strafe leaves it alone rather than
+ * chattering between the two every frame as the dot product crosses zero.
+ */
+const STRIDE_COMMIT = 0.25;
+
+/**
  * Drops the model so its soles meet the floor.
  *
  * ecctrl holds the capsule on a spring a `floatHeight` gap above the ground,
@@ -90,6 +98,7 @@ export function CharacterModel({
   motionRef?: RefObject<AvatarMotion | null>;
   hideUpClose?: boolean;
 }) {
+  const outer = useRef<THREE.Group>(null!); // ground plant + facing flip
   const root = useRef<THREE.Group>(null!); // squash / lean
   const rig = useRef<THREE.Group>(null!); // bob
   const armL = useRef<THREE.Group>(null!);
@@ -100,7 +109,19 @@ export function CharacterModel({
   const visorMat = useRef<THREE.MeshStandardMaterial>(null!);
 
   // Gait phase and landing-squash amount, kept in a ref so no frame re-renders.
-  const anim = useRef({ phase: 0, squash: 0, wasOnGround: true });
+  // `stride` is +1 running forward and -1 backing up; see the stride block.
+  const anim = useRef({ phase: 0, squash: 0, wasOnGround: true, stride: 1 });
+
+  // Scratch for the stride test, mutated in place each frame like the rest of
+  // this component: it runs at 60Hz and fresh vectors would be pure garbage.
+  const travel = useRef({
+    prev: new THREE.Vector3(),
+    primed: false,
+    here: new THREE.Vector3(),
+    step: new THREE.Vector3(),
+    face: new THREE.Vector3(),
+    quat: new THREE.Quaternion(),
+  });
 
   useFrame((state, dt) => {
     const h = handleRef?.current ?? motionRef?.current;
@@ -135,10 +156,49 @@ export function CharacterModel({
     // Lean into the run — a body that stays bolt upright reads as sliding.
     root.current.rotation.x = -LEAN * gait;
 
+    // ── Stride direction ───────────────────────────────────────────────────
+    /**
+     * Which way round the legs cycle.
+     *
+     * `moveSpeed` is a magnitude, so on its own it cannot tell running from
+     * backing up — the phase always advanced forwards and the character
+     * moonwalked. That never showed while the body turned to face its own
+     * direction of travel, because then there was no such thing as backwards.
+     * Shift lock-on introduced one: the body holds the camera's heading while
+     * you strafe and reverse around it, and the limbs kept swinging as though
+     * you were running the other way.
+     *
+     * Measured from the avatar's own world transform rather than from a
+     * velocity handed in, because that is the one source both kinds of avatar
+     * have. A peer carries position and yaw and no signed velocity at all (see
+     * lib/net/peers.ts), and this reads correctly for it for free.
+     */
+    const tr = travel.current;
+    outer.current.getWorldPosition(tr.here);
+    if (!tr.primed) {
+      tr.prev.copy(tr.here);
+      tr.primed = true;
+    }
+    tr.step.subVectors(tr.here, tr.prev).setY(0);
+    tr.prev.copy(tr.here);
+
+    const stepLen = tr.step.length();
+    if (stepLen > 1e-4) {
+      // The face is the model's local -Z carried through MODEL_FACING and
+      // whatever the body is doing above it.
+      outer.current.getWorldQuaternion(tr.quat);
+      tr.face.set(0, 0, -1).applyQuaternion(tr.quat).setY(0).normalize();
+      // Normalised, so the test is an angle and not a speed — otherwise it
+      // would behave differently at 30fps and at 144.
+      const along = tr.step.dot(tr.face) / stepLen;
+      if (along > STRIDE_COMMIT) a.stride = 1;
+      else if (along < -STRIDE_COMMIT) a.stride = -1;
+    }
+
     // ── Gait ───────────────────────────────────────────────────────────────
     // Phase advances with distance travelled, not time, so the legs can't
     // cycle while standing still and stride rate matches walk vs run for free.
-    a.phase += speed * dt * 3.4;
+    a.phase += speed * dt * 3.4 * a.stride;
     const swing = Math.sin(a.phase) * SWING * gait;
 
     if (h.isOnGround) {
@@ -177,7 +237,11 @@ export function CharacterModel({
     // Static plant on the floor, and the half-turn that puts the visor on the
     // engine's forward axis; `root` stays free for squash and lean so those
     // still scale and pivot about the body rather than the feet.
-    <group position={[0, GROUND_OFFSET, 0]} rotation={[0, MODEL_FACING, 0]}>
+    <group
+      ref={outer}
+      position={[0, GROUND_OFFSET, 0]}
+      rotation={[0, MODEL_FACING, 0]}
+    >
       <group ref={root}>
         <group ref={rig}>
           {/* ── Torso ── */}

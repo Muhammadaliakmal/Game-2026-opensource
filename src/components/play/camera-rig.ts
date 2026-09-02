@@ -20,6 +20,16 @@ export const look = {
   pitch: 0.49,
   /** Written by the rig each frame; read by the avatar to hide itself up close. */
   distance: 9,
+  /**
+   * `performance.now()` of the last deliberate look input.
+   *
+   * The touch camera steers itself toward wherever the player is running, and
+   * it must never do that while a thumb is actually on the screen dragging —
+   * a camera that fights the hand holding it is worse than one that does
+   * nothing. One timestamp covers every way a look can be manual (drag,
+   * pointer-lock mouse) because they all land in applyLook.
+   */
+  manualAt: 0,
 };
 
 /**
@@ -65,6 +75,7 @@ const SENSITIVITY = 0.0032; // radians per CSS pixel of drag
  * place look direction is decided.
  */
 export function applyLook(dx: number, dy: number) {
+  if (dx !== 0 || dy !== 0) look.manualAt = performance.now();
   look.yaw -= dx * SENSITIVITY;
   look.pitch = THREE.MathUtils.clamp(
     look.pitch + dy * SENSITIVITY,
@@ -77,6 +88,47 @@ export function applyLook(dx: number, dy: number) {
 export function recenterPitch() {
   look.pitch = DEFAULT_PITCH;
 }
+
+/**
+ * The camera yaw that looks along a horizontal direction.
+ *
+ * The rig places the eye at `+offset` from the character and then looks back
+ * down that offset, so the direction the player sees along is the negation of
+ * `(sin yaw, cos yaw)` — which is why this is not simply `atan2(x, z)`. Getting
+ * the sign wrong here points the camera at the back of the character's head,
+ * so it is worth having in one named place.
+ */
+export function yawTowards(dx: number, dz: number): number {
+  return Math.atan2(-dx, -dz);
+}
+
+/**
+ * Ease one angle toward another the short way round.
+ *
+ * A plain lerp between 3.1 and -3.1 radians takes the long way and spins the
+ * camera most of a full turn, which is exactly the case a character crossing
+ * due north produces.
+ */
+export function approachYaw(current: number, target: number, t: number): number {
+  const TAU = Math.PI * 2;
+  const delta = ((target - current + Math.PI) % TAU + TAU) % TAU - Math.PI;
+  return current + delta * t;
+}
+
+/**
+ * How long after the player stops dragging before the touch camera resumes
+ * steering itself, and how hard it pulls once it does.
+ *
+ * The delay is what stops it snatching the view back the instant a thumb
+ * lifts. The rate is a per-second decay constant fed through
+ * `1 - pow(rate, dt)`, so it is frame-rate independent; 0.08 is a time
+ * constant of roughly four tenths of a second, slow enough to read as the
+ * camera trailing the character rather than being bolted to it.
+ */
+export const AUTO_FOLLOW_DELAY = 450;
+export const AUTO_FOLLOW_RATE = 0.08;
+/** Below this ground speed there is no meaningful direction to follow. */
+export const AUTO_FOLLOW_MIN_SPEED = 0.8;
 
 interface ViewState {
   firstPerson: boolean;
