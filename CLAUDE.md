@@ -51,3 +51,31 @@ connect rather than opening a grid. Three things, all of them required:
 3. `NEXT_PUBLIC_MULTIPLAYER_URL=ws://localhost:2567` in `.env.local`, then
    restart `next dev` — it is a `NEXT_PUBLIC_` var, so it is read at build
    time and a running dev server will not pick it up.
+
+### Deploying the room server
+
+Vercel cannot host it: a room has to stay resident and a serverless function
+does not. It needs somewhere that runs a persistent Node process with
+WebSockets.
+
+Two things constrain the deploy, both easy to get wrong:
+
+- **Deploy from the repo root, not from `server/`.** The server imports
+  `@/lib/race-track`, `@/lib/ops` and `@/lib/worlddoc` at *runtime* through the
+  `@/*` -> `../src/*` mapping in `server/tsconfig.json`. `server/` on its own
+  does not run.
+- **`tsx` is a runtime dependency**, because `npm start` is `tsx src/index.ts`.
+  It lives in `dependencies` for that reason; do not move it back.
+
+Environment on the host:
+
+- `PORT` — usually set by the platform; `index.ts` already reads it.
+- `APP_URL` — the deployed Next app. The room reads worlds through its
+  `GET /api/worlds/:id`, so this must be reachable from the server.
+- `ALLOW_ANONYMOUS_ROOMS=1` — still required until Clerk verification lands.
+  Rooms hold no database credentials and BuildRoom does not persist (edits are
+  in memory and dropped on dispose), so the exposure is live sessions rather
+  than stored worlds — but it does mean anyone with a room code can join.
+
+Then point the app at it: `NEXT_PUBLIC_MULTIPLAYER_URL=wss://<host>` (note
+`wss`, not `ws`, from an HTTPS page) and redeploy the app — build-time var.
