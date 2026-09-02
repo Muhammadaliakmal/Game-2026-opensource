@@ -10,6 +10,7 @@ import Link from "next/link";
 import type { PartTuple, PropInstance, WorldDoc } from "@/lib/worlddoc";
 import { useEditorStore } from "@/stores/editor-store";
 import { joinRace, leaveRace } from "@/lib/net/race";
+import { useRaceStore } from "@/stores/race-store";
 import { playerFocus } from "@/components/play/camera-rig";
 import { InstancedParts } from "@/components/editor/InstancedParts";
 import { PlacedProps } from "@/components/editor/PlacedProps";
@@ -48,6 +49,10 @@ export default function RaceCanvas({ code }: { code: string }) {
   const [painted, setPainted] = useState(false);
   const touch = useCoarsePointer();
   const quality = useRenderQuality();
+  // Read here as well as in the HUD: a connection that never happens must not
+  // leave a spinner claiming to be joining. ArenaCanvas already did this and
+  // this file, copied from it, dropped the branch.
+  const error = useRaceStore((s) => s.error);
 
   const onWorld = useCallback((doc: WorldDoc) => {
     // The track is read-only here, but it goes through the editor store for the
@@ -77,6 +82,20 @@ export default function RaceCanvas({ code }: { code: string }) {
   }, [code, onWorld]);
 
   const getFocus = useMemo(() => () => playerFocus, []);
+
+  // No room, no race. Say so plainly rather than spinning forever — "Joining
+  // race ABC234" that never resolves reads as the grid being broken, when the
+  // truth is that nothing was ever listening.
+  if (error && !snapshot) {
+    return (
+      <div className="bg-steel-900 flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-steel-050 max-w-md text-sm">{error}</p>
+        <Link href="/race" className="hud-chip hud-chip--primary">
+          Back to races
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-steel-900 relative min-h-0 flex-1">

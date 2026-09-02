@@ -94,7 +94,9 @@ export async function joinRace(
   if (!multiplayerEnabled) {
     useRaceStore.getState().setConnection({
       connected: false,
-      error: "Races need a room server. Set NEXT_PUBLIC_MULTIPLAYER_URL.",
+      error:
+        "Races need the room server. Start it with `cd server && npm run dev`, " +
+        "then set NEXT_PUBLIC_MULTIPLAYER_URL (e.g. ws://localhost:2567) and reload.",
     });
     return () => {};
   }
