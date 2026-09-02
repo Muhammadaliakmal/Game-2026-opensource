@@ -15,6 +15,7 @@ import { JumpParticles } from "./feel/JumpParticles";
 import { CharacterModel } from "./CharacterModel";
 import { touchInput, useRunStore } from "./touch-input";
 import { consumeRespawn, notifyRespawned } from "./play-actions";
+import { sendMove } from "@/lib/net/room";
 import {
   applyLook,
   cameraHandoff,
@@ -316,6 +317,12 @@ export function Player({ spawn }: { spawn: Vec3 }) {
   useFrame((_, dt) => {
     const h = ref.current;
     if (!h) return;
+
+    // Presence. Throttled inside sendMove to ~12 Hz, and a no-op entirely when
+    // no room is connected — which is every session until someone sets
+    // NEXT_PUBLIC_MULTIPLAYER_URL. Facing comes from the camera rather than the
+    // body: it is where the player is looking, which is what a peer reads.
+    sendMove(h.currPos.x, h.currPos.y, h.currPos.z, look.yaw);
 
     if (respawnTimer.current > 0) {
       respawnTimer.current -= dt;

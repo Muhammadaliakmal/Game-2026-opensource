@@ -25,6 +25,7 @@ import {
   saveDraft,
 } from "@/lib/draft";
 import { captureThumbnail } from "@/lib/canvas-thumbnail";
+import { connectToWorld, multiplayerEnabled, setPresenceMode } from "@/lib/net/room";
 
 import { InstancedParts } from "@/components/editor/InstancedParts";
 import { GhostPreview } from "@/components/editor/GhostPreview";
@@ -40,6 +41,7 @@ import { PropGizmo } from "@/components/editor/PropGizmo";
 import { WorldColliders } from "@/components/play/WorldColliders";
 import { PropColliders } from "@/components/play/PropColliders";
 import { Player } from "@/components/play/Player";
+import { Peers } from "@/components/play/Peers";
 import { TouchControls, useTouchControls } from "@/components/play/TouchControls";
 import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
 import { PlayHud } from "./PlayHud";
@@ -303,6 +305,35 @@ export default function WorldCanvas({
     };
   }, [worldId, isDraft, initialMode]);
 
+  /**
+   * Join the room for this world, once it has loaded.
+   *
+   * Deliberately after the load rather than alongside it: the room replies
+   * with its own authoritative snapshot, and arriving second means it
+   * overwrites the API copy rather than racing it. A draft has no room — it
+   * exists only in this browser and has no id anyone else could join.
+   */
+  useEffect(() => {
+    if (!multiplayerEnabled || isDraft || status !== "ready") return;
+
+    let dispose: (() => void) | undefined;
+    let cancelled = false;
+    void connectToWorld(worldId).then((d) => {
+      if (cancelled) d();
+      else dispose = d;
+    });
+
+    return () => {
+      cancelled = true;
+      dispose?.();
+    };
+  }, [worldId, isDraft, status]);
+
+  /** Peers need to know which mode we are in — see Peers.tsx. */
+  useEffect(() => {
+    if (multiplayerEnabled) setPresenceMode(mode === "build");
+  }, [mode]);
+
   /** Persist a draft locally as it is built — the only copy it has. */
   useEffect(() => {
     if (!isDraft || status !== "ready" || mode !== "build") return;
@@ -530,6 +561,10 @@ export default function WorldCanvas({
         {/* Play mode's read-only view of the same props Build edits live —
             colliders for these are the PropColliders inside <Physics> below. */}
         {playing && snapshot && <PlacedProps props={snapshot.props} />}
+        {/* Peers are drawn in Play only: Build renders on demand, and an
+            avatar that moves between frames nobody asked for would either
+            stutter or force the editor to render continuously. */}
+        {playing && <Peers />}
 
         {!playing && (
           <>

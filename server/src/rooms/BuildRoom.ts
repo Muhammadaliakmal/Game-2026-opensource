@@ -73,6 +73,13 @@ export class BuildRoom extends Room<{ state: RoomPresence }> {
       this.broadcast("op", result.op, { except: client });
     });
 
+    // A client whose edit was refused is now ahead of the room. Rather than
+    // leaving two people building in worlds that quietly disagree, it asks for
+    // the authoritative one back.
+    this.onMessage("resync", (client) => {
+      client.send("world", { doc: this.session.doc, revision: this.session.revision });
+    });
+
     this.onMessage("move", (client, message) => {
       const parsed = moveSchema.safeParse(message);
       if (!parsed.success) return;

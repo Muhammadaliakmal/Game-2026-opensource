@@ -51,10 +51,27 @@ const CONTACT_Y = -(0.3 + 0.3 + 0.2);
 const SOLE_Y = -0.54;
 const GROUND_OFFSET = CONTACT_Y - SOLE_Y;
 
+/**
+ * The three numbers the animation actually needs. EcctrlHandle satisfies this
+ * structurally, so the local player passes its handle unchanged — and a remote
+ * peer, who has no physics at all, can supply the same three derived from
+ * interpolated positions (see lib/net/peers.ts).
+ */
+export interface AvatarMotion {
+  moveSpeed: number;
+  isOnGround: boolean;
+  verticalSpeed: number;
+}
+
 export function CharacterModel({
   handleRef,
+  motionRef,
+  /** Peers must not vanish because OUR camera is close to OUR own avatar. */
+  hideUpClose = true,
 }: {
-  handleRef: RefObject<EcctrlHandle | null>;
+  handleRef?: RefObject<EcctrlHandle | null>;
+  motionRef?: RefObject<AvatarMotion | null>;
+  hideUpClose?: boolean;
 }) {
   const root = useRef<THREE.Group>(null!); // squash / lean
   const rig = useRef<THREE.Group>(null!); // bob
@@ -69,7 +86,7 @@ export function CharacterModel({
   const anim = useRef({ phase: 0, squash: 0, wasOnGround: true });
 
   useFrame((state, dt) => {
-    const h = handleRef.current;
+    const h = handleRef?.current ?? motionRef?.current;
     if (!h || !root.current) return;
     const a = anim.current;
     const t = state.clock.elapsedTime;
@@ -77,8 +94,10 @@ export function CharacterModel({
     // Hide once the eye is inside the model. Keyed off the rig's live distance
     // rather than the first-person flag so it disappears partway through the
     // transition instead of popping at either end of it.
-    root.current.visible = look.distance > 1.8;
-    if (!root.current.visible) return;
+    if (hideUpClose) {
+      root.current.visible = look.distance > 1.8;
+      if (!root.current.visible) return;
+    }
 
     const speed = h.moveSpeed;
     const gait = Math.min(1, speed / FEEL.runSpeed); // 0..1 blend
