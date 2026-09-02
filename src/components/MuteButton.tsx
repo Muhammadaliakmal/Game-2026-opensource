@@ -12,7 +12,15 @@ import { isMuted, onMuteChange, primeAudio, setMuted } from "@/lib/audio";
  * sessions, and every mounted button tracks the shared state, so the editor
  * and Play HUDs can never disagree.
  */
-export function MuteButton({ className }: { className?: string }) {
+export function MuteButton({
+  className,
+  /** Renders beside the icon. Omitted, this stays the square icon button the
+   *  editor toolbar wants; supplied, it becomes a readable menu row. */
+  label,
+}: {
+  className?: string;
+  label?: string;
+}) {
   // The mute flag is external state (a module singleton backed by
   // localStorage), so it is subscribed to rather than mirrored into component
   // state — which also gives the server snapshot for free, so this renders
@@ -54,6 +62,7 @@ export function MuteButton({ className }: { className?: string }) {
           <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
         )}
       </svg>
+      {label && <span>{muted ? `${label} off` : `${label} on`}</span>}
     </button>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { recenterPitch, useViewStore } from "@/components/play/camera-rig";
 import { useMoveMode } from "@/components/play/move-mode";
@@ -13,8 +13,10 @@ import { RemixButton } from "@/components/RemixButton";
  * The Play HUD.
  *
  * Deliberately close to nothing (UI spec §3.3): a platformer's screen belongs
- * to the world, not to chrome. What is here is what cannot be discovered by
- * pressing something — the view toggle, respawn, and the way back out.
+ * to the world, not to chrome. Everything that is not the world now sits
+ * behind one icon — on a phone the old row of chips ran the full width under
+ * the world name and took roughly a third of the screen, which is a lot of a
+ * game to spend on controls nobody touches while actually playing.
  *
  * DOM rather than in-scene UI, and `pointer-events-none` on the container with
  * each control re-enabling itself, so invisible padding can never swallow a
@@ -35,76 +37,25 @@ export function PlayHud({
   onEdit: () => void;
   showKeyboardLegend: boolean;
 }) {
-  const firstPerson = useViewStore((s) => s.firstPerson);
-  const toggleFirstPerson = useViewStore((s) => s.toggleFirstPerson);
-
-  // Leaving the game while still fullscreen strands the user in a chromeless
-  // window, so drop out of it on the way to another route.
-  const leaveFullscreen = () => {
-    if (document.fullscreenElement) void document.exitFullscreen?.();
-  };
-
   return (
     <>
       <RespawnFade />
       {canEdit && <EscHint />}
       <LockOnBadge />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-start gap-2 p-2 sm:flex-row sm:flex-wrap sm:justify-between sm:p-3">
-        <div className="hud-panel pointer-events-auto flex max-w-full min-w-0 items-center gap-2.5 px-3 py-2">
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 sm:p-3">
+        <div className="hud-panel pointer-events-auto flex min-w-0 items-center gap-2.5 px-3 py-2">
           <span className="bg-signal h-1.5 w-1.5 shrink-0" aria-hidden />
           <span className="truncate text-2xs font-medium">{name}</span>
         </div>
 
-        <div className="hud-scroll pointer-events-auto flex max-w-full overflow-x-auto sm:overflow-visible">
-          <div className="hud-panel flex shrink-0 items-center gap-1.5 p-1.5">
-            <button
-              onClick={toggleFirstPerson}
-              className={`hud-chip ${firstPerson ? "is-active" : ""}`}
-              title="Switch between first and third person (V)"
-              aria-pressed={firstPerson}
-            >
-              {firstPerson ? "1st" : "3rd"}
-            </button>
-            <button
-              onClick={recenterPitch}
-              className="hud-chip"
-              title="Level the view (C)"
-              aria-label="Level the view"
-            >
-              ⌖
-            </button>
-            <button
-              onClick={requestRespawn}
-              className="hud-chip"
-              title="Back to the start (R)"
-            >
-              Respawn
-            </button>
-            <span className="hud-divider" />
-            <MuteButton className="hud-chip" />
-            <FullscreenButton className="hud-chip" />
-            <span className="hud-divider" />
-            {canEdit ? (
-              // No navigation: the editor is the same canvas, one mode away.
-              <button onClick={onEdit} className="hud-chip" title="Back to building (Esc)">
-                Edit
-              </button>
-            ) : (
-              // Someone who just played a world they like should be one click
-              // from building on it — that fork is the whole share loop.
-              !isDraft && <RemixButton from={worldId} name={name} />
-            )}
-            <Link
-              href="/"
-              onClick={leaveFullscreen}
-              className="hud-chip"
-              title="Leave the game"
-            >
-              Exit
-            </Link>
-          </div>
-        </div>
+        <PlayMenu
+          name={name}
+          canEdit={canEdit}
+          worldId={worldId}
+          isDraft={isDraft}
+          onEdit={onEdit}
+        />
       </div>
 
       {/* The keyboard legend is noise once thumb controls are on screen — and
@@ -131,6 +82,185 @@ export function PlayHud({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Everything that used to be a chip in the top bar.
+ *
+ * One-shot actions close the menu on their way out — you asked for a thing and
+ * the chrome's job is finished. Toggles deliberately leave it open, because
+ * the reason to open a menu for a toggle is usually to change it and look, and
+ * having to reopen it to flip back is the annoying half of that interaction.
+ */
+function PlayMenu({
+  name,
+  canEdit,
+  worldId,
+  isDraft,
+  onEdit,
+}: {
+  name: string;
+  canEdit: boolean;
+  worldId: string;
+  isDraft: boolean;
+  onEdit: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+
+  const firstPerson = useViewStore((s) => s.firstPerson);
+  const toggleFirstPerson = useViewStore((s) => s.toggleFirstPerson);
+
+  // Leaving the game while still fullscreen strands the user in a chromeless
+  // window, so drop out of it on the way to another route.
+  const leaveFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen?.();
+  };
+
+  /** Run a one-shot action and get the chrome back off the screen. */
+  const act = (fn: () => void) => () => {
+    setOpen(false);
+    fn();
+  };
+
+  useEffect(() => {
+    if (!open) return;
+
+    /**
+     * Esc closes the menu, and must not also leave Play.
+     *
+     * WorldCanvas binds Escape on `window` to drop back into the editor, so
+     * without this one key would do both. Bound in the CAPTURE phase, which
+     * precedes every bubble listener in the dispatch, so stopping propagation
+     * here reliably wins — leaning on React effect ordering (a child's effect
+     * runs before its parent's) would happen to work today and break silently
+     * the moment the tree is reorganised.
+     */
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      setOpen(false);
+      trigger.current?.focus();
+    };
+
+    /** A press anywhere else — including on the world itself — dismisses it. */
+    const onDown = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setOpen(false);
+    };
+
+    window.addEventListener("keydown", onKey, true);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={root} className="pointer-events-auto relative shrink-0">
+      <button
+        ref={trigger}
+        onClick={() => setOpen((v) => !v)}
+        className={`hud-chip ${open ? "is-active" : ""}`}
+        aria-expanded={open}
+        aria-controls="play-menu"
+        aria-label="Game menu"
+        title="Game menu"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          className="h-4 w-4"
+          aria-hidden="true"
+        >
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+        {/* The word is affordance on a desktop and clutter on a phone, where
+            the icon is doing the job and every pixel is world. */}
+        <span className="hidden sm:inline">Menu</span>
+      </button>
+
+      {open && (
+        /*
+          A disclosure, not a `role="menu"`. A real menu promises arrow-key
+          roving focus, and two of these rows are shared components that take
+          a className and nothing else — so half of them could never carry
+          `role="menuitem"` anyway. Plain buttons in a labelled panel are
+          honest about what they are and Tab already works on them.
+        */
+        <div
+          id="play-menu"
+          aria-label="Game menu"
+          className="hud-panel panel-enter absolute top-full right-0 mt-1.5 flex w-52 flex-col p-1.5"
+        >
+          <button
+            onClick={toggleFirstPerson}
+            className={`hud-menu-item ${firstPerson ? "is-active" : ""}`}
+            title="Switch between first and third person (V)"
+          >
+            View
+            <span className="hud-menu-state">
+              {firstPerson ? "First person" : "Third person"}
+            </span>
+          </button>
+          <button
+            onClick={act(recenterPitch)}
+            className="hud-menu-item"
+            title="Level the view (C)"
+          >
+            Level the view
+          </button>
+          <button
+            onClick={act(requestRespawn)}
+            className="hud-menu-item"
+            title="Back to the start (R)"
+          >
+            Respawn
+          </button>
+
+          <div className="hud-menu-sep" aria-hidden />
+
+          <MuteButton className="hud-menu-item" label="Sound" />
+          <FullscreenButton className="hud-menu-item" label="Fullscreen" />
+
+          <div className="hud-menu-sep" aria-hidden />
+
+          {canEdit ? (
+            // No navigation: the editor is the same canvas, one mode away.
+            <button
+                onClick={act(onEdit)}
+              className="hud-menu-item"
+              title="Back to building (Esc)"
+            >
+              Edit
+            </button>
+          ) : (
+            // Someone who just played a world they like should be one click
+            // from building on it — that fork is the whole share loop.
+            !isDraft && (
+              <RemixButton from={worldId} name={name} className="hud-menu-item" />
+            )
+          )}
+          <Link
+            href="/"
+            onClick={() => {
+              setOpen(false);
+              leaveFullscreen();
+            }}
+            className="hud-menu-item"
+            title="Leave the game"
+          >
+            Exit
+          </Link>
+        </div>
+      )}
+    </div>
   );
 }
 

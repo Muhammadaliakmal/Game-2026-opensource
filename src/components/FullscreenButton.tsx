@@ -16,7 +16,14 @@ interface FsDocument extends Document {
  * gesture, so it lives behind a button. Tracks `fullscreenchange` so the label
  * stays correct when the user leaves fullscreen with Esc.
  */
-export function FullscreenButton({ className }: { className?: string }) {
+export function FullscreenButton({
+  className,
+  /** Renders beside the icon; see MuteButton for why this is optional. */
+  label,
+}: {
+  className?: string;
+  label?: string;
+}) {
   const [isFs, setIsFs] = useState(false);
 
   useEffect(() => {
@@ -70,6 +77,7 @@ export function FullscreenButton({ className }: { className?: string }) {
           <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
         )}
       </svg>
+      {label && <span>{isFs ? `Leave ${label}` : label}</span>}
     </button>
   );
 }
