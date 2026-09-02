@@ -1,7 +1,6 @@
 // Cloudflare R2 is S3-compatible, so the AWS SDK talks to it directly — the only
 // differences are the endpoint and that the region is always "auto".
-//
-// Not wired into any route yet; Phase 3 (the props pipeline) is its first consumer.
+import { readFileSync } from "node:fs";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -56,4 +55,22 @@ export async function presignUpload(
 /** Public read URL for an uploaded asset. */
 export function publicUrl(key: string): string {
   return `${required("NEXT_PUBLIC_R2_PUBLIC_URL").replace(/\/$/, "")}/${key}`;
+}
+
+/**
+ * Direct (non-presigned) upload for trusted server-side callers that already
+ * hold R2 credentials — scripts/upload-props.ts, not the browser. A browser
+ * upload goes through `presignUpload` instead, so it never needs the secret
+ * key.
+ */
+export async function putFile(key: string, filePath: string, contentType: string) {
+  await r2().send(
+    new PutObjectCommand({
+      Bucket: required("R2_BUCKET"),
+      Key: key,
+      Body: readFileSync(filePath),
+      ContentType: contentType,
+      CacheControl: "public, max-age=31536000, immutable",
+    })
+  );
 }
