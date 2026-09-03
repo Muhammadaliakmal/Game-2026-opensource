@@ -149,6 +149,14 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
   const want = useRef(new THREE.Vector3());
   const fwd = useRef(new THREE.Vector3());
   const primed = useRef(false);
+  /**
+   * The position everything downstream is allowed to see.
+   *
+   * Never NaN, which `h.currPos` can be. The camera, the shadow focus and the
+   * presence packet all read this instead of the body, so one bad physics step
+   * cannot reach the renderer.
+   */
+  const view = useRef(new THREE.Vector3());
   /** Last place the bike was upright, on the road and the right way up. */
   const safe = useRef<Pose | null>(null);
   const flippedFor = useRef(0);
@@ -182,28 +190,59 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     // presence, the chase camera — should see the recovered bike, not spend a
     // frame following the lost one.
     const pos = h.currPos;
-    const upright = h.bodyYAxis.y;
+    const upright = h.bodyYAxis?.y ?? 1;
+
+    /**
+     * NaN is the failure that matters, and it has to be tested for by name.
+     *
+     * When the vehicle solver blows up — a bad contact, a huge impulse — the
+     * body's translation goes to NaN, and from there `camera.position.copy()`
+     * hands three.js an unusable matrix and the renderer draws nothing at all.
+     * That is the black screen: not a camera pointed at empty space, a camera
+     * that cannot be resolved.
+     *
+     * The trap is that NaN cannot be caught by the check below it. Every
+     * comparison against NaN is false — `NaN < 0.2` is false, so is
+     * `NaN > 0.9` — so a bike that has gone non-finite sails through a
+     * `pos.y < RECOVER_BELOW_Y` guard untouched, forever. It has to be asked
+     * about directly, before any inequality gets a chance to answer "no".
+     */
+    const lost =
+      !Number.isFinite(pos.x) ||
+      !Number.isFinite(pos.y) ||
+      !Number.isFinite(pos.z);
 
     flippedFor.current =
-      upright < FLIPPED_UP_Y ? flippedFor.current + dt : 0;
+      !lost && upright < FLIPPED_UP_Y ? flippedFor.current + dt : 0;
 
-    if (pos.y < RECOVER_BELOW_Y || flippedFor.current > FLIPPED_SECONDS) {
+    if (lost || pos.y < RECOVER_BELOW_Y || flippedFor.current > FLIPPED_SECONDS) {
       // Last good spot for preference — being dropped back where you fell off
       // is a racing convention and costs you the time rather than the race.
       // The grid is the fallback for a bike that has never been anywhere good,
       // which is exactly the case that used to end in a black screen.
       const back = safe.current ?? home.current;
-      if (back) place(h, back);
-    } else if (upright > 0.9 && pos.y > RECOVER_BELOW_Y + 0.5) {
-      // Remember this spot, lifted to the bike's own rest height so a recovery
-      // never puts it back inside the road it was resting on.
-      fwd.current.set(0, 0, 1).applyQuaternion(h.currQuat);
-      safe.current = {
-        x: pos.x,
-        y: pos.y + 0.1,
-        z: pos.z,
-        yaw: Math.atan2(fwd.current.x, fwd.current.z),
-      };
+      if (back) {
+        place(h, back);
+        // `h.currPos` is Rapier's, and it does not change until the next step —
+        // so for the rest of THIS frame it still reads NaN. Everything below
+        // works off `view`, which is why the camera survives the frame the
+        // rescue happens on rather than being handed the bad value one last
+        // time and blacking out anyway.
+        view.current.set(back.x, back.y, back.z);
+      }
+    } else {
+      view.current.copy(pos);
+      if (upright > 0.9 && pos.y > RECOVER_BELOW_Y + 0.5) {
+        // Remember this spot, lifted to the bike's own rest height so a
+        // recovery never puts it back inside the road it was resting on.
+        fwd.current.set(0, 0, 1).applyQuaternion(h.currQuat);
+        safe.current = {
+          x: pos.x,
+          y: pos.y + 0.1,
+          z: pos.z,
+          yaw: Math.atan2(fwd.current.x, fwd.current.z),
+        };
+      }
     }
 
     // ── Input ─────────────────────────────────────────────────────────────
@@ -237,16 +276,22 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       : 0;
 
     // ── Presence ──────────────────────────────────────────────────────────
-    // `pos` is h.currPos, read at the top of the frame so recovery has already
-    // had its say — a rescued bike is reported and framed at its new home, not
-    // one frame behind at the bottom of the void.
-    const p = pos;
+    // `view` rather than the body: recovery has already had its say above, and
+    // this is guaranteed finite. A NaN reaching playerFocus would take the
+    // follow-sun's shadow camera down with the view camera.
+    const p = view.current;
     playerFocus.set(p.x, p.y, p.z);
 
     // Facing from the body, not the camera: on a bike where you are pointed is
     // the whole state a rival needs, and it is what the server's sector test
     // has to agree with.
     fwd.current.set(0, 0, 1).applyQuaternion(h.currQuat);
+    // The rotation can go bad in the same step the position does; falling back
+    // to the grid heading keeps the chase camera pointing along the track
+    // instead of multiplying the NaN onward into the camera basis.
+    if (!Number.isFinite(fwd.current.x) || !Number.isFinite(fwd.current.z)) {
+      fwd.current.set(1, 0, 0);
+    }
     const yaw = Math.atan2(fwd.current.x, fwd.current.z);
     sendMove(p.x, p.y, p.z, yaw);
 
