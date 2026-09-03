@@ -9,6 +9,7 @@
     "test": "node --import tsx --test src/**/*.test.ts"
   },
   "dependencies": {
+    "@clerk/backend": "^3.16.13",
     "@colyseus/schema": "^5.0.27",
     "colyseus": "^0.18.5",
     "dotenv": "^17.4.2",

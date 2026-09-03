@@ -4,7 +4,7 @@ import { ARENA, ArenaMatch } from "../arena-match.ts";
 import { ArenaState, Fighter } from "../arena-state.ts";
 import { verifyJoin } from "../auth.ts";
 import { getWorldSource } from "../world-source.ts";
-import type { Vec3 } from "@/lib/worlddoc";
+import type { Vec3, WorldDoc } from "@/lib/worlddoc";
 
 /**
  * A match room: two people, one world, first to five knockdowns.
@@ -35,7 +35,7 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
   patchRate = 50;
 
   match!: ArenaMatch;
-  worldDoc!: Awaited<ReturnType<ReturnType<typeof getWorldSource>["load"]>>;
+  worldDoc!: WorldDoc;
 
   static async onAuth(token: string) {
     return verifyJoin(token);
@@ -48,9 +48,12 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
     // The world is the arena floor. Whoever creates the match picks it; anyone
     // joining by link inherits it, which is why the second client's worldId is
     // never consulted.
-    const doc = await getWorldSource().load(options.worldId ?? "parkour");
-    if (!doc) throw new ServerError(404, `world ${options.worldId} not found`);
+    const record = await getWorldSource().load(options.worldId ?? "parkour");
+    if (!record) throw new ServerError(404, `world ${options.worldId} not found`);
 
+    // A match never edits the world, so ownership is beside the point here —
+    // the floor is scenery, and everyone standing on it may as well be a guest.
+    const doc = record.doc;
     this.worldDoc = doc;
     this.match = new ArenaMatch(doc.spawn as Vec3);
     this.setState(new ArenaState());

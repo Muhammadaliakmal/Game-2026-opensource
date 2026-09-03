@@ -3,7 +3,7 @@ import { defineRoom, defineServer, listen } from "colyseus";
 import { BuildRoom } from "./rooms/BuildRoom.ts";
 import { ArenaRoom } from "./rooms/ArenaRoom.ts";
 import { RaceRoom } from "./rooms/RaceRoom.ts";
-import { httpWorldSource, setWorldSource } from "./world-source.ts";
+import { appWorldSource, setWorldSource } from "./world-source.ts";
 
 /**
  * The room server: a separate Node process from the Next app, because a
@@ -14,8 +14,28 @@ import { httpWorldSource, setWorldSource } from "./world-source.ts";
  */
 const PORT = Number(process.env.PORT ?? 2567);
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
+/**
+ * The credential the app knows this process by. Without it a room can still
+ * read public worlds and run a session, but it cannot open a private world and
+ * cannot save anything — so a deployment missing it is worth saying out loud
+ * rather than discovering when a session ends.
+ */
+const MULTIPLAYER_SECRET = process.env.MULTIPLAYER_SECRET;
 
-setWorldSource(httpWorldSource(APP_URL));
+setWorldSource(appWorldSource(APP_URL, MULTIPLAYER_SECRET));
+
+if (!MULTIPLAYER_SECRET) {
+  console.warn(
+    "[blockworld] MULTIPLAYER_SECRET is not set — private worlds cannot be opened " +
+      "and no edit will ever be saved. Set it here and in the app."
+  );
+}
+if (!process.env.CLERK_SECRET_KEY && process.env.ALLOW_ANONYMOUS_ROOMS !== "1") {
+  console.warn(
+    "[blockworld] CLERK_SECRET_KEY is not set — every join will be refused. " +
+      "Set it, or ALLOW_ANONYMOUS_ROOMS=1 for local development."
+  );
+}
 
 // filterBy worldId is what makes two people editing the same world land in the
 // SAME room. Without it, joinOrCreate hands the second client a fresh room and

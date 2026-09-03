@@ -1,6 +1,7 @@
 "use client";
 
 import { Client, getStateCallbacks, type Room } from "@colyseus/sdk";
+import { roomToken } from "./token";
 import { parseWorldDoc } from "@/lib/worlddoc";
 import type { Op } from "@/lib/ops";
 import { setOpSink, useEditorStore } from "@/stores/editor-store";
@@ -44,6 +45,11 @@ export async function connectToWorld(worldId: string): Promise<() => void> {
 
   try {
     const client = new Client(MULTIPLAYER_URL);
+    // Presented as a bearer token on the matchmaking request, which is what
+    // the room's onAuth reads. No token joins as a guest: still present, still
+    // visible to everyone else, but not able to edit.
+    const token = await roomToken();
+    if (token) client.auth.token = token;
     const joined = await client.joinOrCreate("build", { worldId });
     room = joined;
     connecting = false;
@@ -52,9 +58,14 @@ export async function connectToWorld(worldId: string): Promise<() => void> {
     net.setStatus("live");
 
     // The whole world, once. Ops carry it from here — see lib/ops.ts.
-    joined.onMessage("world", (message: { doc: unknown }) => {
+    joined.onMessage("world", (message: { doc: unknown; canEdit?: boolean }) => {
       try {
-        useEditorStore.getState().loadDoc(parseWorldDoc(message.doc));
+        const store = useEditorStore.getState();
+        store.loadDoc(parseWorldDoc(message.doc));
+        // The room has the last word on who may build here, and it is the only
+        // one of the two that an edit actually has to get past. Only ever
+        // tightened: a world the app already locked stays locked.
+        if (message.canEdit === false) store.setReadOnly(true);
       } catch {
         net.setStatus("error", "The room sent a world this build cannot read.");
       }
@@ -69,6 +80,11 @@ export async function connectToWorld(worldId: string): Promise<() => void> {
     // leaving two people building in worlds that quietly disagree.
     joined.onMessage("op-rejected", (rejection: { reason: string }) => {
       console.warn(`[net] edit rejected (${rejection.reason}) — resyncing`);
+      // Refused because the world is not ours: stop offering the tools rather
+      // than letting every further placement be undone by the next resync.
+      if (rejection.reason === "read-only") {
+        useEditorStore.getState().setReadOnly(true);
+      }
       joined.send("resync", {});
     });
 

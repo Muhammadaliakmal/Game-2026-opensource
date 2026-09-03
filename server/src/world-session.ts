@@ -63,7 +63,7 @@ export class WorldSession {
 
   /** Bumped by every accepted edit — the room mirrors it into presence state. */
   revision = 0;
-  /** Edits since the last save. 5d reads this to decide whether to write back. */
+  /** Edits since the last save. persist.ts reads this to decide whether to write back. */
   dirty = false;
 
   constructor(
@@ -89,6 +89,17 @@ export class WorldSession {
 
   forget(clientId: string) {
     this.buckets.delete(clientId);
+  }
+
+  /**
+   * Told by the persistence layer that the world as of `revision` is stored.
+   *
+   * The revision has to match: a save that took two seconds was a snapshot of
+   * the world two seconds ago, and edits made while it was in flight are still
+   * unsaved. Clearing the flag unconditionally would drop exactly those.
+   */
+  markSaved(revision: number) {
+    if (revision === this.revision) this.dirty = false;
   }
 
   /**

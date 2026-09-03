@@ -1,6 +1,7 @@
 "use client";
 
 import { Client, getStateCallbacks, type Room } from "@colyseus/sdk";
+import { roomToken } from "./token";
 import { parseWorldDoc, type WorldDoc } from "@/lib/worlddoc";
 import {
   useRaceStore,
@@ -108,6 +109,8 @@ export async function joinRace(
 
   try {
     const client = new Client(MULTIPLAYER_URL);
+    const token = await roomToken();
+    if (token) client.auth.token = token;
     const joined = await client.joinOrCreate("race", { code });
     room = joined;
     connecting = false;

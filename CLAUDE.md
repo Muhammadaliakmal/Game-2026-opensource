@@ -36,8 +36,33 @@ which is why `keyOf` lives in `lib/cell-key.ts`: everything else in `lib/grid.ts
 pulls in three.js, and a headless server must not.
 
 - `cd server && npm run dev` — room server on :2567 (`npm test` for its tests)
-- Rooms refuse anonymous clients unless `ALLOW_ANONYMOUS_ROOMS=1`; real Clerk
-  verification lands in 5d. See `server/.env.example`.
+- See `server/.env.example` for everything it reads.
+
+### Who may do what in a room (5d)
+
+Two separate questions, answered in two different places, and conflating them
+is the mistake to avoid:
+
+- **Who are you** — `server/src/auth.ts`. A Clerk session token, verified with
+  `CLERK_SECRET_KEY`. No token is a *guest*: they join, they appear, they race,
+  and they cannot change anything anybody owns. `ALLOW_ANONYMOUS_ROOMS=1` is
+  the local escape hatch that makes everyone an editor; nothing else fails open.
+- **What may you do here** — `BuildRoom.canEdit`. The world's owner, and nobody
+  else: there is no collaborator model in the data, so anything more generous
+  would be inventing permissions the app cannot grant or revoke. Built-in worlds
+  have no owner and no row to save into, so nobody edits those either.
+
+`BuildRoom` uses the **instance** `onAuth`, not the static one — Colyseus
+honours only one, and the ownership check needs the world, which does not exist
+until `onCreate` has run.
+
+### Saving (5d)
+
+The room is authoritative once anyone joins, so the room is what saves. It has
+no Neon credentials: it writes through `POST /api/worlds/:id/sync`, which is
+guarded by `MULTIPLAYER_SECRET` and is invisible without it. Timing lives in
+`server/src/persist.ts` — 5 s after the last edit, a 30 s ceiling so continuous
+building still lands, and once more on dispose.
 
 ### Running anything multiplayer locally
 
@@ -45,12 +70,18 @@ Build rooms, matches and races are all no-ops until the app is pointed at a
 room server, which is the default — so `/race/ABC234` will tell you it cannot
 connect rather than opening a grid. Three things, all of them required:
 
-1. `server/.env` with `ALLOW_ANONYMOUS_ROOMS=1` (copy `server/.env.example`).
-   Without it every join is refused with a 501.
+1. `server/.env` (copy `server/.env.example`) with either `CLERK_SECRET_KEY`
+   — the app's own — or `ALLOW_ANONYMOUS_ROOMS=1`. With neither, every join is
+   refused with a 501.
 2. `cd server && npm run dev`.
 3. `NEXT_PUBLIC_MULTIPLAYER_URL=ws://localhost:2567` in `.env.local`, then
    restart `next dev` — it is a `NEXT_PUBLIC_` var, so it is read at build
    time and a running dev server will not pick it up.
+
+To have local sessions actually save, add the same `MULTIPLAYER_SECRET` to both
+`server/.env` and `.env.local`. Without it the room runs read-only against
+public worlds: `/api/worlds/:id/sync` refuses it, so private worlds 404 on join
+and no edit is ever written back.
 
 ### Deploying the room server
 
@@ -70,12 +101,14 @@ Two things constrain the deploy, both easy to get wrong:
 Environment on the host:
 
 - `PORT` — usually set by the platform; `index.ts` already reads it.
-- `APP_URL` — the deployed Next app. The room reads worlds through its
-  `GET /api/worlds/:id`, so this must be reachable from the server.
-- `ALLOW_ANONYMOUS_ROOMS=1` — still required until Clerk verification lands.
-  Rooms hold no database credentials and BuildRoom does not persist (edits are
-  in memory and dropped on dispose), so the exposure is live sessions rather
-  than stored worlds — but it does mean anyone with a room code can join.
+- `APP_URL` — the deployed Next app. The room reads and writes worlds through
+  its `/api/worlds/:id/sync`, so this must be reachable from the server.
+- `CLERK_SECRET_KEY` — the app's own key. The room verifies join tokens with
+  it. Leave `ALLOW_ANONYMOUS_ROOMS` unset in any real deployment: it makes
+  every client an editor of every world.
+- `MULTIPLAYER_SECRET` — the same value as the app's. Rooms now write worlds
+  back, and this is the only credential that lets them; without it a deployed
+  room silently discards every session's edits.
 
 Then point the app at it: `NEXT_PUBLIC_MULTIPLAYER_URL=wss://<host>` (note
 `wss`, not `ws`, from an HTTPS page) and redeploy the app — build-time var.

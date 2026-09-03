@@ -1,6 +1,7 @@
 "use client";
 
 import { Client, getStateCallbacks, type Room } from "@colyseus/sdk";
+import { roomToken } from "./token";
 import { parseWorldDoc, type WorldDoc } from "@/lib/worlddoc";
 import { useArenaStore, type ArenaPhase, type FighterView } from "@/stores/arena-store";
 import { requestRespawn } from "@/components/play/play-actions";
@@ -60,6 +61,8 @@ export async function joinMatch(
 
   try {
     const client = new Client(MULTIPLAYER_URL);
+    const token = await roomToken();
+    if (token) client.auth.token = token;
     const joined = await client.joinOrCreate("arena", { code, worldId });
     room = joined;
     connecting = false;

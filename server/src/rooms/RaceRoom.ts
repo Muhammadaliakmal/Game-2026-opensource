@@ -5,6 +5,7 @@ import { RaceState, Rider } from "../race-state.ts";
 import { verifyJoin } from "../auth.ts";
 import { getWorldSource } from "../world-source.ts";
 import { GRID_YAW } from "@/lib/race-track";
+import type { WorldDoc } from "@/lib/worlddoc";
 
 /**
  * A race room: up to four riders, three laps, found by code.
@@ -39,7 +40,7 @@ export class RaceRoom extends Room<{ state: RaceState }> {
   patchRate = 50;
 
   race!: Race;
-  worldDoc!: Awaited<ReturnType<ReturnType<typeof getWorldSource>["load"]>>;
+  worldDoc!: WorldDoc;
 
   static async onAuth(token: string) {
     return verifyJoin(token);
@@ -49,9 +50,11 @@ export class RaceRoom extends Room<{ state: RaceState }> {
     const code = options?.code;
     if (!code) throw new ServerError(400, "code is required");
 
-    const doc = await getWorldSource().load(RACE_WORLD);
-    if (!doc) throw new ServerError(404, `world ${RACE_WORLD} not found`);
+    const record = await getWorldSource().load(RACE_WORLD);
+    if (!record) throw new ServerError(404, `world ${RACE_WORLD} not found`);
 
+    // The track is scenery a race is run on, never something it edits.
+    const doc = record.doc;
     this.worldDoc = doc;
     this.race = new Race();
     this.setState(new RaceState());

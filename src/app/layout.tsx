@@ -8,6 +8,7 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Bricolage_Grotesque, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { RoomAuth } from "@/components/RoomAuth";
 import "./globals.css";
 
 /**
@@ -72,6 +73,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             },
           }}
         >
+          {/* Renders nothing; it is how a room join gets a Clerk token. */}
+          <RoomAuth />
           <header className="border-[var(--border-color)] bg-steel-800 flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 sm:px-6">
             <Link href="/" className="group flex items-center gap-2.5">
               {/* A single amber block, rotated to read as a voxel corner. The
