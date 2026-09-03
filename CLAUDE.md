@@ -16,6 +16,53 @@ dependency versions without checking in.
 - Use tuples, not objects, for the `parts` payload.
 - Render blocks via `InstancedMesh` (one per shape), not one mesh per block.
 - React 19 / R3F v9 only. Never mix R3F v8 with React 19.
+- Materials and geometries for procedural models go at **module scope**, not in
+  a `useMemo`. `useMemo` is per component *instance*, so five bikes on a grid
+  meant five copies of an identical material. Only genuinely per-instance
+  values (a rider's colour) get a cache, and that cache is a module-level `Map`.
+- Read a value that lives outside React with `useSyncExternalStore`, not
+  `useEffect(() => setState(read()))`. The `react-hooks/set-state-in-effect`
+  lint rule is on and will reject the latter.
+
+## Frame rate
+
+Every continuously-animating canvas runs `frameloop="never"` with a
+`<FrameLimiter fps={60} />` as its first child. **Never use `"always"`** — that
+renders once per `requestAnimationFrame`, so a 120Hz phone does twice the GPU
+work for frames the game does not use, gets hot, and then throttles to below 60.
+
+Three things about this are easy to get wrong:
+
+- `"demand"` is not a cap. Anything calling `invalidate()` renders at the
+  panel's rate again. `"never"` is a hard cap because R3F's `invalidate()`
+  returns early in that mode, so nothing can render except our `advance()`.
+- **`advance()` takes SECONDS in `"never"` mode**, not milliseconds — R3F
+  assigns the value straight to `clock.elapsedTime`. `advance(performance.now())`
+  hands the first frame a delta of about a million seconds.
+- The `frameloop` prop on `<Canvas>` owns the mode; `FrameLimiter` only drives
+  it. Do not set it from both — `WorldCanvas` switches between `"never"` while
+  playing and `"demand"` while building, and two writers make the mode after a
+  transition depend on effect ordering.
+
+Editing stays on `"demand"` (an idle editor should render nothing), so
+`FrameLimiter` mounts only when playing. The scheduling itself is
+`lib/frame-cap.ts` — pure, and tested to produce exactly 60 on 60/75/90/120/
+144/165/240Hz panels.
+
+## Installing (PWA and the Android APK)
+
+`app/manifest.ts`, `public/sw.js` and `public/icons/*` make the app installable;
+`/download` is the page that offers it. Regenerate icons with
+`npm run icons:generate` — do not hand-edit them.
+
+The service worker is an **allowlist**, and must stay one. It caches only
+`/_next/static/`, `/icons/` and `/props/`. Never cache navigations: Clerk
+renders session state into the HTML, so a cached page has somebody's sign-in
+state baked into it.
+
+The APK is not built here — it is generated from the deployed site by
+PWABuilder. See `docs/ANDROID.md`, particularly the part about `assetlinks.json`
+(without it the app runs with a browser address bar pinned over the HUD).
 
 ## Env
 
