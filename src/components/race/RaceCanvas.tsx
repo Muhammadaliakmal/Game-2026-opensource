@@ -22,6 +22,7 @@ import { Bike } from "./Bike";
 import { RaceRiders } from "./RaceRiders";
 import { RaceHud } from "./RaceHud";
 import { RaceTouchControls } from "./RaceTouchControls";
+import { RaceDebugPanel } from "./RaceDebugPanel";
 import { raceKeyboardMap } from "./controls";
 import { useRenderQuality } from "@/lib/quality";
 
@@ -147,6 +148,7 @@ export default function RaceCanvas({ code }: { code: string }) {
       </Canvas>
 
       <RaceHud code={code} />
+      <RaceDebugPanel />
       {snapshot && painted && touch && <RaceTouchControls />}
 
       {(!painted || !snapshot) && (

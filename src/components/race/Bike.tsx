@@ -20,6 +20,7 @@ import { BikeModel, bikeColor } from "./BikeModel";
 import { Rider } from "./Rider";
 import type { RaceControl } from "./controls";
 import { raceTouch } from "./race-touch";
+import { debugEnabled, raceDebug } from "./race-debug";
 
 /**
  * The player's bike.
@@ -279,6 +280,41 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
         ? keySteer
         : THREE.MathUtils.clamp(stick?.x ?? 0, -1, 1)
       : 0;
+
+    // ── Telemetry (?debug=1 only) ─────────────────────────────────────────
+    // Reads what the vehicle actually did with the input, so "it will not
+    // move" can be answered with a number instead of a theory: whether the
+    // throttle got through, whether the engine turned, whether any torque
+    // reached a wheel, and whether a wheel was touching the ground to put it
+    // into.
+    if (debugEnabled) {
+      const d = raceDebug;
+      d.armed = armed;
+      d.wantForward = Boolean(k.forward) || raceTouch.throttle;
+      d.gotForward = Boolean(h.input?.forward);
+      d.rpm = h.engineRPM;
+      d.gear = h.gearIndex;
+      d.driveRatio = h.driveRatio;
+      d.speed = h.currLinVel?.length?.() ?? 0;
+      d.y = pos.y;
+
+      let wheels = 0;
+      let grounded = 0;
+      let torque = 0;
+      let spin = 0;
+      h.wheelsInfo?.forEach((w) => {
+        const info = w.current;
+        if (!info) return;
+        wheels++;
+        if (info.rayHit) grounded++;
+        torque += info.driveTorque ?? 0;
+        if (info.driveWheel) spin = Math.max(spin, Math.abs(info.wheelAngVel ?? 0));
+      });
+      d.wheels = wheels;
+      d.grounded = grounded;
+      d.driveTorque = torque;
+      d.wheelSpin = spin;
+    }
 
     // ── Presence ──────────────────────────────────────────────────────────
     // `view` rather than the body: recovery has already had its say above, and
