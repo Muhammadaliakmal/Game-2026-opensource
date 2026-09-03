@@ -59,10 +59,15 @@ const WHEELBASE = 0.75;
  * good are the ones you find by driving it.
  */
 const BIKE_ENGINE = {
-  engineHorsepower: 110,
+  // Detuned from 180hp/13:1, which looped the bike over backwards on throttle,
+  // but not as far as the 110/8 that replaced it — that was cut at the same
+  // time the chassis was grounding out, so it took the blame for a standstill
+  // it was not causing. This is between the two: enough to accelerate hard out
+  // of a corner, not enough to stand it up.
+  engineHorsepower: 140,
   engineMaxRPM: 11_000,
   gearRatios: [2.9, 2.0, 1.55, 1.25, 1.0, 0.86],
-  finalDriveRatio: 8,
+  finalDriveRatio: 10,
   transmissionMode: "auto" as const,
   shiftUpRPM: 9_400,
   shiftDownRPM: 4_200,
@@ -331,10 +336,16 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       ccd
     >
       {/* Narrow and long, so the mass sits where the model looks like it does.
-          Centred just below the axle line rather than above it: the vehicle
-          takes its centre of mass from this box, and a low one is most of what
-          keeps the bike from tipping on the grid drop and on corner entry. */}
-      <CuboidCollider args={[0.22, 0.26, 0.85]} position={[0, -0.02, 0]} />
+          Sat at axle height rather than below it, and shallower than the model
+          it stands for. That is ground clearance, and it is not optional: the
+          bike rests about a wheel radius (0.33) up, less whatever the
+          suspension is compressing, so a chassis reaching much below the axle
+          line ends up on the road instead of on its tyres. Beached like that
+          the wheels carry no load, generate no grip, and the throttle does
+          nothing at all — a bike that looks perfect parked and cannot move.
+          Roll stability comes from HALF_TRACK above; width is the better lever
+          and, unlike a low centre of mass, it does not fight clearance. */}
+      <CuboidCollider args={[0.22, 0.2, 0.85]} position={[0, 0.1, 0]} />
 
       {/* Front pair steers and brakes; rear pair drives and brakes — a bike is
           rear-wheel drive, and giving the front wheels torque would let it pull
