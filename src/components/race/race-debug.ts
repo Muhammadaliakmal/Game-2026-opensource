@@ -31,6 +31,15 @@ export interface RaceDebug {
   wheelSpin: number;
   /** Body height, to catch a chassis resting on the road. */
   y: number;
+  /**
+   * How many times the bike has been put back.
+   *
+   * A number that climbs while you sit still means the bike is falling out of
+   * the world and being rescued over and over — a very different fault from a
+   * bike that simply will not accelerate, and one that looks identical from
+   * outside because the rescue puts it straight back where it was.
+   */
+  rescues: number;
 }
 
 export const raceDebug: RaceDebug = {
@@ -46,9 +55,20 @@ export const raceDebug: RaceDebug = {
   driveTorque: 0,
   wheelSpin: 0,
   y: 0,
+  rescues: 0,
 };
 
-/** Read once at module load — a query string does not change under a session. */
+/**
+ * TEMPORARY: on by default while the bike is being diagnosed.
+ *
+ * It was `?debug=1` opt-in, which does not survive the lobby: starting a race
+ * navigates to /race/CODE and builds that URL itself, so the parameter is gone
+ * before the panel ever mounts and the one person who needs the numbers cannot
+ * get them without hand-editing a URL on a phone.
+ *
+ * Opt-out instead, until the bike drives. Then this goes back to opt-in — or
+ * the whole file goes.
+ */
 export const debugEnabled =
   typeof window !== "undefined" &&
-  new URLSearchParams(window.location.search).get("debug") === "1";
+  new URLSearchParams(window.location.search).get("debug") !== "0";

@@ -55,6 +55,9 @@ export function RaceDebugPanel() {
       </div>
       <div>speed {n(d.speed, 2)}</div>
       <div>y {n(d.y, 2)}</div>
+      <div style={{ color: d.rescues > 0 ? "#ffb020" : undefined }}>
+        rescues {d.rescues}
+      </div>
     </div>
   );
 }

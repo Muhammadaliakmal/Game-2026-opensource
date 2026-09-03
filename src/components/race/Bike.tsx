@@ -178,6 +178,7 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     h.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     flippedFor.current = 0;
     primed.current = false;
+    raceDebug.rescues++;
   };
 
   useFrame((_, dt) => {
