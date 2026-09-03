@@ -1,7 +1,7 @@
 "use client";
 
 import * as THREE from "three";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { CuboidCollider } from "@react-three/rapier";
 import { useKeyboardControls } from "@react-three/drei";
@@ -169,6 +169,27 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
   /** Live steering, for the rider's lean. A ref: this changes every frame. */
   const steer = useRef(0);
 
+  /**
+   * Rebuilds the whole vehicle when its drivetrain goes NaN.
+   *
+   * `place()` below can put a body back where it belongs, and that is enough
+   * for a position that has gone bad. It is not enough for this: engine RPM,
+   * wheel angular velocity and drive torque live inside the controller, and
+   * once any of them is NaN every later frame multiplies NaN by something and
+   * gets NaN back. The bike then sits exactly where it is told, perfectly
+   * upright, computing a torque of NaN and applying nothing, forever. From
+   * outside that is indistinguishable from a bike that simply will not
+   * accelerate — which is what it looked like for three attempts.
+   *
+   * There is no API for "reset your internals", so this changes the `key` and
+   * lets React build a new one. Rate-limited and capped, because a remount
+   * that immediately goes NaN again would otherwise be an infinite loop that
+   * costs a Rapier body every frame.
+   */
+  const [generation, setGeneration] = useState(0);
+  const lastRebuild = useRef(0);
+  const rebuilds = useRef(0);
+
   /** Put the bike down at a pose, upright and stationary. */
   const place = (h: EcctrlVehicleHandle, pose: Pose) => {
     h.body.setTranslation({ x: pose.x, y: pose.y, z: pose.z }, true);
@@ -181,7 +202,7 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     raceDebug.rescues++;
   };
 
-  useFrame((_, dt) => {
+  useFrame((state, dt) => {
     const h = ref.current;
     if (!h) return;
 
@@ -218,6 +239,29 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       !Number.isFinite(pos.x) ||
       !Number.isFinite(pos.y) ||
       !Number.isFinite(pos.z);
+
+    /**
+     * A NaN drivetrain, which no amount of repositioning can undo — see
+     * `generation`. Checked on RPM because it is downstream of the wheel
+     * angular velocities, so it is the first of the three to go and the last
+     * that could still be finite if the others were fine.
+     */
+    const now = state.clock.elapsedTime;
+    if (
+      !Number.isFinite(h.engineRPM) &&
+      rebuilds.current < 5 &&
+      now - lastRebuild.current > 1.5
+    ) {
+      lastRebuild.current = now;
+      rebuilds.current++;
+      raceDebug.rebuilds = rebuilds.current;
+      // The new vehicle mounts at the `spawn` prop, which is wherever the
+      // world said — not where this rider actually is. Leaving the pose here
+      // means the fresh instance puts itself right on its first frame.
+      pending.current = safe.current ?? home.current ?? null;
+      setGeneration((g) => g + 1);
+      return;
+    }
 
     flippedFor.current =
       !lost && upright < FLIPPED_UP_Y ? flippedFor.current + dt : 0;
@@ -362,15 +406,13 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
 
   return (
     <EcctrlVehicle
+      // Changing this is how a NaN drivetrain gets thrown away and rebuilt;
+      // see `generation`. It is stable for the whole of a healthy race.
+      key={generation}
       ref={ref}
       position={spawn}
       rotation={[0, GRID_YAW, 0]}
       carConfig={BIKE_ENGINE}
-      /* The racing surface is one block thick. Without continuous collision a
-         bike at full speed can step straight past it between two physics
-         steps and be underneath the world with nothing to collide against —
-         which is the other way a rider ends up staring at the background. */
-      ccd
     >
       {/* Narrow and long, so the mass sits where the model looks like it does.
           Sat at axle height rather than below it, and shallower than the model
@@ -381,8 +423,14 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
           the wheels carry no load, generate no grip, and the throttle does
           nothing at all — a bike that looks perfect parked and cannot move.
           Roll stability comes from HALF_TRACK above; width is the better lever
-          and, unlike a low centre of mass, it does not fight clearance. */}
-      <CuboidCollider args={[0.22, 0.2, 0.85]} position={[0, 0.1, 0]} />
+          and, unlike a low centre of mass, it does not fight clearance.
+
+          Telemetry said the last attempt was not enough: resting at y 1.16 put
+          the underside at 1.06 against a road at 1.0, six centimetres, and only
+          two of four wheels were finding ground. The box now stops at the axle
+          line — underside at body-y 0.0 — so the wheels carry the bike and the
+          chassis is nowhere near the road. */}
+      <CuboidCollider args={[0.22, 0.16, 0.85]} position={[0, 0.16, 0]} />
 
       {/* Front pair steers and brakes; rear pair drives and brakes — a bike is
           rear-wheel drive, and giving the front wheels torque would let it pull

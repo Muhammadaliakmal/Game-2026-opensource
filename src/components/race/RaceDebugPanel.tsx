@@ -58,6 +58,9 @@ export function RaceDebugPanel() {
       <div style={{ color: d.rescues > 0 ? "#ffb020" : undefined }}>
         rescues {d.rescues}
       </div>
+      <div style={{ color: d.rebuilds > 0 ? "#ffb020" : undefined }}>
+        rebuilds {d.rebuilds}
+      </div>
     </div>
   );
 }

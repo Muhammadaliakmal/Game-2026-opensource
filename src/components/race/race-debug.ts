@@ -40,6 +40,14 @@ export interface RaceDebug {
    * outside because the rescue puts it straight back where it was.
    */
   rescues: number;
+  /**
+   * How many times the whole vehicle has been thrown away and rebuilt.
+   *
+   * A NaN drivetrain cannot be repaired in place, so it is replaced. If this
+   * is climbing, the vehicle is going non-finite repeatedly and the cause is
+   * still upstream of the cure.
+   */
+  rebuilds: number;
 }
 
 export const raceDebug: RaceDebug = {
@@ -56,6 +64,7 @@ export const raceDebug: RaceDebug = {
   wheelSpin: 0,
   y: 0,
   rescues: 0,
+  rebuilds: 0,
 };
 
 /**
