@@ -139,11 +139,17 @@ is exactly how you drop every connected session without warning.
 
 ### Render.com
 
-The no-card-required option — trades that for a free tier that sleeps after
-15 minutes with nobody connected (the next join eats a 30-60 s cold start
-while it wakes). `render.yaml` at the repo root is a Blueprint: New + ->
-Blueprint in the Render dashboard, point it at this repo, and Render finds the
-file. It reuses `server/Dockerfile` unchanged — `dockerContext: .` is the field
+A free tier that sleeps after 15 minutes with nobody connected (the next join
+eats a 30-60 s cold start while it wakes). `render.yaml` at the repo root is a
+Blueprint: **New + -> Blueprint**, point it at this repo, and Render finds the
+file.
+
+**It must be created as a Blueprint, not as a Web Service.** Render only reads
+`render.yaml` in the Blueprint flow. Created as a Web Service it ignores the
+file entirely, auto-detects the root `package.json`, runs `npm install; npm run
+build` — which is `next build`, the app, not this server — and dies on a
+missing `DATABASE_URL`. The tell is the build log: it should say it is building
+from `server/Dockerfile`, never `npm run build`. It reuses `server/Dockerfile` unchanged — `dockerContext: .` is the field
 that makes the build context the repo root rather than `server/`, for the same
 reason Fly's deploy command runs from the root.
 
