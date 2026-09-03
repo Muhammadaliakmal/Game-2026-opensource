@@ -18,14 +18,29 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 
 const BEVEL = 0.045;
 
+/**
+ * Corner segments on the chamfered shapes, by detail level.
+ *
+ * The cost of this number is not obvious from looking at it. A block at two
+ * segments is 300 triangles; at one it is 108. Neon Circuit is 8,446 blocks,
+ * so that single digit is the difference between a 2.53-million-triangle
+ * camera pass and a 0.91-million one — and at a metre per block, on a phone,
+ * moving at racing speed, nobody has ever seen the difference.
+ *
+ * Both sets are built at module load. They are four geometries each and a few
+ * hundred kilobytes together, and building them lazily would mean a stall the
+ * first time a tier change needed one.
+ */
+const SEGMENTS = { 1: 1, 2: 2 } as const;
+
 /** Chamfered cube. */
-function makeBlock(): THREE.BufferGeometry {
-  return new RoundedBoxGeometry(1, 1, 1, 2, BEVEL);
+function makeBlock(seg: number): THREE.BufferGeometry {
+  return new RoundedBoxGeometry(1, 1, 1, seg, BEVEL);
 }
 
 /** Half-height, sitting on the cell floor. */
-function makeSlab(): THREE.BufferGeometry {
-  const g = new RoundedBoxGeometry(1, 0.5, 1, 2, BEVEL);
+function makeSlab(seg: number): THREE.BufferGeometry {
+  const g = new RoundedBoxGeometry(1, 0.5, 1, seg, BEVEL);
   g.translate(0, -0.25, 0);
   return g;
 }
@@ -105,12 +120,36 @@ function makeWedge(): THREE.BufferGeometry {
   return g;
 }
 
+/**
+ * Full detail. Still the default everywhere that does not ask for a level —
+ * the editor's ghost preview, the tests, anything holding a single block up
+ * close where the chamfer is the point.
+ */
 export const SHAPE_GEOMETRIES: THREE.BufferGeometry[] = [
-  makeBlock(),
-  makeSlab(),
+  makeBlock(SEGMENTS[2]),
+  makeSlab(SEGMENTS[2]),
   makeRamp(),
   makeWedge(),
 ];
+
+/**
+ * Reduced detail, for the low and medium tiers.
+ *
+ * Only the two chamfered shapes differ; the ramp and the wedge are already
+ * minimal and there is nothing in them to remove. Same array order, so a
+ * shape index means the same thing in both.
+ */
+export const SHAPE_GEOMETRIES_LOW: THREE.BufferGeometry[] = [
+  makeBlock(SEGMENTS[1]),
+  makeSlab(SEGMENTS[1]),
+  makeRamp(),
+  makeWedge(),
+];
+
+/** The geometry set for a detail level. See lib/quality.ts. */
+export function shapeGeometries(detail: 1 | 2): THREE.BufferGeometry[] {
+  return detail === 2 ? SHAPE_GEOMETRIES : SHAPE_GEOMETRIES_LOW;
+}
 
 /**
  * Physics uses plain boxes, not the chamfered render geometry.

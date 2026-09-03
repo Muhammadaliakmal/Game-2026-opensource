@@ -8,7 +8,8 @@ import { PALETTE, type PartTuple } from "@/lib/worlddoc";
 import { FEEL } from "@/lib/feel";
 import { keyOf } from "@/lib/grid";
 import { punches } from "./punch";
-import { SHAPE_GEOMETRIES, createFinishMaterial } from "./shapes";
+import { createFinishMaterial, shapeGeometries } from "./shapes";
+import { useRenderQuality } from "@/lib/quality";
 
 const dummy = new THREE.Object3D();
 const col = new THREE.Color();
@@ -33,6 +34,40 @@ function capacityFor(count: number): number {
 }
 
 /**
+ * Edge of a spatial bucket, world units.
+ *
+ * ── Why the world is bucketed by position at all ─────────────────────────
+ *
+ * It used to be bucketed only by (shape, finish), which meant one InstancedMesh
+ * held every matching block in the world. An InstancedMesh is culled as a
+ * single object, so a bounding volume spanning the whole map is always on
+ * screen and *nothing is ever culled* — the far side of the track was drawn in
+ * full, every frame, including into the shadow map.
+ *
+ * Splitting by position gives each mesh a tight bounding sphere that three can
+ * actually reject. On Neon Circuit — a 260-unit loop — the chase camera sees
+ * roughly a quarter of the track at a time, so most buckets fall outside the
+ * frustum on any given frame.
+ *
+ * 48 is a compromise between two costs that pull opposite ways: smaller
+ * buckets cull better but multiply draw calls, and every bucket is a separate
+ * instance buffer rounded up to a power of two, so very small ones waste
+ * memory on padding.
+ */
+const CHUNK = 48;
+
+/**
+ * Below this many parts, position bucketing is switched off.
+ *
+ * A small world fits in the frustum anyway, so chunking it would trade real
+ * draw calls for culling that never fires. The threshold is set above the
+ * built-in cottage and island and below the circuit.
+ */
+const CHUNK_THRESHOLD = 1500;
+
+const chunkOf = (v: number) => Math.floor(v / CHUNK);
+
+/**
  * One InstancedMesh per (shape, finish) bucket.
  *
  * An InstancedMesh carries a single material, and the four finishes need
@@ -44,11 +79,25 @@ function Bucket({
   shape,
   finish,
   parts: mine,
+  castShadow = true,
+  detail = 2,
+  cullable = false,
 }: {
   shape: number;
   finish: number;
   /** This bucket's parts, already separated out by the parent. */
   parts: PartTuple[];
+  /** See the `groundY` note on <InstancedParts>. */
+  castShadow?: boolean;
+  detail?: 1 | 2;
+  /**
+   * Whether this bucket is small enough in space to be worth culling.
+   *
+   * Only true when the parent split by position — see CHUNK. An unchunked
+   * bucket spans the whole world, so leaving culling on for it would cost a
+   * frustum test per frame to reject nothing.
+   */
+  cullable?: boolean;
 }) {
   const ref = useRef<THREE.InstancedMesh>(null!);
   // Which instance slot each cell landed in, so the punch animation can find
@@ -63,6 +112,7 @@ function Bucket({
   const capacity = useMemo(() => capacityFor(mine.length), [mine.length]);
 
   const material = useMemo(() => createFinishMaterial(finish), [finish]);
+  const geometry = useMemo(() => shapeGeometries(detail), [detail]);
 
   // Dispose the material when this bucket unmounts — R3F only auto-disposes
   // what it created declaratively, not objects built in a useMemo.
@@ -144,18 +194,43 @@ function Bucket({
       // Remounting on capacity change reallocates the underlying buffers.
       key={capacity}
       ref={ref}
-      args={[SHAPE_GEOMETRIES[shape], material, capacity]}
-      // The bounding sphere spans the whole map, so per-instance culling
-      // isn't automatic and frustum culling would wrongly drop the mesh.
-      frustumCulled={false}
-      castShadow
+      args={[geometry[shape], material, capacity]}
+      // Culled only when the bucket is a chunk of the world rather than all of
+      // it. `computeBoundingSphere` runs after the matrices are written below,
+      // so a chunk's bounds are tight around the blocks it actually holds and
+      // three can reject it honestly.
+      frustumCulled={cullable}
+      castShadow={castShadow}
+      // Always receives, even when it does not cast. A road that stops taking
+      // the bike's shadow is immediately obvious; a road that stops casting
+      // one onto itself is not.
       receiveShadow
       userData={{ isWorldPart: true }}
     />
   );
 }
 
-export function InstancedParts() {
+export function InstancedParts({
+  /**
+   * The Y of a flat, coplanar ground layer whose shadow-casting is wasted.
+   *
+   * Neon Circuit is 8,446 blocks, and 6,340 of them are the racing surface at
+   * y=0. Every one was being drawn a second time into the shadow map — to cast
+   * a shadow onto other blocks whose top faces are at exactly the same height,
+   * which is to say onto nothing you can see. Splitting them out and turning
+   * `castShadow` off removes 75% of the shadow pass at no visual cost at all.
+   *
+   * Deliberately a caller-supplied Y rather than "the lowest layer in the
+   * world", because the claim being made is *coplanar and flat*, and only the
+   * caller knows whether that is true. A user-built world with a stepped floor
+   * would lose real shadows if this guessed. Omit it and nothing changes.
+   */
+  groundY,
+}: {
+  groundY?: number;
+} = {}) {
+  const quality = useRenderQuality();
+
   // Recompute buckets only when the part set changes, not every frame.
   const dirty = useEditorStore((s) => s.dirtyTick);
 
@@ -170,28 +245,51 @@ export function InstancedParts() {
    * course, with more finishes in play, 3.7x.
    */
   const buckets = useMemo(() => {
+    // Ground is a third axis of the key, not a filter applied afterwards: an
+    // InstancedMesh carries one castShadow flag for all of its instances, so
+    // the split has to happen at bucket level or not at all. It costs a few
+    // extra draw calls — the circuit goes from 4 to 6 — against a budget of
+    // 120, which is not where this scene's problem was.
+    const all = [...useEditorStore.getState().parts.values()];
+    const ground = groundY !== undefined && !quality.groundCastsShadow;
+    const chunked = all.length >= CHUNK_THRESHOLD;
+
     const by = new Map<string, PartTuple[]>();
-    for (const p of useEditorStore.getState().parts.values()) {
-      const key = `${p[3]},${p[5]}`;
+    for (const p of all) {
+      const isGround = ground && p[1] === groundY;
+      // Y is not part of the key: a voxel world is far wider than it is tall,
+      // so splitting vertically would multiply buckets without narrowing what
+      // the frustum rejects.
+      const cx = chunked ? chunkOf(p[0]) : 0;
+      const cz = chunked ? chunkOf(p[2]) : 0;
+      const key = `${p[3]},${p[5]},${isGround ? 1 : 0},${cx},${cz}`;
       let arr = by.get(key);
       if (!arr) by.set(key, (arr = []));
       arr.push(p);
     }
+
     return [...by.entries()].map(([key, parts]) => {
-      const [shape, finish] = key.split(",").map(Number) as [number, number];
-      return { shape, finish, parts };
+      const [shape, finish, isGround] = key.split(",").map(Number) as [
+        number,
+        number,
+        number,
+      ];
+      return { key, shape, finish, casts: isGround === 0, parts, chunked };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty]);
+  }, [dirty, groundY, quality.groundCastsShadow]);
 
   return (
     <>
-      {buckets.map(({ shape, finish, parts }) => (
+      {buckets.map(({ key, shape, finish, casts, parts, chunked }) => (
         <Bucket
-          key={`${shape}-${finish}`}
+          key={key}
           shape={shape}
           finish={finish}
           parts={parts}
+          castShadow={casts}
+          detail={quality.blockDetail}
+          cullable={chunked}
         />
       ))}
     </>

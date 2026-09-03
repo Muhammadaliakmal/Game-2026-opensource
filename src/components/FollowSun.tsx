@@ -19,12 +19,46 @@ import { useRenderQuality } from "@/lib/quality";
  * whole units keeps the depth map from crawling as it slides — and this world
  * is on an integer grid anyway, so a whole unit is the natural quantum.
  */
+/**
+ * The default light offset: high and to one side, a generic "afternoon".
+ *
+ * MAP_V2 replaces this with the real sun direction from lib/atmosphere.ts, so
+ * the shadows fall the way the visible sun says they should. Kept as the
+ * default because the editor, Play and the hero canvas have no sky of their
+ * own and a 7-degree sun would give them shadows several times longer than
+ * anything casting them.
+ */
+const DEFAULT_OFFSET = new THREE.Vector3(24, 36, 15);
+
 export function FollowSun({
   getFocus,
   extent = 36,
+  /**
+   * Direction from the scene toward the light, as a unit vector. Scaled by
+   * `distance` to place the light. Omit for the default afternoon offset.
+   */
+  sunDir,
+  /**
+   * How far along `sunDir` the light sits.
+   *
+   * It matters more than it looks. A directional light's shadow camera is
+   * orthographic, so this does not change the shadow's shape — but the light
+   * has to stay inside `shadow-camera-far`, and at a low sun elevation the
+   * distance needed to get any height at all grows fast (height = distance x
+   * sin(elevation), so 7 degrees needs eight times the distance for the same
+   * height as 60 degrees).
+   */
+  distance = 130,
+  /** Defaults are the neutral daylight the editor and Play have always had. */
+  color = "#ffffff",
+  intensity = 1.8,
 }: {
   getFocus: () => THREE.Vector3 | null | undefined;
   extent?: number;
+  sunDir?: THREE.Vector3;
+  distance?: number;
+  color?: string;
+  intensity?: number;
 }) {
   const light = useRef<THREE.DirectionalLight>(null);
   const scene = useThree((s) => s.scene);
@@ -43,6 +77,14 @@ export function FollowSun({
     };
   }, [scene, target]);
 
+  // Resolved once per render rather than per frame: `sunDir` drifts by a
+  // fraction of a degree over a whole race, which cannot move a light that is
+  // snapped to whole units anyway.
+  const offset = useMemo(
+    () => (sunDir ? sunDir.clone().normalize().multiplyScalar(distance) : DEFAULT_OFFSET),
+    [sunDir, distance]
+  );
+
   useFrame(() => {
     const focus = getFocus();
     const l = light.current;
@@ -56,7 +98,7 @@ export function FollowSun({
 
     t.set(x, y, z);
     target.updateMatrixWorld();
-    l.position.set(x + 24, y + 36, z + 15);
+    l.position.set(x + offset.x, y + offset.y, z + offset.z);
     l.updateMatrixWorld();
   });
 
@@ -64,8 +106,9 @@ export function FollowSun({
     <directionalLight
       ref={light}
       target={target}
-      position={[24, 36, 15]}
-      intensity={1.8}
+      position={[offset.x, offset.y, offset.z]}
+      color={color}
+      intensity={intensity}
       castShadow
       shadow-mapSize={[shadowMap, shadowMap]}
       shadow-camera-left={-extent}
@@ -73,7 +116,12 @@ export function FollowSun({
       shadow-camera-top={extent}
       shadow-camera-bottom={-extent}
       shadow-camera-near={1}
-      shadow-camera-far={180}
+      // Derived, not a constant. The light sits `distance` from the focus and
+      // the scene extends `extent` past it in every direction, so a hardcoded
+      // far plane silently clips the shadow the moment either is changed —
+      // and a clipped shadow camera does not error, it just stops drawing
+      // shadows for the far half of the scene.
+      shadow-camera-far={distance + extent * 2}
       // Chamfered blocks self-shadow badly at grazing angles without this.
       shadow-normalBias={0.04}
     />
