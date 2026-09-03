@@ -1,0 +1,26 @@
+# Render Blueprint for the room server. Deploy via the Render dashboard:
+# New + -> Blueprint -> pick this repo -> Render finds this file automatically.
+#
+# dockerContext is the load-bearing field here: it has to be the repo root,
+# not server/, because server/Dockerfile COPYs src/lib across that boundary
+# (server/tsconfig.json's `@/*` -> `../src/*` mapping needs it on disk, and
+# Docker cannot COPY from outside its build context).
+services:
+  - type: web
+    name: blockworld-rooms
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8080
+      # Set these three in the Render dashboard after the first deploy —
+      # sync: false means "not stored in this file", so nothing secret ends
+      # up in git.
+      - key: APP_URL
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: MULTIPLAYER_SECRET
+        sync: false

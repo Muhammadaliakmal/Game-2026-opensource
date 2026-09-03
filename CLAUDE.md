@@ -112,3 +112,46 @@ Environment on the host:
 
 Then point the app at it: `NEXT_PUBLIC_MULTIPLAYER_URL=wss://<host>` (note
 `wss`, not `ws`, from an HTTPS page) and redeploy the app — build-time var.
+
+### Fly.io
+
+`server/Dockerfile` and `server/fly.toml` are checked in for this. The image
+installs only `server/`'s own dependencies — every `@/lib/*` import the server
+makes touches exactly one npm package (`zod`), already in `server/package.json`
+— and copies `src/lib` alongside it, nothing else from the app.
+
+The Docker build context has to be the **repo root**, not `server/`: Docker
+cannot `COPY` across a build context boundary, and `src/lib` sits outside
+`server/` on disk. That is also why the deploy command below is run from the
+repo root rather than `cd server && fly deploy`.
+
+```
+fly auth login
+fly apps create <your-unique-name>          # then set that name as `app` in server/fly.toml
+fly deploy --config server/fly.toml --dockerfile server/Dockerfile .
+fly secrets set --config server/fly.toml   APP_URL=https://your-app.vercel.app   CLERK_SECRET_KEY=sk_...   MULTIPLAYER_SECRET=...
+```
+
+`fly.toml` pins `min_machines_running = 1` and `auto_stop_machines = "off"`
+deliberately: a room holds live `WorldSession` state and open sockets in
+memory, and Fly's default scale-to-zero behaviour for stateless web services
+is exactly how you drop every connected session without warning.
+
+### Render.com
+
+The no-card-required option — trades that for a free tier that sleeps after
+15 minutes with nobody connected (the next join eats a 30-60 s cold start
+while it wakes). `render.yaml` at the repo root is a Blueprint: New + ->
+Blueprint in the Render dashboard, point it at this repo, and Render finds the
+file. It reuses `server/Dockerfile` unchanged — `dockerContext: .` is the field
+that makes the build context the repo root rather than `server/`, for the same
+reason Fly's deploy command runs from the root.
+
+Render prompts for `APP_URL`, `CLERK_SECRET_KEY` and `MULTIPLAYER_SECRET`
+during the Blueprint setup wizard (they're `sync: false` in the file, which
+means "not in git, ask the person deploying" rather than "optional").
+
+To dodge the sleep: point a free uptime monitor (UptimeRobot, cron-job.org) at
+the root URL every 5-10 minutes. The server already answers `GET /` with a
+default 200 — nothing to add for this to work — and a monitored service that
+never goes idle never sleeps.

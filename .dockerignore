@@ -1,0 +1,14 @@
+# The room server's build context is the repo root (see server/Dockerfile) so
+# that it can COPY src/lib across the @/* mapping — everything below is repo
+# root cruft that build never needs and that would otherwise get uploaded to
+# Fly's remote builder on every deploy.
+node_modules
+server/node_modules
+.next
+.git
+.env
+.env.*
+server/.env
+*.log
+.agents
+.claude
