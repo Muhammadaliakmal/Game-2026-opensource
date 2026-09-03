@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { requestRematch } from "@/lib/net/arena";
 import { splitFighters, useArenaStore } from "@/stores/arena-store";
@@ -154,22 +154,23 @@ function CopyLink() {
   );
 }
 
-/** A short red wash when we take a hit — the cheapest possible "that hurt". */
+/**
+ * A short red wash when we take a hit — the cheapest possible "that hurt".
+ *
+ * One-shot CSS keyed on the hit count, the same shape as the race's GO flash:
+ * a new `tick` remounts the element, which replays the animation. The earlier
+ * version drove it from state and a timeout, which meant a setState in an
+ * effect body — a cascading render for something the browser animates on its
+ * own, and the reduced-motion block in globals.css already covers.
+ */
 function HurtFlash({ tick }: { tick: number }) {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    if (tick === 0) return;
-    setOn(true);
-    const t = setTimeout(() => setOn(false), 220);
-    return () => clearTimeout(t);
-  }, [tick]);
-
+  if (tick === 0) return null;
   return (
     <div
+      key={tick}
       aria-hidden
-      className={`pointer-events-none absolute inset-0 bg-red-600/30 transition-opacity duration-200 ${
-        on ? "opacity-100" : "opacity-0"
-      }`}
+      className="pointer-events-none absolute inset-0 bg-red-600/30"
+      style={{ animation: "hurtFlash 420ms ease-out forwards" }}
     />
   );
 }

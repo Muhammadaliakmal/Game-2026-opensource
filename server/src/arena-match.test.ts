@@ -71,7 +71,7 @@ test("the cooldown holds, and a missed swing still spends it", () => {
   // A whiff is not free: otherwise spamming attack costs nothing and the
   // cooldown only ever punishes the player who was already landing hits.
   m.move("b", { x: 99, y: 2, z: 0, yaw: 0 });
-  let t = 5000;
+  const t = 5000;
   assert.equal(m.attack("a", t).ok, false, "out of reach");
   const after = m.attack("a", t + 10);
   assert.equal(after.ok === false && after.reason, "cooldown");

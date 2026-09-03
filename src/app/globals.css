@@ -308,3 +308,10 @@ input {
   25% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1.35); }
 }
+
+/* Taking a hit in the arena: hold long enough to register at 60 fps, then get
+   out of the way without anyone having to dismiss it. */
+@keyframes hurtFlash {
+  0%, 52% { opacity: 1; }
+  100% { opacity: 0; }
+}
