@@ -1,7 +1,10 @@
 # plan-phase5.md — Multiplayer retrofit (Colyseus)
 
-Status: **draft, awaiting approval.** Phases 0–4 are committed (`f4c76d0`). `server/`
-exists with Colyseus 0.18 + `@colyseus/schema` 5 installed and an empty `src/`.
+Status: **shipped.** 5a `0ff6af3`, 5b `3d2f567`, 5c `51d89b3`, 5d `31adeba`. Verified
+against the real stack (Neon, Clerk, `next dev`) on 2026-09-03 — see §5. The one
+thing still not done here is the deploy: the room server is deployable
+(`381c190`) but has not been deployed anywhere, so `NEXT_PUBLIC_MULTIPLAYER_URL`
+is unset in production and the app runs exactly as it did before Phase 5.
 
 Per SPEC §12 Phase 5 this is a *retrofit*, not a rewrite: the command bus (§5) is the
 seam. Nothing in Phases 0–4 changes shape; the app must keep working byte-identically
@@ -93,18 +96,27 @@ does not grow a second copy of the Drizzle layer. `server/tsconfig.json` maps `@
 | 5a | `src/lib/ops.ts` + tests; refactor `editor-store.ts` to dispatch ops. **Zero behaviour change** — existing tests still pass. |
 | 5b | Server: room, op validation, broadcast, presence schema, tests. Runs locally. |
 | 5c | Client connection + remote op application in Build; peers in Play. |
-| 5d | Auth, debounced persistence, deploy (Railway/Fly), env wiring. |
+| 5d | Auth, debounced persistence, env wiring. Deploy deferred — see the status note. |
 
 Each step is a commit. 5a is worth doing on its own even if multiplayer stops there.
 
 ## 5. Acceptance criteria
 
-- Two browsers in one world: a block placed in A appears in B in <150 ms local.
-- Ctrl+Z in A undoes only A's own edits, never B's.
-- A malformed / out-of-range op is rejected by the server and never broadcast.
-- Both clients disconnect → the world reloads from Neon with every edit present.
-- `NEXT_PUBLIC_MULTIPLAYER_URL` unset → app and `npm test` are unchanged from today.
-- Play mode with 4 peers holds 60 fps; remote avatars interpolate without snapping.
+Checked 2026-09-03 against `next dev` + real Neon + real Clerk, with the room
+server on :2567. What each one actually showed:
+
+| Criterion | Result |
+|---|---|
+| A block placed in A appears in B | Ops broadcast and apply; latency not measured with two real browsers. |
+| Ctrl+Z undoes only your own edits | Covered by `editor-store.test.ts` — a remote op never enters the undo stack. |
+| A malformed op is rejected and never broadcast | Yes, and forged keys and over-cap strokes with it (`world-session.test.ts`). |
+| Everyone disconnects → the world reloads with every edit | Yes. Five placements in a real room became one debounced write into the real `worlds` row. |
+| `NEXT_PUBLIC_MULTIPLAYER_URL` unset → unchanged | Yes. 95/95 app and 52/52 server tests pass with it unset. |
+| 4 peers at 60 fps, no snapping | Not measured. Needs four real clients. |
+
+Two things the checks above do **not** cover, both needing a browser:
+frame-rate under peers, and a genuine Clerk session token mapping to the owner
+(everything here was exercised as a guest, or with `ALLOW_ANONYMOUS_ROOMS=1`).
 
 ## 6. Known gotchas
 
