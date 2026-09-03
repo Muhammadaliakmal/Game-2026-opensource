@@ -131,11 +131,16 @@ export default function RaceCanvas({ code }: { code: string }) {
         <Physics timeStep={1 / 60} paused={!snapshot}>
           {snapshot && (
             <>
+              {/* Colliders first, deliberately. React mounts children in order
+                  and Rapier builds each collider as it goes, so a bike listed
+                  above the track is a bike that exists for part of a commit
+                  with no ground under it. It costs nothing to mount the world
+                  it stands on first. */}
+              <WorldColliders parts={snapshot.parts} />
+              <PropColliders props={snapshot.props} />
               <KeyboardControls map={raceKeyboardMap}>
                 <Bike spawn={snapshot.spawn} />
               </KeyboardControls>
-              <WorldColliders parts={snapshot.parts} />
-              <PropColliders props={snapshot.props} />
             </>
           )}
         </Physics>

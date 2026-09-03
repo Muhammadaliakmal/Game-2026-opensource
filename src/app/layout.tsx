@@ -84,6 +84,29 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <span className="text-sm font-semibold">Blockworld</span>
             </Link>
             <div className="flex items-center gap-3">
+              {/* An explicit way home, next to the other destinations.
+                  The wordmark on the left has always linked here, but a logo is
+                  something people read rather than something they press — in a
+                  race, on a phone, with the HUD over the canvas, nobody found
+                  it. The icon carries it on the narrowest screens; the label
+                  appears as soon as there is room for it. */}
+              <Link href="/" className="hud-chip" aria-label="Home">
+                <svg
+                  viewBox="0 0 16 16"
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M2 6.8 8 2l6 4.8" />
+                  <path d="M3.6 7.8V13a.8.8 0 0 0 .8.8h7.2a.8.8 0 0 0 .8-.8V7.8" />
+                  <path d="M6.4 13.8V9.6h3.2v4.2" />
+                </svg>
+                <span className="hidden sm:inline">Home</span>
+              </Link>
               {/* Reachable on a phone too: this used to be `hidden sm:inline-flex`,
                   which left mobile visitors with no route to the gallery at all. */}
               <Link href="/browse" className="hud-chip">

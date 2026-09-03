@@ -17,6 +17,7 @@ import { sendMove } from "@/lib/net/presence";
 import { useRaceStore } from "@/stores/race-store";
 import { GRID_YAW } from "@/lib/race-track";
 import { BikeModel, bikeColor } from "./BikeModel";
+import { Rider } from "./Rider";
 import type { RaceControl } from "./controls";
 import { raceTouch } from "./race-touch";
 
@@ -79,6 +80,36 @@ const CAM_BACK = 6.5;
 const CAM_HEIGHT = 2.6;
 const CAM_LAG = 0.06;
 
+/**
+ * Recovery: the race's answer to Play mode's fall-out respawn.
+ *
+ * Play has had one since Phase 2 (FEEL.fallOutY) and the race never got one,
+ * which is why a single mistake here was terminal rather than annoying: the
+ * chase camera is welded to the bike, so a bike that leaves the world takes the
+ * view with it and the player is left staring at the background colour with a
+ * live HUD on top — no track, no bike, nothing to do but leave.
+ *
+ * Two ways to lose a bike, so two triggers:
+ *
+ *  - BELOW. The racing surface tops out at y = 1. Anything under this is
+ *    through the floor or off the edge, and it is never coming back.
+ *  - OVER. The vehicle controller has no self-right, so a bike on its side
+ *    stays there forever. Measured on the body's own up axis and held for a
+ *    moment, because clipping a kerb flicks it briefly and that should cost
+ *    time rather than trigger a rescue.
+ */
+const RECOVER_BELOW_Y = 0.2;
+const FLIPPED_UP_Y = 0.35;
+const FLIPPED_SECONDS = 2;
+
+/** Where a recovered bike is put back, when we have somewhere better than the grid. */
+interface Pose {
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+}
+
 export function Bike({ spawn }: { spawn: [number, number, number] }) {
   const ref = useRef<EcctrlVehicleHandle>(null);
   const [, getKeys] = useKeyboardControls<RaceControl>();
@@ -97,9 +128,18 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
    * physics step that is already in flight.
    */
   const pending = useRef<GridPose | null>(null);
+  /**
+   * The grid slot this bike was last given, kept rather than consumed.
+   *
+   * `pending` is cleared the moment it is acted on, which is right for a
+   * teleport but leaves nothing to recover to later. This is the fallback the
+   * recovery below uses when the bike has never yet been anywhere safe.
+   */
+  const home = useRef<Pose | null>(null);
   useEffect(() => {
     setGridListener((pose) => {
       pending.current = pose;
+      home.current = { ...pose };
     });
     return () => setGridListener(null);
   }, []);
@@ -109,6 +149,22 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
   const want = useRef(new THREE.Vector3());
   const fwd = useRef(new THREE.Vector3());
   const primed = useRef(false);
+  /** Last place the bike was upright, on the road and the right way up. */
+  const safe = useRef<Pose | null>(null);
+  const flippedFor = useRef(0);
+  /** Live steering, for the rider's lean. A ref: this changes every frame. */
+  const steer = useRef(0);
+
+  /** Put the bike down at a pose, upright and stationary. */
+  const place = (h: EcctrlVehicleHandle, pose: Pose) => {
+    h.body.setTranslation({ x: pose.x, y: pose.y, z: pose.z }, true);
+    quat.current.setFromAxisAngle(UP, pose.yaw);
+    h.body.setRotation(quat.current, true);
+    h.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    h.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    flippedFor.current = 0;
+    primed.current = false;
+  };
 
   useFrame((_, dt) => {
     const h = ref.current;
@@ -118,12 +174,36 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     const grid = pending.current;
     if (grid) {
       pending.current = null;
-      h.body.setTranslation({ x: grid.x, y: grid.y, z: grid.z }, true);
-      quat.current.setFromAxisAngle(UP, grid.yaw);
-      h.body.setRotation(quat.current, true);
-      h.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
-      h.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
-      primed.current = false;
+      place(h, grid);
+    }
+
+    // ── Recovery ──────────────────────────────────────────────────────────
+    // Before anything reads the position, because everything downstream —
+    // presence, the chase camera — should see the recovered bike, not spend a
+    // frame following the lost one.
+    const pos = h.currPos;
+    const upright = h.bodyYAxis.y;
+
+    flippedFor.current =
+      upright < FLIPPED_UP_Y ? flippedFor.current + dt : 0;
+
+    if (pos.y < RECOVER_BELOW_Y || flippedFor.current > FLIPPED_SECONDS) {
+      // Last good spot for preference — being dropped back where you fell off
+      // is a racing convention and costs you the time rather than the race.
+      // The grid is the fallback for a bike that has never been anywhere good,
+      // which is exactly the case that used to end in a black screen.
+      const back = safe.current ?? home.current;
+      if (back) place(h, back);
+    } else if (upright > 0.9 && pos.y > RECOVER_BELOW_Y + 0.5) {
+      // Remember this spot, lifted to the bike's own rest height so a recovery
+      // never puts it back inside the road it was resting on.
+      fwd.current.set(0, 0, 1).applyQuaternion(h.currQuat);
+      safe.current = {
+        x: pos.x,
+        y: pos.y + 0.1,
+        z: pos.z,
+        yaw: Math.atan2(fwd.current.x, fwd.current.z),
+      };
     }
 
     // ── Input ─────────────────────────────────────────────────────────────
@@ -147,8 +227,20 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       joystickL: { x: armed ? (stick?.x ?? 0) : 0, y: 0 },
     });
 
+    // What the rider leans into. Keys are all-or-nothing, the stick is
+    // proportional; whichever is actually being used wins.
+    const keySteer = (k.steerRight ? 1 : 0) - (k.steerLeft ? 1 : 0);
+    steer.current = armed
+      ? keySteer !== 0
+        ? keySteer
+        : THREE.MathUtils.clamp(stick?.x ?? 0, -1, 1)
+      : 0;
+
     // ── Presence ──────────────────────────────────────────────────────────
-    const p = h.currPos;
+    // `pos` is h.currPos, read at the top of the frame so recovery has already
+    // had its say — a rescued bike is reported and framed at its new home, not
+    // one frame behind at the bottom of the void.
+    const p = pos;
     playerFocus.set(p.x, p.y, p.z);
 
     // Facing from the body, not the camera: on a bike where you are pointed is
@@ -187,6 +279,11 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       position={spawn}
       rotation={[0, GRID_YAW, 0]}
       carConfig={BIKE_ENGINE}
+      /* The racing surface is one block thick. Without continuous collision a
+         bike at full speed can step straight past it between two physics
+         steps and be underneath the world with nothing to collide against —
+         which is the other way a rider ends up staring at the background. */
+      ccd
     >
       {/* Narrow and long, so the mass sits where the model looks like it does.
           Centred just below the axle line rather than above it: the vehicle
@@ -231,6 +328,7 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       />
 
       <BikeModel color={color} />
+      <Rider color={color} steerRef={steer} />
     </EcctrlVehicle>
   );
 }

@@ -7,6 +7,7 @@ import { Html } from "@react-three/drei";
 import { useNetStore } from "@/stores/net-store";
 import { peerMap, samplePeer } from "@/lib/net/peers";
 import { BikeModel, bikeColor } from "./BikeModel";
+import { Rider } from "./Rider";
 
 /**
  * Everyone else on the grid.
@@ -57,6 +58,10 @@ function RivalBike({ id }: { id: string }) {
   return (
     <group ref={group}>
       <BikeModel color={color} />
+      {/* No steer ref: a rival's steering is not on the wire — only where they
+          are and which way they point — so they sit upright rather than lean
+          off a number invented on this machine. */}
+      <Rider color={color} />
       {/* A DOM label rather than 3D text, for the same reason Peers gives:
           troika would fetch a font over the network on first render. */}
       <Html center position={[0, 1.5, 0]} distanceFactor={14} zIndexRange={[10, 0]}>
