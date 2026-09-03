@@ -19,7 +19,6 @@ import { BikeModel, bikeColor } from "./BikeModel";
 import { Rider } from "./Rider";
 import type { RaceControl } from "./controls";
 import { raceTouch } from "./race-touch";
-import { debugEnabled, raceDebug } from "./race-debug";
 
 /**
  * The player's bike.
@@ -51,25 +50,42 @@ import { debugEnabled, raceDebug } from "./race-debug";
  * that does not.
  */
 
-/** Top speed, world units per second. A lap of Neon Circuit is roughly 530. */
-const MAX_SPEED = 26;
-const MAX_REVERSE = 7;
+/**
+ * Top speed, world units per second. A lap of Neon Circuit is roughly 530, so
+ * this is about a 29-second lap.
+ *
+ * Came down from 26. At that speed the track arrived faster than a corner could
+ * be read — every mistake was a wall rather than a correction — and the chase
+ * camera, which eases toward the heading rather than snapping to it, spent most
+ * of a bend looking at the outside of it. The whole braking and coasting set
+ * below is scaled with it: change one of these and the bike stops feeling like
+ * the same machine.
+ */
+const MAX_SPEED = 18;
+const MAX_REVERSE = 5;
 /** Acceleration and braking, in units per second squared. */
-const ACCEL = 17;
-const BRAKE_DECEL = 34;
+const ACCEL = 12;
+const BRAKE_DECEL = 26;
 /** Coasting drag with nothing held. Gentle: a bike should carry its speed. */
-const COAST_DECEL = 6;
+const COAST_DECEL = 4.5;
 
-/** Radians per second of yaw at full lock. */
+/**
+ * Radians per second of yaw at full lock.
+ *
+ * Left where it was while the top speed dropped, which tightens the turning
+ * circle from about 13.7 units to 9.5 — the reason the slower bike reads as
+ * more agile rather than merely slower.
+ */
 const MAX_YAW_RATE = 1.9;
 /**
  * How much speed is needed before steering has full authority.
  *
  * Steering scales with speed for the same reason a real one does — a stationary
  * bike pivoting on the spot reads as a bug — but it is deliberately a low bar,
- * because a racer that will not turn until it is flying is worse.
+ * because a racer that will not turn until it is flying is worse. Scaled with
+ * MAX_SPEED so full lock still arrives at the same fraction of top speed.
  */
-const STEER_FULL_SPEED = 6;
+const STEER_FULL_SPEED = 4.5;
 
 /**
  * Ride height. The racing surface tops out at y = 1, and the collider's
@@ -146,18 +162,18 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     heading.current = pose.yaw;
     speed.current = 0;
     primed.current = false;
-    raceDebug.rescues++;
   };
 
-  useFrame((_, dt) => {
-    raceDebug.frames++;
-    raceDebug.phase = phase;
+  /**
+   * Set once if the loop ever throws, so a fault is reported instead of
+   * swallowed sixty times a second. The catch stays because a throwing frame
+   * loop takes the chase camera — and therefore the whole view — with it.
+   */
+  const faulted = useRef(false);
 
+  useFrame((_, dt) => {
     const b = body.current;
-    if (!b) {
-      raceDebug.noHandle++;
-      return;
-    }
+    if (!b) return;
 
     try {
       // Clamped: a long frame — a tab waking up, a slow load — must not
@@ -246,22 +262,6 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
         true
       );
 
-      if (debugEnabled) {
-        const d = raceDebug;
-        d.armed = armed;
-        d.wantForward = throttle;
-        d.gotForward = throttle;
-        d.rpm = Math.abs(speed.current) * 60;
-        d.gear = 0;
-        d.driveRatio = 0;
-        d.driveTorque = throttle ? ACCEL : 0;
-        d.wheelSpin = Math.abs(speed.current);
-        d.speed = Math.abs(speed.current);
-        d.wheels = 0;
-        d.grounded = 0;
-        d.y = view.current.y;
-      }
-
       // ── Presence ────────────────────────────────────────────────────────
       const p = view.current;
       playerFocus.set(p.x, p.y, p.z);
@@ -284,7 +284,13 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       camera.position.copy(eye.current);
       camera.lookAt(p.x, p.y + 0.8, p.z);
     } catch (e) {
-      raceDebug.error = e instanceof Error ? e.message : String(e);
+      // Once, not every frame: a fault here repeats at the frame rate, and a
+      // console flooded sixty times a second hides the first occurrence, which
+      // is the only one that says what happened.
+      if (!faulted.current) {
+        faulted.current = true;
+        console.error("[bike] frame loop faulted", e);
+      }
     }
   });
 

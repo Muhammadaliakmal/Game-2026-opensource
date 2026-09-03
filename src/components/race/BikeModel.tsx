@@ -1,7 +1,6 @@
 "use client";
 
 import * as THREE from "three";
-import { useMemo } from "react";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
 /**
@@ -38,6 +37,71 @@ const G = {
 /** Wheels stand upright and roll about X, which a torus does not do by default. */
 const WHEEL_ROT: [number, number, number] = [0, Math.PI / 2, 0];
 
+/**
+ * The parts whose colour never varies, shared like the geometries above.
+ *
+ * These were inline `<meshStandardMaterial>` children, which reads well but
+ * builds a fresh material per bike: five bikes on a grid meant forty material
+ * objects standing in for these six appearances. A material is a GPU state
+ * change at draw time, and two meshes cannot be batched across one, so sharing
+ * them is worth more than the seven lines it costs.
+ */
+const M = {
+  seat: new THREE.MeshStandardMaterial({ color: "#1a1d21", roughness: 0.85 }),
+  fork: new THREE.MeshStandardMaterial({
+    color: "#c3c9d0",
+    roughness: 0.25,
+    metalness: 0.9,
+  }),
+  bar: new THREE.MeshStandardMaterial({
+    color: "#4a525c",
+    roughness: 0.4,
+    metalness: 0.7,
+  }),
+  tyre: new THREE.MeshStandardMaterial({ color: "#16181c", roughness: 0.9 }),
+  exhaust: new THREE.MeshStandardMaterial({
+    color: "#8b93a0",
+    roughness: 0.3,
+    metalness: 0.9,
+  }),
+};
+
+/**
+ * Tinted materials, cached by what makes them different.
+ *
+ * This was a pair of `useMemo`s, which is one material per *bike* — `useMemo`
+ * is scoped to a component instance, so the rider's cyan bike and a rival's
+ * cyan bike each built their own, and neither was ever disposed. A module-level
+ * cache is what the intent was: the palette is four colours and two emissive
+ * settings, so this holds at most a handful of entries for the life of the tab.
+ */
+const tinted = new Map<string, THREE.MeshStandardMaterial>();
+
+function paintFor(color: string): THREE.MeshStandardMaterial {
+  const key = `paint:${color}`;
+  let m = tinted.get(key);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.5 });
+    tinted.set(key, m);
+  }
+  return m;
+}
+
+function glowFor(color: string, emissive: number): THREE.MeshStandardMaterial {
+  const key = `glow:${color}:${emissive}`;
+  let m = tinted.get(key);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({
+      color,
+      emissive: new THREE.Color(color),
+      emissiveIntensity: emissive,
+      toneMapped: false,
+    });
+    tinted.set(key, m);
+  }
+  return m;
+}
+
 export function BikeModel({
   /** Body colour, so four riders on a grid are told apart at a glance. */
   color = "#22d3ee",
@@ -47,27 +111,8 @@ export function BikeModel({
   color?: string;
   emissive?: number;
 }) {
-  // One material per colour rather than per bike: four riders share at most
-  // four, and a material is far more expensive than the mesh that uses it.
-  const paint = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color,
-        roughness: 0.35,
-        metalness: 0.5,
-      }),
-    [color]
-  );
-  const glow = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color,
-        emissive: new THREE.Color(color),
-        emissiveIntensity: emissive,
-        toneMapped: false,
-      }),
-    [color, emissive]
-  );
+  const paint = paintFor(color);
+  const glow = glowFor(color, emissive);
 
   return (
     // Dropped so the wheels meet the ground rather than the body origin: the
@@ -76,9 +121,7 @@ export function BikeModel({
       {/* ── Frame ── */}
       <mesh geometry={G.chassis} material={paint} position={[0, 0.1, 0]} castShadow />
       <mesh geometry={G.tank} material={paint} position={[0, 0.28, 0.16]} castShadow />
-      <mesh geometry={G.seat} position={[0, 0.34, -0.34]} castShadow>
-        <meshStandardMaterial color="#1a1d21" roughness={0.85} />
-      </mesh>
+      <mesh geometry={G.seat} material={M.seat} position={[0, 0.34, -0.34]} castShadow />
       <mesh geometry={G.fairing} material={paint} position={[0, 0.26, 0.6]} castShadow />
 
       {/* Headlight, so a bike behind you in a mirrorless game is still readable
@@ -86,30 +129,40 @@ export function BikeModel({
       <mesh geometry={G.light} material={glow} position={[0, 0.28, 0.8]} />
 
       {/* ── Front end ── */}
-      <mesh geometry={G.fork} position={[-0.12, 0.12, 0.66]} rotation={[0.35, 0, 0]}>
-        <meshStandardMaterial color="#c3c9d0" roughness={0.25} metalness={0.9} />
-      </mesh>
-      <mesh geometry={G.fork} position={[0.12, 0.12, 0.66]} rotation={[0.35, 0, 0]}>
-        <meshStandardMaterial color="#c3c9d0" roughness={0.25} metalness={0.9} />
-      </mesh>
-      <mesh geometry={G.bar} position={[0, 0.46, 0.52]} rotation={[0, 0, Math.PI / 2]}>
-        <meshStandardMaterial color="#4a525c" roughness={0.4} metalness={0.7} />
-      </mesh>
+      <mesh
+        geometry={G.fork}
+        material={M.fork}
+        position={[-0.12, 0.12, 0.66]}
+        rotation={[0.35, 0, 0]}
+      />
+      <mesh
+        geometry={G.fork}
+        material={M.fork}
+        position={[0.12, 0.12, 0.66]}
+        rotation={[0.35, 0, 0]}
+      />
+      <mesh
+        geometry={G.bar}
+        material={M.bar}
+        position={[0, 0.46, 0.52]}
+        rotation={[0, 0, Math.PI / 2]}
+      />
 
       {/* ── Wheels ── */}
       {([0.78, -0.72] as const).map((z) => (
         <group key={z} position={[0, 0, z]}>
-          <mesh geometry={G.wheel} rotation={WHEEL_ROT} castShadow>
-            <meshStandardMaterial color="#16181c" roughness={0.9} />
-          </mesh>
+          <mesh geometry={G.wheel} material={M.tyre} rotation={WHEEL_ROT} castShadow />
           <mesh geometry={G.hub} material={glow} rotation={[0, 0, Math.PI / 2]} />
         </group>
       ))}
 
       {/* ── Exhaust ── */}
-      <mesh geometry={G.exhaust} position={[0.16, 0.02, -0.5]} rotation={[Math.PI / 2, 0, 0]}>
-        <meshStandardMaterial color="#8b93a0" roughness={0.3} metalness={0.9} />
-      </mesh>
+      <mesh
+        geometry={G.exhaust}
+        material={M.exhaust}
+        position={[0.16, 0.02, -0.5]}
+        rotation={[Math.PI / 2, 0, 0]}
+      />
     </group>
   );
 }

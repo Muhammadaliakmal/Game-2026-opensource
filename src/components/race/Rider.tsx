@@ -35,6 +35,37 @@ const G = {
   core: new THREE.SphereGeometry(0.05, 12, 12),
 };
 
+/**
+ * The suit, shared for the same reason the geometries are.
+ *
+ * A rider's clothing does not change with the bike colour — only the two
+ * emissive accents do — so these four were being rebuilt per rider for no
+ * gain. Five riders on a grid is five copies each of a material that is
+ * byte-identical, and every copy is its own draw-time state change.
+ */
+const M = {
+  torso: new THREE.MeshStandardMaterial({
+    color: "#4f46e5",
+    roughness: 0.42,
+    metalness: 0.25,
+  }),
+  helmet: new THREE.MeshStandardMaterial({
+    color: "#e8ecff",
+    roughness: 0.3,
+    metalness: 0.15,
+  }),
+  arm: new THREE.MeshStandardMaterial({
+    color: "#7c3aed",
+    roughness: 0.45,
+    metalness: 0.2,
+  }),
+  leg: new THREE.MeshStandardMaterial({
+    color: "#312e81",
+    roughness: 0.5,
+    metalness: 0.2,
+  }),
+};
+
 /** How far the rider leans into a corner, in radians at full lock. */
 const LEAN = 0.38;
 /** How quickly the lean catches up. Lower is floatier. */
@@ -88,9 +119,7 @@ export function Rider({
       <group ref={lean}>
         {/* ── Torso, tipped forward over the tank ── */}
         <group rotation={[0.42, 0, 0]}>
-          <mesh geometry={G.torso} castShadow>
-            <meshStandardMaterial color="#4f46e5" roughness={0.42} metalness={0.25} />
-          </mesh>
+          <mesh geometry={G.torso} material={M.torso} castShadow />
           <mesh geometry={G.core} position={[0, 0.04, 0.14]}>
             <meshStandardMaterial
               color={color}
@@ -102,9 +131,7 @@ export function Rider({
 
           {/* ── Helmet ── */}
           <group position={[0, 0.36, 0.04]} rotation={[-0.3, 0, 0]}>
-            <mesh geometry={G.head} castShadow>
-              <meshStandardMaterial color="#e8ecff" roughness={0.3} metalness={0.15} />
-            </mesh>
+            <mesh geometry={G.head} material={M.helmet} castShadow />
             {/* Visor on +Z: the rider faces the way the bike points. */}
             <mesh geometry={G.visor} position={[0, -0.01, 0.16]}>
               <meshStandardMaterial
@@ -121,9 +148,12 @@ export function Rider({
         {/* ── Arms, reaching down and forward to the bars at y 0.34, z 0.52 ── */}
         {([-0.15, 0.15] as const).map((x) => (
           <group key={x} position={[x, 0.16, 0.14]} rotation={[1.15, 0, 0]}>
-            <mesh geometry={G.arm} position={[0, -0.17, 0]} castShadow>
-              <meshStandardMaterial color="#7c3aed" roughness={0.45} metalness={0.2} />
-            </mesh>
+            <mesh
+              geometry={G.arm}
+              material={M.arm}
+              position={[0, -0.17, 0]}
+              castShadow
+            />
           </group>
         ))}
 
@@ -131,14 +161,20 @@ export function Rider({
         {([-0.16, 0.16] as const).map((x) => (
           <group key={x} position={[x, -0.18, 0.02]}>
             <group rotation={[0.95, 0, 0]}>
-              <mesh geometry={G.thigh} position={[0, -0.14, 0]} castShadow>
-                <meshStandardMaterial color="#312e81" roughness={0.5} metalness={0.2} />
-              </mesh>
+              <mesh
+                geometry={G.thigh}
+                material={M.leg}
+                position={[0, -0.14, 0]}
+                castShadow
+              />
             </group>
             <group position={[0, -0.24, 0.16]} rotation={[-0.7, 0, 0]}>
-              <mesh geometry={G.shin} position={[0, -0.13, 0]} castShadow>
-                <meshStandardMaterial color="#312e81" roughness={0.5} metalness={0.2} />
-              </mesh>
+              <mesh
+                geometry={G.shin}
+                material={M.leg}
+                position={[0, -0.13, 0]}
+                castShadow
+              />
             </group>
           </group>
         ))}
