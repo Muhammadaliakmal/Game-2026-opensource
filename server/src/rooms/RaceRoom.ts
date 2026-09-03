@@ -122,8 +122,12 @@ export class RaceRoom extends Room<{ state: RaceState }> {
         this.state.countdownMs = Math.min(65535, remaining);
       }
       if (changed) {
+        // No separate "go" broadcast. The lights and the GO flash both read
+        // `phase` off the schema state, which `sync()` has just pushed — so a
+        // message alongside it was a second channel saying the same thing, and
+        // the client never registered a handler for it. Colyseus logged an
+        // "onMessage() not registered for type 'go'" warning on every start.
         this.sync();
-        if (this.race.phase === "racing") this.broadcast("go", {});
       }
     }, 100);
   }
