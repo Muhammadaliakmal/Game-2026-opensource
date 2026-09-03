@@ -1,7 +1,7 @@
 "use client";
 
 import * as THREE from "three";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { CuboidCollider } from "@react-three/rapier";
 import { useKeyboardControls } from "@react-three/drei";
@@ -203,20 +203,34 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
    * that immediately goes NaN again would otherwise be an infinite loop that
    * costs a Rapier body every frame.
    */
-  const [generation, setGeneration] = useState(0);
-  const lastRebuild = useRef(0);
-  const rebuilds = useRef(0);
-
-  /** Put the bike down at a pose, upright and stationary. */
-  const place = (h: EcctrlVehicleHandle, pose: Pose) => {
-    h.body.setTranslation({ x: pose.x, y: pose.y, z: pose.z }, true);
+  /**
+   * Put the bike down at a pose, upright and stationary. Answers whether it
+   * actually happened.
+   *
+   * `handle.body` is a live getter for the vehicle's rigid body, and it returns
+   * null whenever there is not one yet — the first frames after mounting, and
+   * again after every remount. Calling straight through it, which this did,
+   * threw "Cannot read properties of null (reading 'setTranslation')" on the
+   * very first line of the frame, every frame.
+   *
+   * That is the whole bug. Placement runs at the top of the frame, so the throw
+   * aborted it before the input block further down was ever reached: the
+   * throttle was never handed to the vehicle at all. No amount of tuning
+   * torque, clearance or wheel geometry was going to move a bike whose
+   * setMovement call had never once executed.
+   */
+  const place = (h: EcctrlVehicleHandle, pose: Pose): boolean => {
+    const body = h.body;
+    if (!body) return false;
+    body.setTranslation({ x: pose.x, y: pose.y, z: pose.z }, true);
     quat.current.setFromAxisAngle(UP, pose.yaw);
-    h.body.setRotation(quat.current, true);
-    h.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
-    h.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    body.setRotation(quat.current, true);
+    body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     flippedFor.current = 0;
     primed.current = false;
     raceDebug.rescues++;
+    return true;
   };
 
   /**
@@ -226,18 +240,14 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
    * runs: an exception in a frame callback takes the whole render loop with it,
    * which is what the "That did not load" screen was.
    */
-  function frame(
-    state: { clock: { elapsedTime: number } },
-    dt: number,
-    h: EcctrlVehicleHandle
-  ) {
+  function frame(dt: number, h: EcctrlVehicleHandle) {
 
     // ── Grid placement ────────────────────────────────────────────────────
+    // Cleared only once it has actually happened. Clearing first threw the
+    // grid slot away on the frames where there was no body to place yet, so a
+    // bike could miss its slot entirely and never be told again.
     const grid = pending.current;
-    if (grid) {
-      pending.current = null;
-      place(h, grid);
-    }
+    if (grid && place(h, grid)) pending.current = null;
 
     // ── Recovery ──────────────────────────────────────────────────────────
     // Before anything reads the position, because everything downstream —
@@ -267,27 +277,17 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       !Number.isFinite(pos.z);
 
     /**
-     * A NaN drivetrain, which no amount of repositioning can undo — see
-     * `generation`. Checked on RPM because it is downstream of the wheel
-     * angular velocities, so it is the first of the three to go and the last
-     * that could still be finite if the others were fine.
+     * The drivetrain rebuild that used to live here is gone.
+     *
+     * It swapped this component's `key` to force a fresh vehicle, on the theory
+     * that a NaN engine cannot be repaired in place. What it actually did was
+     * destroy the rigid body — `handle.body` is a live getter and returns null
+     * while there is not one — so the next frame threw on `setTranslation` and
+     * took the input block down with it. A cure that guaranteed the disease.
+     *
+     * If NaN is still real once the throttle genuinely reaches the wheels, it
+     * gets solved at its source rather than by demolition.
      */
-    const now = state.clock.elapsedTime;
-    if (
-      !Number.isFinite(h.engineRPM) &&
-      rebuilds.current < 5 &&
-      now - lastRebuild.current > 1.5
-    ) {
-      lastRebuild.current = now;
-      rebuilds.current++;
-      raceDebug.rebuilds = rebuilds.current;
-      // The new vehicle mounts at the `spawn` prop, which is wherever the
-      // world said — not where this rider actually is. Leaving the pose here
-      // means the fresh instance puts itself right on its first frame.
-      pending.current = safe.current ?? home.current ?? null;
-      setGeneration((g) => g + 1);
-      return;
-    }
 
     flippedFor.current =
       !lost && upright < FLIPPED_UP_Y ? flippedFor.current + dt : 0;
@@ -430,7 +430,7 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     camera.lookAt(p.x, p.y + 0.8, p.z);
   }
 
-  useFrame((state, dt) => {
+  useFrame((_, dt) => {
     // Counted first, before any early return and outside the try below, so it
     // keeps moving no matter what the rest of this does. If everything else is
     // frozen and this is not, the loop is alive and something inside is
@@ -448,7 +448,7 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     }
 
     try {
-      frame(state, dt, h);
+      frame(dt, h);
     } catch (e) {
       // An exception here would otherwise take the whole render loop down with
       // it — which is what the "That did not load" screen was.
@@ -458,9 +458,6 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
 
   return (
     <EcctrlVehicle
-      // Changing this is how a NaN drivetrain gets thrown away and rebuilt;
-      // see `generation`. It is stable for the whole of a healthy race.
-      key={generation}
       ref={ref}
       position={spawn}
       rotation={[0, GRID_YAW, 0]}
