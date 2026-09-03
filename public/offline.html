@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Blockworld — offline</title>
+    <!--
+      Deliberately self-contained: no stylesheet, no font, no image. This page
+      is only ever shown when the network is gone, so anything it had to fetch
+      is a thing it would be missing at the moment it is needed.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #1a1d21;
+        color: #edf0f3;
+        font: 400 14px/1.6 "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+        padding: 24px;
+        text-align: center;
+      }
+      .wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        max-width: 22rem;
+      }
+      .mark {
+        width: 18px;
+        height: 18px;
+        background: #ffb020;
+        transform: rotate(45deg);
+      }
+      h1 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        color: #c3c9d0;
+        font-size: 0.8125rem;
+      }
+      button {
+        font: inherit;
+        font-size: 0.8125rem;
+        color: #1a1d21;
+        background: #ffb020;
+        border: 0;
+        border-radius: 3px;
+        padding: 8px 14px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <span class="mark" aria-hidden="true"></span>
+      <h1>No connection</h1>
+      <p>
+        Blockworld needs the network — worlds are stored on the server and races
+        run through a room. Reconnect and try again.
+      </p>
+      <button onclick="location.reload()">Retry</button>
+    </div>
+  </body>
+</html>

@@ -5,10 +5,11 @@ import {
   SignUpButton,
   UserButton,
 } from "@clerk/nextjs";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Bricolage_Grotesque, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { RoomAuth } from "@/components/RoomAuth";
+import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import "./globals.css";
 
 /**
@@ -46,6 +47,34 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Blockworld",
   description: "A UGC 3D world builder",
+  // Next serves app/manifest.ts at this path; naming it here is what puts the
+  // <link rel="manifest"> in the document, which is what makes the app
+  // installable and what PWABuilder reads to package the Android build.
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Blockworld",
+    // Safari ignores the manifest entirely, so the installed-app appearance has
+    // to be declared again here.
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/favicon.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+/**
+ * Split out of `metadata` because Next requires it to be: `themeColor` and
+ * `viewport` moved to their own export, and leaving them above is a build-time
+ * warning rather than an error, so it goes unnoticed.
+ *
+ * `viewportFit: "cover"` lets a fullscreen install paint under a phone's
+ * rounded corners and notch instead of letterboxing the canvas.
+ */
+export const viewport: Viewport = {
+  themeColor: "#1a1d21",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -75,6 +104,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           {/* Renders nothing; it is how a room join gets a Clerk token. */}
           <RoomAuth />
+          {/* Also renders nothing. Production only — see the component. */}
+          <ServiceWorkerRegistrar />
           <header className="border-[var(--border-color)] bg-steel-800 flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 sm:px-6">
             <Link href="/" className="group flex items-center gap-2.5">
               {/* A single amber block, rotated to read as a voxel corner. The
@@ -117,6 +148,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   header does not wrap behind the sign-in buttons. */}
               <Link href="/race" className="hud-chip hidden xs:inline-flex sm:inline-flex">
                 Race
+              </Link>
+              {/* Hidden on the narrowest screens along with Race: the header
+                  wraps behind the sign-in buttons otherwise. Anyone on a phone
+                  who wants this is being sent a link to it. */}
+              <Link href="/download" className="hud-chip hidden sm:inline-flex">
+                Get the app
               </Link>
               <Show when="signed-out">
                 {/* Modal, not a page: UI spec §3.5 — signing in must not take
