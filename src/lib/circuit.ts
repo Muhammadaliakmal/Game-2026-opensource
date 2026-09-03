@@ -156,8 +156,15 @@ export function circuitParts(): PartTuple[] {
   return [...cells.values()];
 }
 
-/** Just behind the start line, on the racing surface. */
-export const CIRCUIT_SPAWN: Vec3 = [-2.5, 2.4, START_LINE_Z];
+/**
+ * Just behind the start line, on the racing surface.
+ *
+ * Y matches a grid slot's: the road top is y = 1 and the bike rests a wheel
+ * radius above that. This is only the pre-grid mount point and the fallback if
+ * the server's grid message is slow — but a 1.4-unit drop here flipped the bike
+ * before the grid pose ever arrived.
+ */
+export const CIRCUIT_SPAWN: Vec3 = [-2.5, 1.4, START_LINE_Z];
 
 export function circuitWorldDoc(
   id: string,

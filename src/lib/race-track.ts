@@ -118,14 +118,18 @@ export const START_LINE_Z = BZ + CORNER;
  * between riders. Only the Z stagger opened up, because the road itself is
  * wider now.
  *
- * Y is one above the racing surface (which tops out at y = 1) so a bike drops
- * onto the track rather than starting inside it.
+ * Y sits the bike's body origin at its own suspension rest height above the
+ * racing surface (which tops out at y = 1): ground + the wheel radius the
+ * ShapeCastWheels float on (rayShapeR 0.33), plus a hair. Higher than this and
+ * the wheels start the race beyond their own cast range — they detect no
+ * ground, the bike free-falls onto a narrow contact base and rolls, and the
+ * vehicle controller has nothing that rights it again.
  */
 export const GRID_SLOTS: readonly [number, number, number][] = [
-  [-4, 1.8, START_LINE_Z - 2.2],
-  [-4, 1.8, START_LINE_Z + 2.2],
-  [-9, 1.8, START_LINE_Z - 2.2],
-  [-9, 1.8, START_LINE_Z + 2.2],
+  [-4, 1.35, START_LINE_Z - 2.2],
+  [-4, 1.35, START_LINE_Z + 2.2],
+  [-9, 1.35, START_LINE_Z - 2.2],
+  [-9, 1.35, START_LINE_Z + 2.2],
 ];
 
 /** Riders on the grid face +X, and a body whose forward is +Z needs a quarter turn. */

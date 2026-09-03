@@ -30,20 +30,24 @@ import { raceTouch } from "./race-touch";
  */
 
 /**
- * Four contact points, in two narrow pairs.
+ * Four contact points, in two pairs.
  *
  * A genuine two-wheeler falls over: nothing holds it upright below the speed
  * at which gyroscopic effects would, and every fix is an invisible torque
- * fighting the rider's own steering. Two tight pairs 0.18 apart give the
- * solver a base to stand on while reading, at any distance anyone plays at, as
- * the two wheels the model actually draws.
+ * fighting the rider's own steering. Two pairs give the solver a real base to
+ * stand on. At 0.18 that base was 0.36 wide against a 1.5-long body — narrow
+ * enough that the drop onto the grid, or the first hard corner, rolled it past
+ * the point the vehicle controller can recover from, and a bike with no
+ * self-right stays down and gets thrown by its own wheels. 0.32 is nearly
+ * twice the roll lever; it sits just wider than the chassis, close enough to
+ * the drawn wheels that nobody clocks it against a five-wide racing surface.
  *
  * The honest alternative was an arcade controller that never falls over
  * because it has no roll axis at all. This keeps real suspension, load
  * transfer under braking and tyre slip — the things that make a corner feel
  * like something — and pays for them with a track width nobody can see.
  */
-const HALF_TRACK = 0.18;
+const HALF_TRACK = 0.32;
 const WHEELBASE = 0.75;
 
 /**
@@ -54,10 +58,10 @@ const WHEELBASE = 0.75;
  * good are the ones you find by driving it.
  */
 const BIKE_ENGINE = {
-  engineHorsepower: 180,
+  engineHorsepower: 110,
   engineMaxRPM: 11_000,
   gearRatios: [2.9, 2.0, 1.55, 1.25, 1.0, 0.86],
-  finalDriveRatio: 13,
+  finalDriveRatio: 8,
   transmissionMode: "auto" as const,
   shiftUpRPM: 9_400,
   shiftDownRPM: 4_200,
@@ -184,8 +188,11 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       rotation={[0, GRID_YAW, 0]}
       carConfig={BIKE_ENGINE}
     >
-      {/* Narrow and long, so the mass sits where the model looks like it does. */}
-      <CuboidCollider args={[0.22, 0.28, 0.85]} position={[0, 0.1, 0]} />
+      {/* Narrow and long, so the mass sits where the model looks like it does.
+          Centred just below the axle line rather than above it: the vehicle
+          takes its centre of mass from this box, and a low one is most of what
+          keeps the bike from tipping on the grid drop and on corner entry. */}
+      <CuboidCollider args={[0.22, 0.26, 0.85]} position={[0, -0.02, 0]} />
 
       {/* Front pair steers and brakes; rear pair drives and brakes — a bike is
           rear-wheel drive, and giving the front wheels torque would let it pull
