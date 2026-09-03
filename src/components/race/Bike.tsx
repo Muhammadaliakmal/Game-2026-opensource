@@ -40,17 +40,34 @@ import { debugEnabled, raceDebug } from "./race-debug";
  * stand on. At 0.18 that base was 0.36 wide against a 1.5-long body — narrow
  * enough that the drop onto the grid, or the first hard corner, rolled it past
  * the point the vehicle controller can recover from, and a bike with no
- * self-right stays down and gets thrown by its own wheels. 0.32 is nearly
- * twice the roll lever; it sits just wider than the chassis, close enough to
- * the drawn wheels that nobody clocks it against a five-wide racing surface.
+ * self-right stays down and gets thrown by its own wheels.
+ *
+ * It also has to clear WHEEL_R. Each wheel shapecasts a shape of that radius,
+ * and at 0.18 — and still at 0.32 — the two casts on an axle overlapped each
+ * other in the middle of the bike, both resolving against the same ground at
+ * once. ecctrl's own reference car spaces its wheels 2.0 apart with a 0.5
+ * radius, a clear gap of 1.0; ours were interpenetrating. That is the most
+ * likely source of the degenerate contact that turns the whole drivetrain
+ * NaN. 0.34 against a 0.3 radius leaves a real gap.
  *
  * The honest alternative was an arcade controller that never falls over
  * because it has no roll axis at all. This keeps real suspension, load
  * transfer under braking and tyre slip — the things that make a corner feel
  * like something — and pays for them with a track width nobody can see.
  */
-const HALF_TRACK = 0.32;
+const HALF_TRACK = 0.34;
 const WHEELBASE = 0.75;
+
+/**
+ * Wheel cast shape. Radius doubles as ride height — the body floats about this
+ * far above the contact — so it is what decides where the chassis sits.
+ *
+ * The half-height was 0.08 against a library default of 0.15. A very thin cast
+ * shape gives the solver very little to work with; this splits the difference.
+ */
+const WHEEL_R = 0.3;
+const WHEEL_H = 0.12;
+const WHEEL_TRAVEL = 0.4;
 
 /**
  * Engine and transmission.
@@ -202,9 +219,18 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     raceDebug.rescues++;
   };
 
-  useFrame((state, dt) => {
-    const h = ref.current;
-    if (!h) return;
+  /**
+   * The actual per-frame work, called from useFrame below inside a try.
+   *
+   * Split out so the loop above can count frames and catch throws before this
+   * runs: an exception in a frame callback takes the whole render loop with it,
+   * which is what the "That did not load" screen was.
+   */
+  function frame(
+    state: { clock: { elapsedTime: number } },
+    dt: number,
+    h: EcctrlVehicleHandle
+  ) {
 
     // ── Grid placement ────────────────────────────────────────────────────
     const grid = pending.current;
@@ -402,6 +428,32 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
 
     camera.position.copy(eye.current);
     camera.lookAt(p.x, p.y + 0.8, p.z);
+  }
+
+  useFrame((state, dt) => {
+    // Counted first, before any early return and outside the try below, so it
+    // keeps moving no matter what the rest of this does. If everything else is
+    // frozen and this is not, the loop is alive and something inside is
+    // returning early; if this is frozen too, the loop itself is gone.
+    raceDebug.frames++;
+    raceDebug.phase = phase;
+
+    const h = ref.current;
+    if (!h) {
+      // A remount that never handed the ref back. `place()` cannot run, the
+      // camera cannot follow, and every number below stays at whatever it was
+      // when the old vehicle was thrown away.
+      raceDebug.noHandle++;
+      return;
+    }
+
+    try {
+      frame(state, dt, h);
+    } catch (e) {
+      // An exception here would otherwise take the whole render loop down with
+      // it — which is what the "That did not load" screen was.
+      raceDebug.error = e instanceof Error ? e.message : String(e);
+    }
   });
 
   return (
@@ -439,33 +491,33 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
         position={[-HALF_TRACK, 0, WHEELBASE]}
         steerWheel
         brakeWheel
-        rayShapeR={0.33}
-        rayShapeH={0.08}
-        rayLength={0.4}
+        rayShapeR={WHEEL_R}
+        rayShapeH={WHEEL_H}
+        rayLength={WHEEL_TRAVEL}
       />
       <ShapeCastWheel
         position={[HALF_TRACK, 0, WHEELBASE]}
         steerWheel
         brakeWheel
-        rayShapeR={0.33}
-        rayShapeH={0.08}
-        rayLength={0.4}
+        rayShapeR={WHEEL_R}
+        rayShapeH={WHEEL_H}
+        rayLength={WHEEL_TRAVEL}
       />
       <ShapeCastWheel
         position={[-HALF_TRACK, 0, -WHEELBASE]}
         driveWheel
         brakeWheel
-        rayShapeR={0.33}
-        rayShapeH={0.08}
-        rayLength={0.4}
+        rayShapeR={WHEEL_R}
+        rayShapeH={WHEEL_H}
+        rayLength={WHEEL_TRAVEL}
       />
       <ShapeCastWheel
         position={[HALF_TRACK, 0, -WHEELBASE]}
         driveWheel
         brakeWheel
-        rayShapeR={0.33}
-        rayShapeH={0.08}
-        rayLength={0.4}
+        rayShapeR={WHEEL_R}
+        rayShapeH={WHEEL_H}
+        rayLength={WHEEL_TRAVEL}
       />
 
       <BikeModel color={color} />

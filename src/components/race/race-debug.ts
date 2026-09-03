@@ -48,6 +48,22 @@ export interface RaceDebug {
    * still upstream of the cure.
    */
   rebuilds: number;
+  /**
+   * Frames the bike's loop has run, counted before anything can return early.
+   *
+   * The one number that says whether everything else is live or is a snapshot
+   * of the moment the loop died. Three screenshots at three different race
+   * phases once showed byte-identical telemetry, which is impossible while
+   * this is moving — and meant every reading before it was being interpreted
+   * as live state when it was a corpse.
+   */
+  frames: number;
+  /** Frames where the vehicle handle was missing — a remount that never came back. */
+  noHandle: number;
+  /** The race phase by name, rather than inferred from `armed`. */
+  phase: string;
+  /** Whatever the loop last threw, if anything. */
+  error: string;
 }
 
 export const raceDebug: RaceDebug = {
@@ -65,6 +81,10 @@ export const raceDebug: RaceDebug = {
   y: 0,
   rescues: 0,
   rebuilds: 0,
+  frames: 0,
+  noHandle: 0,
+  phase: "?",
+  error: "",
 };
 
 /**

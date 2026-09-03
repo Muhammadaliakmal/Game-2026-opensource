@@ -43,6 +43,13 @@ export function RaceDebugPanel() {
       }}
     >
       <div style={{ color: "#edf0f3", marginBottom: 4 }}>BIKE TELEMETRY</div>
+      {/* First, because it decides whether anything below it means anything.
+          A frozen frame count makes every other number a historical artefact. */}
+      <div style={{ color: "#22d3ee" }}>frames {d.frames}</div>
+      {d.noHandle > 0 && (
+        <div style={{ color: "#e5484d" }}>NO HANDLE {d.noHandle}</div>
+      )}
+      <div>phase {d.phase}</div>
       <div>armed {flag(d.armed)}</div>
       <div>want fwd {flag(d.wantForward)}</div>
       <div>got fwd {flag(d.gotForward)}</div>
@@ -61,6 +68,18 @@ export function RaceDebugPanel() {
       <div style={{ color: d.rebuilds > 0 ? "#ffb020" : undefined }}>
         rebuilds {d.rebuilds}
       </div>
+      {d.error && (
+        <div
+          style={{
+            color: "#e5484d",
+            marginTop: 4,
+            maxWidth: 200,
+            whiteSpace: "normal",
+          }}
+        >
+          ERR {d.error}
+        </div>
+      )}
     </div>
   );
 }
