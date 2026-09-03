@@ -18,6 +18,17 @@ import { WorldColliders } from "@/components/play/WorldColliders";
 import { PropColliders } from "@/components/play/PropColliders";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
+import { SunsetSky } from "@/components/sky/SunsetSky";
+import { PerfProbe } from "@/components/perf/PerfProbe";
+import { PerfPanel } from "@/components/perf/PerfPanel";
+import {
+  CAMERA_FAR,
+  CAMERA_NEAR,
+  SUN_LIGHT_COLOR,
+  SUN_LIGHT_INTENSITY,
+  sunDirection,
+} from "@/lib/atmosphere";
+import { MAP_V2 } from "@/lib/map-v2";
 import { useCoarsePointer } from "@/lib/use-media-query";
 import { Bike } from "./Bike";
 import { RaceRiders } from "./RaceRiders";
@@ -110,16 +121,41 @@ export default function RaceCanvas({ code }: { code: string }) {
         // four times over. See lib/quality.ts.
         dpr={quality.dpr}
         shadows
-        camera={{ position: [16, 16, 16], fov: 55 }}
-        gl={{ failIfMajorPerformanceCaveat: false }}
+        camera={{
+          position: [16, 16, 16],
+          fov: 55,
+          // Both were three.js defaults: near 0.1 and far 2000, a 20,000:1
+          // ratio spent on a track whose whole bounding box is 260 units. Most
+          // of the depth buffer's precision was going to the 20cm in front of
+          // the lens where nothing is ever drawn, and the coplanar top faces of
+          // 6,340 road blocks are exactly the geometry that shows it as
+          // shimmer. Safe to pin here because the race is always Neon Circuit —
+          // the editor and Play canvases orbit user-built worlds of unknown
+          // size and keep the defaults.
+          near: CAMERA_NEAR,
+          far: CAMERA_FAR,
+        }}
+        // MSAA is left on by R3F's defaults, and a voxel world is fragment-
+        // bound — so on the tiers that need the frames most it was paying for
+        // antialiasing on every one of 2.5 million triangles' worth of
+        // fragments. Hard-edged blocks lose least from going without.
+        gl={{ antialias: quality.antialias, failIfMajorPerformanceCaveat: false }}
         onCreated={({ scene, gl }) => {
-          scene.background = new THREE.Color("#14171a");
-          const pmrem = new THREE.PMREMGenerator(gl);
-          scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-          scene.environmentIntensity = 0.4;
-          pmrem.dispose();
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.05;
+
+          // Under MAP_V2 the background, the environment and the fog all come
+          // from <SunsetSky>, generated from the same gradient the dome paints
+          // so they cannot disagree. RoomEnvironment is a neutral grey box —
+          // correct when there is no sky, wrong the moment there is one.
+          if (!MAP_V2) {
+            scene.background = new THREE.Color("#14171a");
+            const pmrem = new THREE.PMREMGenerator(gl);
+            scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+            scene.environmentIntensity = 0.4;
+            pmrem.dispose();
+          }
+
           setPainted(true);
         }}
       >
@@ -127,12 +163,38 @@ export default function RaceCanvas({ code }: { code: string }) {
             frame to be rendered in. */}
         <FrameLimiter fps={60} />
 
-        <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
-        {/* Wider than the arena's: a bike covers ground fast enough that a
-            tight shadow box pops its edge in front of the rider. */}
-        <FollowSun extent={46} getFocus={getFocus} />
+        {/* The sunset owns the fill, the ambient and everything visible; the
+            neutral hemisphere light is the old look's, and having both would
+            wash the warmth straight back out. */}
+        {MAP_V2 ? (
+          <SunsetSky />
+        ) : (
+          <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
+        )}
 
-        <InstancedParts />
+        {/* Wider than the arena's: a bike covers ground fast enough that a
+            tight shadow box pops its edge in front of the rider.
+
+            FollowSun stays the shadow-caster in both looks — MAP.md §5.1's
+            follow-camera is already what it does. Under MAP_V2 it is pointed
+            along the real sun direction and given its colour, so the shadows
+            fall where the sun you can see says they should. */}
+        <FollowSun
+          extent={46}
+          getFocus={getFocus}
+          {...(MAP_V2
+            ? {
+                sunDir: sunDirection(),
+                color: SUN_LIGHT_COLOR,
+                intensity: SUN_LIGHT_INTENSITY,
+              }
+            : {})}
+        />
+
+        {/* The racing surface is a single flat layer at y=0 — see circuit.ts,
+            which is explicit that the track has no elevation change. That is
+            what makes it safe to tell InstancedParts its shadow is wasted. */}
+        <InstancedParts groundY={0} />
         {snapshot && <PlacedProps props={snapshot.props} />}
         <RaceRiders />
 
@@ -152,9 +214,14 @@ export default function RaceCanvas({ code }: { code: string }) {
             </>
           )}
         </Physics>
+
+        {/* Last, so it reads the frame everything above it just drew. Costs a
+            boolean check per frame when ?perf=1 is absent. */}
+        <PerfProbe />
       </Canvas>
 
       <RaceHud code={code} />
+      <PerfPanel />
       {snapshot && painted && touch && <RaceTouchControls />}
 
       {(!painted || !snapshot) && (

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --import tsx --test src/**/*.test.ts",
+    "sky:preview": "node --import tsx scripts/render-sky.ts",
     "icons:generate": "node --import tsx scripts/generate-icons.ts",
     "props:generate": "node --import tsx scripts/meshy-batch.ts",
     "props:optimize": "node --import tsx scripts/optimize-props.ts",
