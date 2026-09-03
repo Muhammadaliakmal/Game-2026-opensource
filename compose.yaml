@@ -1,0 +1,30 @@
+# Run the room server locally in Docker, against `next dev` on the host:
+#
+#   docker compose up --build
+#
+# The build context is the repo root, not server/. server/Dockerfile COPYs
+# src/lib across that boundary — the `@/*` -> `../src/*` mapping in
+# server/tsconfig.json needs it on disk — and Docker cannot COPY from outside
+# its build context.
+services:
+  rooms:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports:
+      # Host 2567 -> container 8080, so the NEXT_PUBLIC_MULTIPLAYER_URL already
+      # sitting in .env.local (ws://localhost:2567) keeps working untouched.
+      - "2567:8080"
+    env_file:
+      - server/.env
+    environment:
+      # Both of these deliberately override server/.env, which is written for
+      # running the server directly on the host:
+      #   APP_URL - "localhost" inside a container is the container itself, not
+      #             your machine. host.docker.internal is the way back out.
+      #   PORT    - server/.env says 2567, which would break the mapping above.
+      APP_URL: http://host.docker.internal:3000
+      PORT: "8080"
+    extra_hosts:
+      # Automatic on Docker Desktop; spelled out so this also works on Linux.
+      - "host.docker.internal:host-gateway"

@@ -98,12 +98,32 @@ test("no built-in world stacks two parts in one cell", () => {
 test("every built-in world stays cheap enough to stand up in Rapier", () => {
   // Colliders are built on load, before the world can be walked on, so a
   // world that merges badly is a world that hangs on entry.
+  //
+  // Two guards, because one number cannot say both things:
+  //
+  // - The RATIO is the real test of "merges badly", and it is the one that
+  //   catches a regression. Turn the racing surface into slabs and it craters,
+  //   because a slab is not a full cube and never merges with anything.
+  // - The CEILING is about absolute load cost, and it necessarily scales with
+  //   how big a world is allowed to be. It was 1200, set when the largest
+  //   built-in was the island at 5.7k parts. Neon Circuit is deliberately
+  //   larger than that, and merges better than the cottage does — so the old
+  //   number was measuring size, not merge quality, which is not what the
+  //   comment above says this test is for.
   for (const w of BUILT_IN_WORLDS) {
     const parts = w.build("user-1").parts;
     const { boxes, others } = buildColliders(parts);
+    const colliders = boxes.length + others.length;
+    const ratio = parts.length / colliders;
+
     assert.ok(
-      boxes.length + others.length < 1200,
-      `${w.slug}: ${boxes.length + others.length} colliders from ${parts.length} parts`
+      ratio >= 3.5,
+      `${w.slug}: merges badly — ${ratio.toFixed(2)} parts per collider ` +
+        `(${colliders} colliders from ${parts.length} parts)`
+    );
+    assert.ok(
+      colliders < 2500,
+      `${w.slug}: ${colliders} colliders from ${parts.length} parts`
     );
   }
 });

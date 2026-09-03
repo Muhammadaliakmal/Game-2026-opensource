@@ -28,7 +28,6 @@ import {
  */
 
 const BLOCK: Shape = 0;
-const SLAB: Shape = 1;
 
 // Palette indices (see PALETTE in worlddoc.ts).
 const ASPHALT = 4;
@@ -90,12 +89,14 @@ export function circuitParts(): PartTuple[] {
         // Racing surface. Two tones in a slow checker so speed is readable —
         // a single flat colour gives the eye nothing to measure motion against.
         const shade = (Math.floor((x + 64) / 4) + Math.floor((z + 64) / 4)) % 2;
-        put(x, 0, z, BLOCK, shade ? ASPHALT : ASPHALT_DARK, MATTE);
 
-        // Dashed centre line.
-        if (a < 0.55 && (Math.floor((x + z + 128) / 2) % 3 === 0)) {
-          put(x, 1, z, SLAB, LINE, MATTE);
-        }
+        // Dashed centre line, painted INTO the road rather than stacked on
+        // top of it. A slab at y = 1 stands half a cell proud of the surface,
+        // which put a line of bumps straight down the racing line — you felt
+        // them at speed — and cost one collider apiece because a slab is not
+        // a full cube and never merges.
+        const dash = a < 0.55 && Math.floor((x + z + 128) / 2) % 3 === 0;
+        put(x, 0, z, BLOCK, dash ? LINE : shade ? ASPHALT : ASPHALT_DARK, MATTE);
         continue;
       }
 
@@ -129,8 +130,10 @@ export function circuitParts(): PartTuple[] {
   for (let z = lineZ - edge; z <= lineZ + edge; z++) {
     for (const x of [-1, 0]) {
       if (Math.abs(distanceToLine(x, z)) > HALF_WIDTH) continue;
+      // Painted into the surface for the same reason the centre line is: a
+      // chequered ridge across the road is not what a start line is.
       const chequer = (x + z) % 2 === 0;
-      put(x, 1, z, SLAB, chequer ? LINE : ASPHALT_DARK, MATTE);
+      put(x, 0, z, BLOCK, chequer ? LINE : ASPHALT_DARK, MATTE);
     }
   }
 
@@ -143,8 +146,10 @@ export function circuitParts(): PartTuple[] {
     put(0, y, postB, BLOCK, PIT, METAL);
   }
   for (let z = postA; z <= postB; z++) put(0, 7, z, BLOCK, PIT, METAL);
-  // Start lights, spaced across the beam.
-  for (const z of [lineZ - 2, lineZ, lineZ + 2]) {
+  // Start lights, spaced across the beam. Measured off `edge` like the posts
+  // are, so they spread with the gantry instead of huddling in the middle of
+  // the road the moment the track gets wider.
+  for (const z of [lineZ - edge + 1, lineZ, lineZ + edge - 1]) {
     put(0, 6, z, BLOCK, START, GLOW);
   }
 
