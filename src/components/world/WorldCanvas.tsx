@@ -44,6 +44,7 @@ import { useTouchControls } from "@/lib/use-media-query";
 import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
 import { PlayHud } from "./PlayHud";
 import { FollowSun } from "@/components/FollowSun";
+import { FrameLimiter } from "@/components/FrameLimiter";
 import { keyboardMap } from "@/components/play/controls";
 import { useRenderQuality } from "@/lib/quality";
 
@@ -512,8 +513,11 @@ export default function WorldCanvas({
     <div className="bg-steel-900 relative min-h-0 flex-1">
       <Canvas
         // Building renders on demand — an idle editor should not burn a GPU.
-        // Playing needs every frame.
-        frameloop={playing ? "always" : "demand"}
+        // Playing needs a continuous loop, but not an uncapped one: "always"
+        // means one render per rAF, so a 120Hz phone does twice the work for
+        // frames the game does not use. <FrameLimiter> drives it at 60 instead.
+        // See components/FrameLimiter.tsx.
+        frameloop={playing ? "never" : "demand"}
         // Capped below the browser's own ratio on phones: a voxel world is
         // fragment-bound, and a DPR-3 screen otherwise renders every pixel
         // four times over. See lib/quality.ts.
@@ -539,6 +543,12 @@ export default function WorldCanvas({
           gl.toneMappingExposure = 1.05;
         }}
       >
+        {/* Play only. Build is on "demand", which already renders nothing while
+            the editor is idle — a limiter there would be a loop whose whole job
+            is to not run. Mounted first so the loop exists before anything
+            below it has a frame to be rendered in. */}
+        {playing && <FrameLimiter fps={60} />}
+
         <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
         <Sun mode={mode} />
         <CameraHandoff mode={mode} />

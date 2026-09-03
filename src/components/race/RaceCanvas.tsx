@@ -17,12 +17,12 @@ import { PlacedProps } from "@/components/editor/PlacedProps";
 import { WorldColliders } from "@/components/play/WorldColliders";
 import { PropColliders } from "@/components/play/PropColliders";
 import { FollowSun } from "@/components/FollowSun";
+import { FrameLimiter } from "@/components/FrameLimiter";
 import { useCoarsePointer } from "@/lib/use-media-query";
 import { Bike } from "./Bike";
 import { RaceRiders } from "./RaceRiders";
 import { RaceHud } from "./RaceHud";
 import { RaceTouchControls } from "./RaceTouchControls";
-import { RaceDebugPanel } from "./RaceDebugPanel";
 import { raceKeyboardMap } from "./controls";
 import { useRenderQuality } from "@/lib/quality";
 
@@ -101,7 +101,10 @@ export default function RaceCanvas({ code }: { code: string }) {
   return (
     <div className="bg-steel-900 relative min-h-0 flex-1">
       <Canvas
-        frameloop="always"
+        // Not "always": R3F's own loop renders on every rAF, so a 120Hz phone
+        // renders twice the frames the game needs. <FrameLimiter> drives the
+        // loop at 60 instead. See components/FrameLimiter.tsx.
+        frameloop="never"
         // Capped below the browser's own ratio on phones: a voxel world is
         // fragment-bound, and a DPR-3 screen otherwise renders every pixel
         // four times over. See lib/quality.ts.
@@ -120,6 +123,10 @@ export default function RaceCanvas({ code }: { code: string }) {
           setPainted(true);
         }}
       >
+        {/* First child, so the loop is running before anything below it has a
+            frame to be rendered in. */}
+        <FrameLimiter fps={60} />
+
         <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
         {/* Wider than the arena's: a bike covers ground fast enough that a
             tight shadow box pops its edge in front of the rider. */}
@@ -148,7 +155,6 @@ export default function RaceCanvas({ code }: { code: string }) {
       </Canvas>
 
       <RaceHud code={code} />
-      <RaceDebugPanel />
       {snapshot && painted && touch && <RaceTouchControls />}
 
       {(!painted || !snapshot) && (

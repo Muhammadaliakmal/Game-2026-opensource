@@ -22,6 +22,7 @@ import { PropColliders } from "@/components/play/PropColliders";
 import { keyboardMap } from "@/components/play/controls";
 import { playerFocus } from "@/components/play/camera-rig";
 import { FollowSun } from "@/components/FollowSun";
+import { FrameLimiter } from "@/components/FrameLimiter";
 import { ArenaHud } from "./ArenaHud";
 import { useRenderQuality } from "@/lib/quality";
 
@@ -107,7 +108,10 @@ export default function ArenaCanvas({
   return (
     <div className="bg-steel-900 relative min-h-0 flex-1">
       <Canvas
-        frameloop="always"
+        // Not "always": R3F's own loop renders on every rAF, so a 120Hz phone
+        // renders twice the frames the game needs. <FrameLimiter> drives the
+        // loop at 60 instead. See components/FrameLimiter.tsx.
+        frameloop="never"
         // Capped below the browser's own ratio on phones: a voxel world is
         // fragment-bound, and a DPR-3 screen otherwise renders every pixel
         // four times over. See lib/quality.ts.
@@ -126,6 +130,10 @@ export default function ArenaCanvas({
           setPainted(true);
         }}
       >
+        {/* First child, so the loop is running before anything below it has a
+            frame to be rendered in. */}
+        <FrameLimiter fps={60} />
+
         <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
         <FollowSun extent={34} getFocus={getFocus} />
 
