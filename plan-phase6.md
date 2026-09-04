@@ -108,12 +108,32 @@ returning you to a checkpoint of an attempt that is over.
 running; five maps exist at Tutorial..Expert, and `courses.test.ts` proves
 every one of them can be finished and that no checkpoint soft-locks a run.
 
-### 6e — Progression: medals, ghosts, leaderboards
-Schema first (`runs`, `ghosts`, `unlocks`), then Bronze/Silver/Gold/Author
-medals per map, ghost record + replay, global and friends boards. Design the
-row shape now so multiplayer slots in later, per the spec.
-**Accept:** a run writes a row; a PB ghost replays against you; medals gate the
-next tier.
+### 6e — Progression — **medals done, the rest outstanding**
+
+Medals shipped, and they are derived rather than hand-set: `course-graph.ts`
+finds the cheapest route a map admits (walk edges at run speed, jump edges at
+their airtime), the Author time is that floor times `HUMAN`, and the ladder is
+multiples of it. `AUTHOR_MS` caches the five answers and `medals.test.ts`
+recomputes them from the geometry, so editing a course fails the build with
+the number to write instead of leaving a stale target. The completion panel
+shows the medal earned and the next one to chase.
+
+The honest caveat: `HUMAN` (1.3) has not been playtested. The times cannot be
+*impossible* — they are anchored to a route the geometry admits — but whether
+Gold is a fair ask is a guess until someone runs the maps. One constant
+retunes all five.
+
+**Still to do:** the `runs` schema and migration, run submission, global
+leaderboards, and ghost record + replay. Two notes for whoever picks it up:
+
+- Keep one row per (world, player) holding the best, not one per attempt —
+  the board wants the best per player, and a player grinding a map 500 times
+  should not write 500 rows. It costs run history, which nothing needs yet.
+- `worlds.id` is a uuid but built-in courses are slugs (`parkour`), so a
+  `runs.world_id` column has to be `text`, not `uuid`.
+- "Friends boards" needs a social graph the app does not have — the same
+  reason `BuildRoom.canEdit` has no collaborator model. Global and personal
+  best are what can be built honestly today.
 
 ### 6f — Juice, then perf re-measure
 Screen shake, hit-stop (40-80 ms), particle bursts, <=100 ms feedback on every

@@ -10,6 +10,7 @@ import {
   requestRestart,
 } from "@/components/play/play-actions";
 import { formatTime, useCourse } from "@/components/play/course";
+import { MEDAL_LABELS, medalFor, nextMedal } from "@/lib/medals";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { RemixButton } from "@/components/RemixButton";
@@ -223,9 +224,15 @@ function CourseComplete({
 }) {
   const finishedMs = useCourse((s) => s.finishedMs);
   const best = useCourse((s) => s.best);
+  const worldId = useCourse((s) => s.worldId);
   if (finishedMs === null) return null;
 
   const isBest = best !== null && Math.abs(best - finishedMs) < 1;
+  // Only the ladder maps have medal times — a player's own world has no Author
+  // route, and inventing one for a course somebody built in ten seconds would
+  // make the medal mean nothing on the maps where it does mean something.
+  const medal = worldId ? medalFor(worldId, finishedMs) : null;
+  const chase = worldId ? nextMedal(worldId, medal) : null;
 
   return (
     <div className="hud-panel panel-enter pointer-events-auto flex w-full max-w-xs flex-col items-center gap-4 px-6 py-6 text-center">
@@ -242,6 +249,19 @@ function CourseComplete({
       {best !== null && (
         <span className="hud-label">
           {isBest ? "New best time" : `Best ${formatTime(best)}`}
+        </span>
+      )}
+
+      {/* The medal, then the next one up — a result with nothing to chase
+          after it is a scoreboard rather than a reason to press Run again. */}
+      {medal && (
+        <span className="hud-readout text-accent text-sm font-semibold">
+          {MEDAL_LABELS[medal]} medal
+        </span>
+      )}
+      {chase && (
+        <span className="hud-label num">
+          {MEDAL_LABELS[chase.medal]} at {formatTime(chase.ms)}
         </span>
       )}
 
