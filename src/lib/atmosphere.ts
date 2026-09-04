@@ -347,15 +347,6 @@ export interface SkyLook {
   biasHeightFalloff: number;
   /** How much the generated environment map contributes. */
   envIntensity: number;
-  /**
-   * Neutral linear radiance added to the environment probe, and only to the
-   * probe — never to the dome you look at.
-   *
-   * Zero for a daylight sky, which is bright and broad-spectrum enough to
-   * light a metal on its own. Non-zero at night, where the sky is both very
-   * dark and very blue: see the environment branch in `sky-shader.ts`.
-   */
-  envLift: number;
   /** Fill light: sky above, ground below. */
   hemiSky: string;
   hemiGround: string;
@@ -377,16 +368,23 @@ export interface SkyLook {
  */
 
 
-/** Elevation and azimuth of the moon, degrees. */
-export const MOON_ELEVATION_DEG = 32;
 /**
- * Placed off the start/finish straight rather than down it.
+ * Where the moon sits, in degrees of elevation and azimuth.
  *
- * The sun sits at azimuth 24, ahead of the grid, because a sunset wants to be
- * driven into. A moon in the same place would be behind every shadow the
- * rider needs to read, so this puts it over the rider's left shoulder.
+ * Chosen to land exactly where the key light already was, not by taste. Both
+ * canvases have always lit this world from `FollowSun`'s DEFAULT_OFFSET —
+ * (24, 36, 15), which is 50 degrees up and 32 round — and every course, every
+ * block colour and the bike were authored under it. Put the moon anywhere else
+ * and you get one of two bad outcomes: either the lighting changes with it and
+ * the world is no longer the colour anybody built, or the lighting stays and
+ * the shadows stop pointing at the thing casting them.
+ *
+ * It was 32 up and 128 round, which sounds like a small difference and is not:
+ * a flat top face catches sin(32) of the key against sin(50), so every pad,
+ * roof and stretch of road lost a third of its light for nothing.
  */
-export const MOON_AZIMUTH_DEG = 128;
+export const MOON_ELEVATION_DEG = 50;
+export const MOON_AZIMUTH_DEG = 32;
 
 /** Distance and diameter of the moon billboard. See SUN_SPRITE_DISTANCE. */
 export const MOON_SPRITE_DISTANCE = 620;
@@ -457,79 +455,46 @@ export const NIGHT_LOOK: SkyLook = {
    * Thinner than the sunset's 0.0027.
    *
    * Sunset haze is the point of a sunset; night haze just deletes the far side
-   * of the track. This puts the wall at roughly 1300 units - past CAMERA_FAR,
-   * so distance reads as a gentle darkening rather than as a curtain.
+   * of the track. This puts the wall past CAMERA_FAR, so distance reads as a
+   * gentle darkening rather than as a curtain.
    */
-  fogDensity: 0.0016,
+  fogDensity: 0.0014,
   /** The moon's own glow bleeding into the sky around it. Cool, and slight. */
   biasColor: "#7e93d8",
   biasStrength: 0.16,
   biasFalloff: 3.2,
   biasHeightFalloff: 0.7,
+
   /**
-   * With `envLift` doing the work the ramp cannot, this is back to a sane
-   * multiplier rather than the 20 it needed when the probe was raw night sky.
-   * Tuned against `scripts/light-check.mts` to land the probe near the energy
-   * RoomEnvironment gave the editor at 0.4 — the bar being that a night look
-   * must not make the track harder to see than the editor does.
+   * ── The lighting is the editor's, unchanged, and that is the whole point ──
+   *
+   * Every value below is exactly what Play and Race were lit with before there
+   * was any sky at all. That is the conclusion of getting this wrong twice, not
+   * laziness: this world's colours were authored under this rig, so any other
+   * rig renders them as different colours — and a voxel game's entire subject
+   * is the colours somebody chose block by block.
+   *
+   * Two failures got us here, and both came from treating "night" as a
+   * property of the lighting:
+   *
+   *  1. A dim blue fill (#4a5da8 at 0.9) that was a SEVENTH of the editor's
+   *     once the colour was accounted for, not the four fifths the intensity
+   *     number suggested. Everything not facing the moon went black.
+   *  2. Correcting that with a bright blue fill (#8ea4e8), which lit the world
+   *     properly and painted all of it blue.
+   *
+   * Night is a property of the BACKGROUND. A black dome, stars, a moon, and
+   * fog the colour of the horizon. That is what a night scene is on film: the
+   * background tells you the time of day and the subject stays the colour it
+   * is. So the sky changed and nothing else did.
    */
-  envIntensity: 1.6,
-  /**
-   * Enough neutral radiance that a metal shows its own colour.
-   *
-   * The raw night ramp is about eight times as much blue as red, so a probe
-   * built from it alone paints every chrome surface blue whatever colour it
-   * actually is. This is the ambient a real night scene gets from every
-   * surface bouncing light at every other one, which one dome cannot
-   * represent — and it is what lets a cyan bike read as cyan.
-   */
-  envLift: 0.1,
-  /**
-   * The fill, and the number this whole look lives or dies by.
-   *
-   * ── The mistake this replaces ──────────────────────────────────────────
-   *
-   * It was #4a5da8 at 0.9, chosen by comparing 0.9 against the build canvas's
-   * 1.15 and calling that "a little dimmer". That reasoning ignored the
-   * colour, which is where nearly all of the light is: #4a5da8 is about a
-   * sixth of #c8d2dd once both are in linear space, so the product was closer
-   * to a SEVENTH of the fill the editor has, not four fifths of it. Every
-   * surface not facing the moon went black, and a matte platform is almost
-   * entirely diffuse fill.
-   *
-   * ── Day-for-night, and why the light is NOT very blue ──────────────
-   *
-   * The first attempt at fixing the darkness over-corrected into the other
-   * classic mistake: a strongly blue fill (#8ea4e8) that lit everything
-   * correctly and made all of it blue. A voxel world's whole subject is the
-   * colours a player chose block by block, and a light that repaints an acid
-   * green pad in indigo has taken the game's only real content away.
-   *
-   * So the fill is near-neutral — a shade cooler and a shade dimmer than the
-   * editor's studio — and the night comes from the sky instead: a black dome,
-   * stars, a moon, fog, and one hard directional key throwing long shadows.
-   * That is what every night scene ever shot actually does. The world stays
-   * the colour it is; the BACKGROUND is what tells you the time of day.
-   */
-  hemiSky: "#bcc8de",
-  hemiGround: "#2a2f3d",
-  hemiIntensity: 1.2,
-  /**
-   * Moonlight: white, with just enough blue in it to not be a lamp.
-   *
-   * Brighter than the editor's 1.8 and not because night should be brighter —
-   * because the moon sits at 32 degrees and the studio key sits at about 51,
-   * so a flat top face catches `sin(32)` of this against `sin(51)` of that.
-   * Two thirds of the light for the same number. This pays that back, and the
-   * low angle is what buys the long shadows that make it read as night.
-   */
-  keyColor: "#e8eeff",
-  keyIntensity: 2.9,
-  /**
-   * Further out than the sunset's 130 because the moon is 32 degrees up rather
-   * than 7, and the shadow camera's far plane is derived from this.
-   */
-  keyDistance: 150,
+  envIntensity: 0.4,
+  hemiSky: "#c8d2dd",
+  hemiGround: "#1a1d21",
+  hemiIntensity: 1.15,
+  keyColor: "#ffffff",
+  keyIntensity: 1.8,
+  keyDistance: 130,
 };
 
 /** The sunset, as the same shape, so a canvas can hold either in one variable. */
@@ -543,8 +508,6 @@ export const SUNSET_LOOK: SkyLook = {
   biasFalloff: SUN_BIAS_FALLOFF,
   biasHeightFalloff: SUN_BIAS_HEIGHT_FALLOFF,
   envIntensity: ENV_INTENSITY,
-  // A sunset is bright and broad-spectrum; it lights a metal on its own.
-  envLift: 0,
   hemiSky: HEMI_SKY_COLOR,
   hemiGround: HEMI_GROUND_COLOR,
   hemiIntensity: HEMI_INTENSITY,

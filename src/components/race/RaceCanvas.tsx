@@ -1,6 +1,7 @@
 "use client";
 
 import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
@@ -145,12 +146,18 @@ export default function RaceCanvas({ code }: { code: string }) {
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.05;
 
-          // Nothing to set here any more. Both sky components own the
-          // background, the fog and the environment, and generate the last of
-          // those from the same gradient the dome paints so the two cannot
-          // disagree. RoomEnvironment — a neutral grey box — used to fill in
-          // when there was no sky; there is always a sky now, and a grey box
-          // is exactly wrong under a black one.
+          // The sky owns the background and the fog. It does NOT own the
+          // environment probe, and that division is the whole lesson of the
+          // night look: a probe generated from the visible dome is elegant and
+          // renders every `metal` surface black, because metalness 1.0 means
+          // the probe is the only thing lighting it and a night sky carries
+          // about a fiftieth of the light a grey room does. So RoomEnvironment
+          // stays, under every sky, and the world is lit the way it was built.
+          const pmrem = new THREE.PMREMGenerator(gl);
+          scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+          scene.environmentIntensity = 0.4;
+          pmrem.dispose();
+          if (!MAP_V2) scene.background = new THREE.Color("#14171a");
 
           setPainted(true);
         }}

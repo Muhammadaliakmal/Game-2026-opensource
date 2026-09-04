@@ -30,21 +30,8 @@ import {
 const BLOCK: Shape = 0;
 
 // Palette indices (see PALETTE in worlddoc.ts).
-/**
- * The racing surface.
- *
- * These were 4 and 5 — #1e293b and #0f172a, the two darkest slates in the
- * palette. Under the old studio lighting that was already borderline (a top
- * face renders about #152544, which is a road you infer from its kerbs rather
- * than see), and under a night sky it was a black hole with a horizon over it.
- *
- * One step up each. The road is still unmistakably asphalt and still the
- * darkest large surface on screen — it just now has enough value to hold the
- * lane dashes and to show which way the camber runs. `scripts/light-check.mts`
- * is what says whether that is still true after any change here.
- */
-const ASPHALT = 3;
-const ASPHALT_DARK = 4;
+const ASPHALT = 4;
+const ASPHALT_DARK = 5;
 const KERB_A = 31;
 const KERB_B = 11;
 const RAIL = 18;

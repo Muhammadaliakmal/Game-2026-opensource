@@ -104,61 +104,67 @@ lock rather than a mercy.
 
 ## The sky
 
-Play and Race run **night**: a dark-blue-to-black dome, a starfield and a moon.
-Every number is a `SkyLook` in `lib/atmosphere.ts` (`NIGHT_LOOK`), which carries
-the gradient AND the fog AND the light colours together, so they cannot be
-edited apart — the world-edge seam happens when the fog colour and the horizon
-stop drift, and there is only one value for both.
+Play and Race run **night**: a dark-blue-to-black dome, a starfield, a moon and
+fog the colour of the horizon. `NIGHT_LOOK` in `lib/atmosphere.ts` carries the
+gradient and the fog together so they cannot be edited apart — the world-edge
+seam appears the moment the fog colour and the horizon stop drift, and there is
+only one value for both.
+
+**The night is the background and nothing else. It does not light the world.**
+
+That sentence took three attempts to arrive at, so it is worth stating as a
+rule: `NIGHT_LOOK`'s light values are the editor's studio rig, value for value,
+and both canvases keep the `RoomEnvironment` probe they have always had. The
+moon is placed at 50° / 32°, which is exactly where `FollowSun`'s
+`DEFAULT_OFFSET` already pointed, so the shadows fall where they always fell
+*and* where the visible moon says they should.
+
+The reason is not conservatism. Every course, every palette colour and the bike
+were authored under that rig, so a different rig renders them as different
+colours — and in a game whose entire subject is the colours somebody placed
+block by block, that is the content, not the mood. A night scene on film works
+the same way: the background tells you the time of day, the subject stays the
+colour it is.
 
 - The sunset (`SUNSET_LOOK`, `SunsetSky`) is still complete and still selected
-  by `NEXT_PUBLIC_MAP_V2=1`. It was kept rather than deleted: nothing about it
-  is wrong, it simply is not how a neon world wants to be lit.
-- Build mode keeps its neutral studio fill. A black sky is right for playing
-  and wrong for judging a colour you are placing.
+  by `NEXT_PUBLIC_MAP_V2=1`. It *does* generate its environment from its own
+  dome, which is the right call there — the reflections and the visible sky
+  cannot drift apart because they are the same numbers.
+- Build mode keeps the neutral studio background. A black sky is right for
+  playing and wrong for judging a colour you are placing.
 - The raw gradient data is in `lib/sky-stops.ts`, which imports nothing.
   `atmosphere.ts` re-exports it. Server components (the mode covers) read the
   stops from there — importing them from `atmosphere.ts` would pull the whole
   of three.js into the server bundle to render an SVG gradient.
 
-**Lighting a night scene is arithmetic, so check it with arithmetic.**
-`npm run light:check` prints what every finish and palette colour actually
-resolves to under each look — hemisphere irradiance, a Lambert key, the
-environment term for metals, then ACES and the sRGB transfer — with the
-editor's studio lighting alongside as the reference. Run it after touching any
-light colour, intensity or `envIntensity`.
+### Three ways this went wrong, and the check that catches them
 
-The first night pass shipped a world nobody could see, and the mistake was
-readable off those numbers: `hemiIntensity` went from 1.15 to 0.9, which looked
-like "a little dimmer", while the sky colour went from #c8d2dd to #4a5da8 —
-about a sixth as much light once both are linear. The product was a SEVENTH of
-the editor's fill, not four fifths. **Nearly all of a light's output is in its
-colour; the intensity is the small half of the decision.**
+`npm run light:check` walks the same maths three does — hemisphere irradiance,
+a Lambert key, the environment term for metals, then ACES and the sRGB transfer
+— and prints the resolved hex for every finish and palette colour under each
+look, with the editor's studio alongside. **Run it after touching any light
+colour, intensity, `envIntensity` or moon angle.** It should read ~100%.
 
-Three other traps the check exists to catch:
-
-- `metal` is metalness 1.0, so the environment probe is the ONLY thing lighting
-  it. A night sky averages ~0.006 linear against RoomEnvironment's ~0.35 — and
-  it is eight times as much blue as red, so a probe built from it alone paints
-  every chrome surface blue whatever colour it actually is. `NIGHT_LOOK.envLift`
-  adds a neutral floor to the probe (and only the probe, never the visible
-  dome) so a metal shows its own colour.
-- **The light must not repaint the world.** The first fix for the darkness
-  over-corrected into a strongly blue fill, which lit everything correctly and
-  made all of it blue. A voxel game's entire subject is the colours a player
-  chose block by block; a light that turns an acid green pad indigo has taken
-  the content away. The night comes from the sky — black dome, stars, moon, fog
-  and one hard low key — and the fill stays near-neutral. The check prints the
-  resolved hex next to the studio's so a cast is visible as a number.
-- The moon sits at 32° where the studio key sits at ~51°, so a flat top face
-  catches `sin(32)` of it against `sin(51)`: two thirds of the light for the
-  same intensity number. `keyIntensity` pays that back. The low angle is what
-  buys the long shadows, so it is worth paying for.
+1. **Nearly all of a light's output is in its colour.** `hemiIntensity` went
+   1.15 → 0.9, which reads as "a little dimmer", while the sky colour went
+   #c8d2dd → #4a5da8 — about a sixth as much light once both are linear. The
+   product was a *seventh* of the editor's fill. Everything not facing the moon
+   went black.
+2. **`metal` is lit by the environment and by nothing else.** metalness 1.0
+   means the probe is the only contributor, and a night sky carries roughly a
+   fiftieth of the light a grey room does. A probe generated from the night
+   dome rendered every chrome rail on Neon Circuit pure black — which is what
+   "the track is invisible" was. Hence RoomEnvironment, under every sky.
+3. **The light must not repaint the world.** Correcting (1) with a strongly
+   blue fill lit everything correctly and made all of it blue. The check prints
+   the resolved hex beside the studio's precisely so a colour cast shows up as
+   a number rather than as a feeling.
 
 The bar is a **ratio, not a floor**: no surface may fall below 75% of what the
-editor's studio lighting gives it. An absolute floor was tried first and was
-wrong — a metal rail in indigo renders that dark under the studio too, so the
-test failed surfaces that had never been brighter. A test the code has never
-passed is not a test.
+studio gives it. An absolute floor was tried first and was wrong — a metal rail
+in indigo renders that dark under the studio too, so the test failed surfaces
+that had never been brighter than that. A test the code has never passed is not
+a test.
 
 Two things about the sky layers that are easy to get wrong:
 

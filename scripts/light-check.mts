@@ -81,7 +81,7 @@ function hemi(sky: string, ground: string, intensity: number, ny: number): V3 {
  * for — the lower half of the sphere sees the ramp's own horizon value, since
  * the dome is a full sphere and the ramp clamps below y=0.
  */
-function envAverage(stops: typeof NIGHT_LOOK.stops, lift = 0): V3 {
+function envAverage(stops: typeof NIGHT_LOOK.stops): V3 {
   const out: V3 = [0, 0, 0];
   const N = 64;
   const c = new THREE.Color();
@@ -95,9 +95,9 @@ function envAverage(stops: typeof NIGHT_LOOK.stops, lift = 0): V3 {
   // Half the sphere is below the horizon and sits at the clamped bottom stop.
   sampleRamp(0, c, stops);
   return [
-    (out[0] / N + c.r) / 2 + lift,
-    (out[1] / N + c.g) / 2 + lift,
-    (out[2] / N + c.b) / 2 + lift,
+    (out[0] / N + c.r) / 2,
+    (out[1] / N + c.g) / 2,
+    (out[2] / N + c.b) / 2,
   ];
 }
 
@@ -137,7 +137,10 @@ const NIGHT: Look = {
   keyIntensity: NIGHT_LOOK.keyIntensity,
   keyDir: moonDirection().normalize(),
   envIntensity: NIGHT_LOOK.envIntensity,
-  envAvg: envAverage(NIGHT_LOOK.stops, NIGHT_LOOK.envLift),
+  // The night canvases keep RoomEnvironment — the same grey box the editor
+  // has always used. A probe built from the night dome is what rendered every
+  // metal surface black; see NIGHT_LOOK.
+  envAvg: [0.35, 0.35, 0.35],
 };
 
 const SUNSET: Look = {
@@ -149,7 +152,7 @@ const SUNSET: Look = {
   keyIntensity: SUNSET_LOOK.keyIntensity,
   keyDir: new THREE.Vector3(0.98, 0.12, 0.14).normalize(),
   envIntensity: SUNSET_LOOK.envIntensity,
-  envAvg: envAverage(SUNSET_LOOK.stops, SUNSET_LOOK.envLift),
+  envAvg: envAverage(SUNSET_LOOK.stops),
 };
 
 /**
@@ -197,8 +200,8 @@ const FINISHES = ["matte", "glossy", "metal", "emissive"];
 const CASES: { what: string; color: number; finish: number }[] = [
   // The two the road alternates between, per circuit.ts. Keep these in step
   // with ASPHALT / ASPHALT_DARK there — they are the whole reason this exists.
-  { what: "road (dark band)", color: 4, finish: 0 },
-  { what: "road (light band)", color: 3, finish: 0 },
+  { what: "road (dark band)", color: 5, finish: 0 },
+  { what: "road (light band)", color: 4, finish: 0 },
   { what: "rail (metal)", color: 18, finish: 2 },
   { what: "kerb (glossy)", color: 11, finish: 1 },
   { what: "parkour pad (indigo)", color: 18, finish: 0 },
