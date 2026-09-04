@@ -43,6 +43,7 @@ const RAMP_GLSL = /* glsl */ `
   uniform float uBiasFalloff;
   uniform float uBiasHeightFalloff;
   uniform vec3 uBiasColor;
+  uniform float uEnvLift;
 
   varying vec3 vDir;
 
@@ -98,7 +99,17 @@ export function skyFragmentShader(display: boolean): string {
       #include <tonemapping_fragment>
       #include <colorspace_fragment>`
           : `
-      // Deliberately raw linear — see the header. No tone mapping here.`
+      // Deliberately raw linear — see the header. No tone mapping here.
+      //
+      // Plus a neutral floor, which the visible dome does not get. A night sky
+      // is about two orders of magnitude darker than a daylight probe AND it
+      // is overwhelmingly blue — eight times as much blue as red. Lit only by
+      // that, a \`metal\` surface (metalness 1.0, so the probe is the only
+      // thing lighting it at all) is either black or blue, and never its own
+      // colour. The lift is the ambient a real night scene gets from every
+      // surface bouncing light at every other one, which a single dome cannot
+      // represent, and it is what lets a cyan bike read as cyan.
+      gl_FragColor.rgb += vec3(uEnvLift);`
       }
     }
   `;
@@ -112,6 +123,8 @@ export interface SkyUniforms {
   uBiasFalloff: { value: number };
   uBiasHeightFalloff: { value: number };
   uBiasColor: { value: THREE.Color };
+  /** Neutral linear radiance added to the ENVIRONMENT variant only. */
+  uEnvLift: { value: number };
 }
 
 /**
@@ -131,6 +144,7 @@ export function makeSkyUniforms(look: SkyLook = SUNSET_LOOK): SkyUniforms {
     // than as a shift toward one of the ramp's own colours. Warm for the sun,
     // cool for the moon.
     uBiasColor: { value: new THREE.Color(look.biasColor) },
+    uEnvLift: { value: look.envLift },
   };
 }
 

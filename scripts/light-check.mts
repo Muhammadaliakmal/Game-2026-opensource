@@ -81,7 +81,7 @@ function hemi(sky: string, ground: string, intensity: number, ny: number): V3 {
  * for — the lower half of the sphere sees the ramp's own horizon value, since
  * the dome is a full sphere and the ramp clamps below y=0.
  */
-function envAverage(stops: typeof NIGHT_LOOK.stops): V3 {
+function envAverage(stops: typeof NIGHT_LOOK.stops, lift = 0): V3 {
   const out: V3 = [0, 0, 0];
   const N = 64;
   const c = new THREE.Color();
@@ -95,9 +95,9 @@ function envAverage(stops: typeof NIGHT_LOOK.stops): V3 {
   // Half the sphere is below the horizon and sits at the clamped bottom stop.
   sampleRamp(0, c, stops);
   return [
-    (out[0] / N + c.r) / 2,
-    (out[1] / N + c.g) / 2,
-    (out[2] / N + c.b) / 2,
+    (out[0] / N + c.r) / 2 + lift,
+    (out[1] / N + c.g) / 2 + lift,
+    (out[2] / N + c.b) / 2 + lift,
   ];
 }
 
@@ -137,7 +137,7 @@ const NIGHT: Look = {
   keyIntensity: NIGHT_LOOK.keyIntensity,
   keyDir: moonDirection().normalize(),
   envIntensity: NIGHT_LOOK.envIntensity,
-  envAvg: envAverage(NIGHT_LOOK.stops),
+  envAvg: envAverage(NIGHT_LOOK.stops, NIGHT_LOOK.envLift),
 };
 
 const SUNSET: Look = {
@@ -149,7 +149,7 @@ const SUNSET: Look = {
   keyIntensity: SUNSET_LOOK.keyIntensity,
   keyDir: new THREE.Vector3(0.98, 0.12, 0.14).normalize(),
   envIntensity: SUNSET_LOOK.envIntensity,
-  envAvg: envAverage(SUNSET_LOOK.stops),
+  envAvg: envAverage(SUNSET_LOOK.stops, SUNSET_LOOK.envLift),
 };
 
 /**
@@ -274,42 +274,58 @@ for (const normal of [
 }
 
 /**
- * The one number worth failing on.
+ * The bar, and why it is a ratio rather than a number.
  *
- * A surface below this is not "moody", it is gone: the edge of a platform
- * cannot be told from the void behind it, which on a parkour course is a
- * difficulty nobody chose. 0.02 is about where an 8-bit sRGB value stops being
- * distinguishable from black on an ordinary screen in a lit room.
+ * The first version of this failed on an absolute luma floor, which sounded
+ * principled and was not: a `metal` rail in indigo renders about as dark under
+ * the EDITOR's own studio lighting, so the floor was failing surfaces that had
+ * never been brighter than that in the first place. A test that the code has
+ * never passed is not a test, it is a warning you learn to scroll past.
  *
- * Judged on the TOP face only. A vertical wall facing away from the moon is
- * meant to be near black — that is what a directional key light is for — and
- * failing on it would be failing on the look working.
+ * The real requirement is a regression check. The editor's lighting is what
+ * every one of these surfaces was authored against and is the look a player has
+ * already seen; night is allowed to be moodier than it, and is not allowed to
+ * be meaningfully worse at showing you where the floor is. So: no surface may
+ * fall below this fraction of what the studio gives it.
  */
-const FLOOR = 0.02;
+const MIN_OF_STUDIO = 0.75;
 
-/**
- * The road's dark band is exempt, and only the dark band.
- *
- * The racing surface alternates two slates to give the camber something to
- * read against. The dark one is not a surface you look at on its own; it is
- * the shadow half of a pattern whose light half is checked like everything
- * else. Exempting the pair would hide a black road, so the light band carries
- * the test.
- */
-const EXEMPT = new Set(["road (dark band)"]);
+interface Row {
+  what: string;
+  night: number;
+  build: number;
+}
 
-const judged = CASES.filter((c) => !EXEMPT.has(c.what)).map((c) => ({
+const rows: Row[] = CASES.map((c) => ({
   what: c.what,
-  l: luma(shade(NIGHT, c.color, c.finish, UP)),
+  night: luma(shade(NIGHT, c.color, c.finish, UP)),
+  build: luma(shade(BUILD, c.color, c.finish, UP)),
 }));
-judged.push({ what: "bike paint", l: luma(shadeBike(NIGHT, UP)) });
-judged.sort((a, b) => a.l - b.l);
+rows.push({
+  what: "bike paint",
+  night: luma(shadeBike(NIGHT, UP)),
+  build: luma(shadeBike(BUILD, UP)),
+});
 
-const worst = judged[0];
-const ok = worst.l >= FLOOR;
 console.log(
-  `
-Darkest lit night surface: ${worst.what} at L${worst.l.toFixed(3)} ` +
-    `(floor ${FLOOR}) — ${ok ? "OK" : "TOO DARK"}`
+  "\n── night as a fraction of the editor's studio (top face) ──────"
+);
+let worst = { what: "", ratio: Infinity };
+for (const r of rows) {
+  // A surface both looks render as effectively black carries no information
+  // either way; the road's dark band is there to be dark.
+  const ratio = r.build < 0.005 ? 1 : r.night / r.build;
+  if (ratio < worst.ratio) worst = { what: r.what, ratio };
+  const flag = ratio < MIN_OF_STUDIO ? "  <-- below bar" : "";
+  console.log(
+    `  ${r.what.padEnd(24)} ${(ratio * 100).toFixed(0).padStart(3)}%` +
+      `   (night L${r.night.toFixed(3)}, studio L${r.build.toFixed(3)})${flag}`
+  );
+}
+
+const ok = worst.ratio >= MIN_OF_STUDIO;
+console.log(
+  `\nWorst: ${worst.what} at ${(worst.ratio * 100).toFixed(0)}% of studio ` +
+    `(bar ${MIN_OF_STUDIO * 100}%) — ${ok ? "OK" : "TOO DARK"}`
 );
 if (!ok) process.exitCode = 1;

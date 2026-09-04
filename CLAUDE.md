@@ -134,15 +134,31 @@ about a sixth as much light once both are linear. The product was a SEVENTH of
 the editor's fill, not four fifths. **Nearly all of a light's output is in its
 colour; the intensity is the small half of the decision.**
 
-Two other traps the check exists to catch:
+Three other traps the check exists to catch:
 
 - `metal` is metalness 1.0, so the environment probe is the ONLY thing lighting
-  it. A night sky averages ~0.006 linear against RoomEnvironment's ~0.35, so a
-  night probe at daylight `envIntensity` renders every chrome rail pure black.
-  `NIGHT_LOOK.envIntensity` is 20 for that reason and no other.
-- What reads as night is a cool, strongly directional key over a genuinely dark
-  *sky*, not a dark *world*. Real moonlight is unplayable. The sky is what
-  makes it night; the fill is what makes it a game.
+  it. A night sky averages ~0.006 linear against RoomEnvironment's ~0.35 — and
+  it is eight times as much blue as red, so a probe built from it alone paints
+  every chrome surface blue whatever colour it actually is. `NIGHT_LOOK.envLift`
+  adds a neutral floor to the probe (and only the probe, never the visible
+  dome) so a metal shows its own colour.
+- **The light must not repaint the world.** The first fix for the darkness
+  over-corrected into a strongly blue fill, which lit everything correctly and
+  made all of it blue. A voxel game's entire subject is the colours a player
+  chose block by block; a light that turns an acid green pad indigo has taken
+  the content away. The night comes from the sky — black dome, stars, moon, fog
+  and one hard low key — and the fill stays near-neutral. The check prints the
+  resolved hex next to the studio's so a cast is visible as a number.
+- The moon sits at 32° where the studio key sits at ~51°, so a flat top face
+  catches `sin(32)` of it against `sin(51)`: two thirds of the light for the
+  same intensity number. `keyIntensity` pays that back. The low angle is what
+  buys the long shadows, so it is worth paying for.
+
+The bar is a **ratio, not a floor**: no surface may fall below 75% of what the
+editor's studio lighting gives it. An absolute floor was tried first and was
+wrong — a metal rail in indigo renders that dark under the studio too, so the
+test failed surfaces that had never been brighter. A test the code has never
+passed is not a test.
 
 Two things about the sky layers that are easy to get wrong:
 

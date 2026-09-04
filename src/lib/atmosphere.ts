@@ -347,6 +347,15 @@ export interface SkyLook {
   biasHeightFalloff: number;
   /** How much the generated environment map contributes. */
   envIntensity: number;
+  /**
+   * Neutral linear radiance added to the environment probe, and only to the
+   * probe — never to the dome you look at.
+   *
+   * Zero for a daylight sky, which is bright and broad-spectrum enough to
+   * light a metal on its own. Non-zero at night, where the sky is both very
+   * dark and very blue: see the environment branch in `sky-shader.ts`.
+   */
+  envLift: number;
   /** Fill light: sky above, ground below. */
   hemiSky: string;
   hemiGround: string;
@@ -458,24 +467,23 @@ export const NIGHT_LOOK: SkyLook = {
   biasFalloff: 3.2,
   biasHeightFalloff: 0.7,
   /**
-   * Far above the sunset's 0.8, and it has to be.
-   *
-   * `environmentIntensity` scales a probe generated from the ramp above, and
-   * that ramp averages somewhere near 0.006 in linear light — roughly two
-   * orders of magnitude under the grey RoomEnvironment box the canvases used
-   * before. For most surfaces that would not matter much. For the `metal`
-   * finish it is everything: metalness 1.0 means the environment is the ONLY
-   * thing lighting it, so a night probe at sunset intensities renders every
-   * chrome rail on Neon Circuit as pure black — which is exactly what
-   * happened, and is why the track looked like it was missing.
-   *
-   * Tuned against `scripts/light-check.mts`, which prints what each finish
-   * actually resolves to: this lands the chrome rails on Neon Circuit a little
-   * ABOVE where the old studio probe had them, which is the bar — a night look
-   * that made the track harder to see than the editor did would not be a look,
-   * it would be a regression with a mood.
+   * With `envLift` doing the work the ramp cannot, this is back to a sane
+   * multiplier rather than the 20 it needed when the probe was raw night sky.
+   * Tuned against `scripts/light-check.mts` to land the probe near the energy
+   * RoomEnvironment gave the editor at 0.4 — the bar being that a night look
+   * must not make the track harder to see than the editor does.
    */
-  envIntensity: 20,
+  envIntensity: 1.6,
+  /**
+   * Enough neutral radiance that a metal shows its own colour.
+   *
+   * The raw night ramp is about eight times as much blue as red, so a probe
+   * built from it alone paints every chrome surface blue whatever colour it
+   * actually is. This is the ambient a real night scene gets from every
+   * surface bouncing light at every other one, which one dome cannot
+   * represent — and it is what lets a cyan bike read as cyan.
+   */
+  envLift: 0.1,
   /**
    * The fill, and the number this whole look lives or dies by.
    *
@@ -489,20 +497,34 @@ export const NIGHT_LOOK: SkyLook = {
    * surface not facing the moon went black, and a matte platform is almost
    * entirely diffuse fill.
    *
-   * ── Day-for-night ──────────────────────────────────────────────────────
+   * ── Day-for-night, and why the light is NOT very blue ──────────────
    *
-   * So this is now a touch brighter than the editor's studio fill in blue and
-   * a little dimmer in red, which is the cheat every night scene ever shot has
-   * used: real moonlight is unplayably dark, and what reads as night is a
-   * cool, strongly directional key over a genuinely dark sky — not a dark
-   * world. The sky above is what makes it night. This is what makes it a game.
+   * The first attempt at fixing the darkness over-corrected into the other
+   * classic mistake: a strongly blue fill (#8ea4e8) that lit everything
+   * correctly and made all of it blue. A voxel world's whole subject is the
+   * colours a player chose block by block, and a light that repaints an acid
+   * green pad in indigo has taken the game's only real content away.
+   *
+   * So the fill is near-neutral — a shade cooler and a shade dimmer than the
+   * editor's studio — and the night comes from the sky instead: a black dome,
+   * stars, a moon, fog, and one hard directional key throwing long shadows.
+   * That is what every night scene ever shot actually does. The world stays
+   * the colour it is; the BACKGROUND is what tells you the time of day.
    */
-  hemiSky: "#8ea4e8",
-  hemiGround: "#2b3350",
-  hemiIntensity: 1.45,
-  /** The moon, and it is allowed to be bright. See day-for-night above. */
-  keyColor: "#dce6ff",
-  keyIntensity: 2.6,
+  hemiSky: "#bcc8de",
+  hemiGround: "#2a2f3d",
+  hemiIntensity: 1.2,
+  /**
+   * Moonlight: white, with just enough blue in it to not be a lamp.
+   *
+   * Brighter than the editor's 1.8 and not because night should be brighter —
+   * because the moon sits at 32 degrees and the studio key sits at about 51,
+   * so a flat top face catches `sin(32)` of this against `sin(51)` of that.
+   * Two thirds of the light for the same number. This pays that back, and the
+   * low angle is what buys the long shadows that make it read as night.
+   */
+  keyColor: "#e8eeff",
+  keyIntensity: 2.9,
   /**
    * Further out than the sunset's 130 because the moon is 32 degrees up rather
    * than 7, and the shadow camera's far plane is derived from this.
@@ -521,6 +543,8 @@ export const SUNSET_LOOK: SkyLook = {
   biasFalloff: SUN_BIAS_FALLOFF,
   biasHeightFalloff: SUN_BIAS_HEIGHT_FALLOFF,
   envIntensity: ENV_INTENSITY,
+  // A sunset is bright and broad-spectrum; it lights a metal on its own.
+  envLift: 0,
   hemiSky: HEMI_SKY_COLOR,
   hemiGround: HEMI_GROUND_COLOR,
   hemiIntensity: HEMI_INTENSITY,
