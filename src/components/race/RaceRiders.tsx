@@ -65,7 +65,7 @@ function RivalBike({ id }: { id: string }) {
       {/* A DOM label rather than 3D text, for the same reason Peers gives:
           troika would fetch a font over the network on first render. */}
       <Html center position={[0, 1.5, 0]} distanceFactor={14} zIndexRange={[10, 0]}>
-        <span className="hud-label bg-steel-900/80 rounded px-1.5 py-0.5 whitespace-nowrap text-white/90">
+        <span className="hud-label bg-base/80 rounded px-1.5 py-0.5 whitespace-nowrap text-white/90">
           {label}
         </span>
       </Html>

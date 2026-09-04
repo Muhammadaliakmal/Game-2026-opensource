@@ -10,8 +10,8 @@ import dynamic from "next/dynamic";
 const ArenaCanvas = dynamic(() => import("./ArenaCanvas"), {
   ssr: false,
   loading: () => (
-    <div className="bg-steel-900 flex min-h-0 flex-1 flex-col items-center justify-center gap-4">
-      <span className="border-signal h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
+    <div className="bg-base flex min-h-0 flex-1 flex-col items-center justify-center gap-4">
+      <span className="border-accent h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
       <span className="hud-label">Loading match</span>
     </div>
   ),

@@ -77,7 +77,7 @@ function PeerAvatar({ id }: { id: string }) {
           network on first render, and a name tag is not worth a request that
           can fail. */}
       <Html center position={[0, 1.15, 0]} distanceFactor={12} zIndexRange={[10, 0]}>
-        <span className="hud-label bg-steel-900/80 rounded px-1.5 py-0.5 whitespace-nowrap text-white/90">
+        <span className="hud-label bg-base/80 rounded px-1.5 py-0.5 whitespace-nowrap text-white/90">
           {label}
         </span>
       </Html>

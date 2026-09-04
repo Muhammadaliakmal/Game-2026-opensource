@@ -19,6 +19,10 @@ import { BikeModel, bikeColor } from "./BikeModel";
 import { Rider } from "./Rider";
 import type { RaceControl } from "./controls";
 import { raceTouch } from "./race-touch";
+import { raceTelemetry, resetTelemetry } from "./telemetry";
+import { CAMERA_MODES, raceCamera, cycleRaceCamera } from "./race-camera";
+import { bound } from "@/lib/keybinds";
+import { assistSteer } from "@/lib/race-assist";
 
 /**
  * The player's bike.
@@ -88,14 +92,53 @@ const MAX_YAW_RATE = 1.9;
 const STEER_FULL_SPEED = 4.5;
 
 /**
+ * ── Boost ────────────────────────────────────────────────────────────────
+ *
+ * Earned, not granted. The tank fills while drifting and trickles in slowly
+ * otherwise, so the fast way round the track is the one that asks something of
+ * the rider — which is the whole difference between a racing game and holding
+ * a key down. The slow trickle exists so a rider who has not learned to drift
+ * yet is never locked out of the verb entirely.
+ *
+ * Explicitly NOT a wait-or-pay meter (SPEC §1): it refills by playing, it
+ * cannot be bought, and running dry costs a few seconds rather than a turn.
+ */
+const BOOST_TOP_SPEED = 26;
+const BOOST_ACCEL = 26;
+/** Tank per second while held, so a full tank is a ~1.8 s shove. */
+const BOOST_DRAIN = 0.55;
+/** Tank per second, always. A full tank from nothing takes ~22 s of riding. */
+const BOOST_TRICKLE = 0.045;
+/** Tank per second at full lock in a drift — about 2.4 s for a full one. */
+const DRIFT_CHARGE_RATE = 0.42;
+
+/**
+ * ── Drift ────────────────────────────────────────────────────────────────
+ *
+ * The bike has no tyre model to lose grip with — velocity is set along the
+ * heading every frame, which is what makes it stable. So a drift is the one
+ * place the two are allowed to disagree: `heading` (where the bike points)
+ * yaws faster, and `course` (where it actually travels) chases the heading
+ * instead of matching it. The gap between them IS the slide, and because both
+ * are angles integrated from finite numbers, nothing here can diverge.
+ */
+const DRIFT_MIN_SPEED = 6;
+/** Extra yaw authority while sliding — the reason a drift turns tighter. */
+const DRIFT_YAW_BONUS = 1.75;
+/** Radians per second the course chases the heading while drifting. */
+const DRIFT_GRIP = 3.2;
+/** And once the drift ends. High enough that the recovery is not a wobble. */
+const GRIP_RECOVER = 9;
+/** Speed scrubbed per second while sliding. A drift costs something. */
+const DRIFT_SCRUB = 2;
+
+/**
  * Ride height. The racing surface tops out at y = 1, and the collider's
  * half-height puts the body origin this far above whatever it rests on.
  */
 const HALF_HEIGHT = 0.3;
 
-/** Chase camera: behind and above, easing toward wherever the bike points. */
-const CAM_BACK = 6.5;
-const CAM_HEIGHT = 2.6;
+/** How fast the eye eases toward where the camera wants to be. */
 const CAM_LAG = 0.06;
 
 /**
@@ -143,6 +186,17 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
   const speed = useRef(0);
   /** Heading, integrated from steering rather than read back from physics. */
   const heading = useRef(GRID_YAW);
+  /**
+   * Direction of travel. Equal to the heading except mid-drift, where it lags
+   * behind it — see the drift constants above.
+   */
+  const course = useRef(GRID_YAW);
+  /** Boost in the tank, 0..1, and the charge this drift has not banked yet. */
+  const boost = useRef(0);
+  const charge = useRef(0);
+  const wasDrifting = useRef(false);
+  const wasLookingBack = useRef(false);
+  const camMode = useRef(raceCamera.mode);
 
   const quat = useRef(new THREE.Quaternion());
   const eye = useRef(new THREE.Vector3());
@@ -160,9 +214,58 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     b.setLinvel({ x: 0, y: 0, z: 0 }, true);
     b.setAngvel({ x: 0, y: 0, z: 0 }, true);
     heading.current = pose.yaw;
+    course.current = pose.yaw;
     speed.current = 0;
+    // A recovered bike keeps its tank — losing it would punish a rider twice
+    // for one mistake — but an unbanked drift charge dies with the drift.
+    charge.current = 0;
     primed.current = false;
   };
+
+  /**
+   * The two riding verbs that are events rather than states.
+   *
+   * They cannot be `KeyboardControls` entries for the reason `lib/keybinds.ts`
+   * gives: an entry is a boolean you poll, so polling a toggle re-fires it
+   * every frame the key is held. Bound on `window`, and read through `bound()`
+   * so a rebind applies without a remount.
+   */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      ) {
+        return;
+      }
+      if (bound("ride", "cameraCycle", e.code)) {
+        camMode.current = cycleRaceCamera();
+        primed.current = false; // cut to the new view rather than sweeping to it
+      } else if (bound("ride", "respawn", e.code)) {
+        const b = body.current;
+        const back = safe.current ?? home.current;
+        if (b && back) place(b, back);
+      } else {
+        return;
+      }
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // `place`, `safe` and `home` are refs and stable; nothing here re-binds.
+  }, []);
+
+  // A fresh bike starts with an empty tank and a still speedometer, rather
+  // than whatever the last race left in the module object.
+  useEffect(() => {
+    resetTelemetry();
+    boost.current = 0;
+    charge.current = 0;
+  }, []);
 
   /**
    * Set once if the loop ever throws, so a fault is reported instead of
@@ -215,52 +318,146 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       const braking = Boolean(k.brake) || raceTouch.brake;
 
       const keySteer = (k.steerRight ? 1 : 0) - (k.steerLeft ? 1 : 0);
+      // Keys win, then the analogue touch schemes (tilt and assist write
+      // `raceTouch.steer` directly), then the on-screen stick. Ordered rather
+      // than summed: two sources fighting over a wheel is how a bike ends up
+      // steering at half lock with the stick hard over.
       const rawSteer =
-        keySteer !== 0 ? keySteer : THREE.MathUtils.clamp(stick?.x ?? 0, -1, 1);
-      steer.current = armed ? rawSteer : 0;
+        keySteer !== 0
+          ? keySteer
+          : raceTouch.steer !== 0
+            ? THREE.MathUtils.clamp(raceTouch.steer, -1, 1)
+            : THREE.MathUtils.clamp(stick?.x ?? 0, -1, 1);
+
+      /**
+       * Assisted steering, on the touch scheme that asks for it.
+       *
+       * The rider's input is not blended with the assist, it *displaces* it:
+       * the assist gets whatever authority the thumb is not currently using.
+       * A rider holding full lock is steering the bike, full stop — an assist
+       * that argues with a deliberate input is the thing that makes assisted
+       * modes feel like driving through treacle.
+       */
+      const assisted =
+        raceTouch.assist && armed
+          ? assistSteer(view.current.x, view.current.z, heading.current)
+          : 0;
+      const steered =
+        rawSteer + assisted * (1 - Math.min(1, Math.abs(rawSteer)));
+      steer.current = armed ? THREE.MathUtils.clamp(steered, -1, 1) : 0;
+
+      const lookingBack = Boolean(k.lookBack) || raceTouch.lookBack;
+      // A drift needs a direction to slide in and speed to slide with: held
+      // with the bike straight and slow it does nothing, which is what stops
+      // it becoming a second handbrake.
+      const drifting =
+        armed &&
+        (Boolean(k.drift) || raceTouch.drift) &&
+        speed.current > DRIFT_MIN_SPEED &&
+        Math.abs(steer.current) > 0.15;
+      const boosting =
+        armed && (Boolean(k.boost) || raceTouch.boost) && boost.current > 0;
+
+      // ── Boost tank ──────────────────────────────────────────────────────
+      if (drifting) {
+        charge.current = Math.min(
+          1,
+          charge.current + DRIFT_CHARGE_RATE * Math.abs(steer.current) * step
+        );
+      } else if (wasDrifting.current) {
+        // Banked on release, Mario-Kart style: the reward arrives when the
+        // slide is finished and pointing somewhere, not while it is happening.
+        boost.current = Math.min(1, boost.current + charge.current);
+        charge.current = 0;
+      }
+      wasDrifting.current = drifting;
+
+      if (boosting) {
+        boost.current = Math.max(0, boost.current - BOOST_DRAIN * step);
+      } else if (armed) {
+        boost.current = Math.min(1, boost.current + BOOST_TRICKLE * step);
+      }
 
       // ── Motion ──────────────────────────────────────────────────────────
+      const topSpeed = boosting ? BOOST_TOP_SPEED : MAX_SPEED;
       let v = speed.current;
       if (braking) {
         // Pulls toward zero from whichever side it is on, and stops there
         // rather than reversing straight through it.
         v -= Math.sign(v) * BRAKE_DECEL * step;
         if (Math.abs(v) < BRAKE_DECEL * step) v = 0;
+      } else if (boosting) {
+        // Boost overrides the throttle rather than requiring it: reaching for
+        // a second key to make the first one work is not a skill.
+        v = Math.min(BOOST_TOP_SPEED, v + BOOST_ACCEL * step);
       } else if (throttle) {
-        v = Math.min(MAX_SPEED, v + ACCEL * step);
+        // Above the normal top speed — coasting out of a boost — the limiter
+        // eases the bike down instead of clamping it, so the shove decays.
+        v =
+          v > MAX_SPEED
+            ? Math.max(MAX_SPEED, v - COAST_DECEL * step)
+            : Math.min(MAX_SPEED, v + ACCEL * step);
       } else if (reverse) {
         v = Math.max(-MAX_REVERSE, v - ACCEL * step);
       } else {
         v -= Math.sign(v) * COAST_DECEL * step;
         if (Math.abs(v) < COAST_DECEL * step) v = 0;
       }
+      if (drifting) v = Math.max(0, v - DRIFT_SCRUB * step);
       speed.current = Number.isFinite(v) ? v : 0;
 
       // Steering authority rises with speed, and inverts in reverse — which is
       // what makes backing off a wall behave the way a rider expects.
       const authority = Math.min(1, Math.abs(speed.current) / STEER_FULL_SPEED);
       const yawRate =
-        steer.current * MAX_YAW_RATE * authority * (speed.current < 0 ? -1 : 1);
+        steer.current *
+        MAX_YAW_RATE *
+        (drifting ? DRIFT_YAW_BONUS : 1) *
+        authority *
+        (speed.current < 0 ? -1 : 1);
       heading.current -= yawRate * step;
+
+      // The course chases the heading. Slowly mid-drift, which is the slide;
+      // fast otherwise, which is a bike that goes where it points. Both use
+      // the same frame-rate-independent approach so the slide is the same
+      // shape on a 60Hz phone and a 144Hz monitor.
+      const grip = drifting ? DRIFT_GRIP : GRIP_RECOVER;
+      let delta = heading.current - course.current;
+      // Shortest way round: without this, a heading that has wound past ±π
+      // sends the course the long way and the bike spins on the spot.
+      delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+      course.current += delta * Math.min(1, grip * step);
 
       // The body is driven, not asked. Rotation is set outright because
       // rotations are locked to yaw, so nothing else is fighting for it.
       quat.current.setFromAxisAngle(UP, heading.current);
       b.setRotation(quat.current, true);
 
-      // X and Z from the heading; Y left alone so gravity still does its job
-      // and the bike settles onto the track instead of flying along it.
+      // X and Z from the COURSE, not the heading — that difference is the
+      // whole drift. `fx`/`fz` below stay the heading, because the camera sits
+      // behind where the bike is pointing, not behind where it is sliding.
+      const cx = Math.sin(course.current);
+      const cz = Math.cos(course.current);
       const fx = Math.sin(heading.current);
       const fz = Math.cos(heading.current);
       const linvel = b.linvel();
       b.setLinvel(
         {
-          x: fx * speed.current,
+          x: cx * speed.current,
           y: Number.isFinite(linvel.y) ? linvel.y : 0,
-          z: fz * speed.current,
+          z: cz * speed.current,
         },
         true
       );
+
+      // ── Gauges ──────────────────────────────────────────────────────────
+      // Written every frame, read by the HUD on its own slower schedule.
+      raceTelemetry.speed = speed.current;
+      raceTelemetry.topSpeed = topSpeed;
+      raceTelemetry.boost = boost.current;
+      raceTelemetry.charge = charge.current;
+      raceTelemetry.drifting = drifting;
+      raceTelemetry.boosting = boosting;
 
       // ── Presence ────────────────────────────────────────────────────────
       const p = view.current;
@@ -268,11 +465,23 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       sendMove(p.x, p.y, p.z, heading.current);
 
       // ── Chase camera ────────────────────────────────────────────────────
+      const cam = CAMERA_MODES[camMode.current];
+      // Look-back puts the eye in FRONT of the bike, still aimed at it — so
+      // the view down the barrel of the camera is the road you just left,
+      // which is what "who is behind me" actually means.
+      const back = lookingBack ? -cam.back : cam.back;
       want.current.set(
-        p.x - fx * CAM_BACK,
-        p.y + CAM_HEIGHT,
-        p.z - fz * CAM_BACK
+        p.x - fx * back,
+        p.y + cam.height,
+        p.z - fz * back
       );
+
+      // A swing through the bike on the way to the other side is nausea, so
+      // the flip is a cut in both directions.
+      if (lookingBack !== wasLookingBack.current) {
+        wasLookingBack.current = lookingBack;
+        primed.current = false;
+      }
 
       if (!primed.current) {
         primed.current = true;
@@ -282,7 +491,7 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       }
 
       camera.position.copy(eye.current);
-      camera.lookAt(p.x, p.y + 0.8, p.z);
+      camera.lookAt(p.x, p.y + cam.aim, p.z);
     } catch (e) {
       // Once, not every frame: a fault here repeats at the frame rate, and a
       // console flooded sixty times a second hides the first occurrence, which

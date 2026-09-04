@@ -3,7 +3,6 @@
 import * as THREE from "three";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { KeyboardControls } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import Link from "next/link";
@@ -34,7 +33,7 @@ import { Bike } from "./Bike";
 import { RaceRiders } from "./RaceRiders";
 import { RaceHud } from "./RaceHud";
 import { RaceTouchControls } from "./RaceTouchControls";
-import { raceKeyboardMap } from "./controls";
+import { RideKeyboard } from "./RideKeyboard";
 import { useRenderQuality } from "@/lib/quality";
 
 /**
@@ -100,8 +99,8 @@ export default function RaceCanvas({ code }: { code: string }) {
   // truth is that nothing was ever listening.
   if (error && !snapshot) {
     return (
-      <div className="bg-steel-900 flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <p className="text-steel-050 max-w-md text-sm">{error}</p>
+      <div className="bg-base flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-ink max-w-md text-sm">{error}</p>
         <Link href="/race" className="hud-chip hud-chip--primary">
           Back to races
         </Link>
@@ -110,7 +109,7 @@ export default function RaceCanvas({ code }: { code: string }) {
   }
 
   return (
-    <div className="bg-steel-900 relative min-h-0 flex-1">
+    <div className="bg-base relative min-h-0 flex-1">
       <Canvas
         // Not "always": R3F's own loop renders on every rAF, so a 120Hz phone
         // renders twice the frames the game needs. <FrameLimiter> drives the
@@ -208,9 +207,9 @@ export default function RaceCanvas({ code }: { code: string }) {
                   it stands on first. */}
               <WorldColliders parts={snapshot.parts} />
               <PropColliders props={snapshot.props} />
-              <KeyboardControls map={raceKeyboardMap}>
+              <RideKeyboard>
                 <Bike spawn={snapshot.spawn} />
-              </KeyboardControls>
+              </RideKeyboard>
             </>
           )}
         </Physics>
@@ -225,8 +224,8 @@ export default function RaceCanvas({ code }: { code: string }) {
       {snapshot && painted && touch && <RaceTouchControls />}
 
       {(!painted || !snapshot) && (
-        <div className="bg-steel-900 absolute inset-0 flex flex-col items-center justify-center gap-4">
-          <span className="border-signal h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
+        <div className="bg-base absolute inset-0 flex flex-col items-center justify-center gap-4">
+          <span className="border-accent h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
           <span className="hud-label">Joining race {code}</span>
           <Link href="/race" className="hud-chip">
             Back

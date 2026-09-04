@@ -13,7 +13,7 @@ export function PropBrowser() {
 
   if (PROP_CATALOG.length === 0) {
     return (
-      <div className="hud-panel pointer-events-auto max-w-[min(92vw,32rem)] p-2 text-2xs text-steel-200">
+      <div className="hud-panel pointer-events-auto max-w-[min(92vw,32rem)] p-2 text-2xs text-dim">
         No props in the catalog yet — run the pipeline in scripts/.
       </div>
     );
@@ -25,7 +25,7 @@ export function PropBrowser() {
         <button
           key={prop.id}
           onClick={() => useEditorStore.getState().setActivePropId(prop.id)}
-          className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[var(--radius)] border border-black/35 transition-transform hover:-translate-y-0.5 aria-pressed:outline aria-pressed:outline-2 aria-pressed:outline-offset-1 aria-pressed:outline-[var(--color-signal)]"
+          className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[var(--radius)] border border-black/35 transition-transform hover:-translate-y-0.5 aria-pressed:outline aria-pressed:outline-2 aria-pressed:outline-offset-1 aria-pressed:outline-[var(--color-accent)]"
           aria-label={prop.name}
           aria-pressed={activePropId === prop.id}
           title={prop.name}

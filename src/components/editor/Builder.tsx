@@ -126,6 +126,20 @@ export function Builder({ children }: { children: React.ReactNode }) {
 
   const onPointerDown = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
+      // Middle-click picks, whatever tool is armed. It is the eyedropper
+      // shortcut every block game has, and it works from inside a build
+      // stroke: reaching for the palette to copy a colour you are looking at
+      // is the single most common interruption to a build.
+      if (e.button === 1) {
+        const s = useEditorStore.getState();
+        if (s.readOnly || s.tool === "prop") return;
+        const cell = cellFor(e, false);
+        if (!inBounds(cell)) return;
+        e.stopPropagation();
+        s.pick(cell);
+        return;
+      }
+
       if (e.button !== 0) return; // left button only; right belongs to the camera
 
       // A second finger means the player is reaching for the camera, not
@@ -142,7 +156,7 @@ export function Builder({ children }: { children: React.ReactNode }) {
       useEditorStore.getState().beginStroke();
       applyAt(e);
     },
-    [applyAt, endStroke]
+    [applyAt, cellFor, endStroke]
   );
 
   return (

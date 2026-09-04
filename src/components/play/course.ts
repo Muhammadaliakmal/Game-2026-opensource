@@ -24,12 +24,38 @@ interface CourseState {
   /** Which world's best time is loaded — guards against showing another's. */
   worldId: string | null;
 
-  /** Begin (or restart) the clock. Safe to call on every respawn. */
+  /**
+   * Index of the checkpoint the runner holds, or -1 for none.
+   *
+   * The whole of the parkour resume mechanic is this number: a fall returns
+   * you to it, and the clock keeps running because you did not restart the
+   * course, you fell off part of it.
+   */
+  checkpoint: number;
+  /** How many the course has, so the HUD can say 2/5 rather than just 2. */
+  checkpointCount: number;
+
+  /** Begin a fresh run: clock from zero, no checkpoints held. */
   begin(worldId: string): void;
   /** Record an arrival. Ignored if the run has already been completed. */
   complete(): void;
   /** Leave the course entirely — switching worlds, or leaving Play. */
   clear(): void;
+
+  /** The course has this many checkpoints. Set when the world loads. */
+  setCheckpointCount(n: number): void;
+  /** A checkpoint was reached. Forward-only; the caller has already checked. */
+  reachCheckpoint(index: number): void;
+  /**
+   * The runner died and came back.
+   *
+   * With a checkpoint held this changes nothing at all — that is the point of
+   * holding one. Without one it is a fresh attempt, which is what every fall
+   * used to be.
+   */
+  respawned(): void;
+  /** Start the whole course again, deliberately. Clears checkpoints. */
+  restart(): void;
 }
 
 const keyFor = (worldId: string) => `blockworld:best:${worldId}`;
@@ -71,11 +97,14 @@ export const useCourse = create<CourseState>((set, get) => ({
   finishedMs: null,
   best: null,
   worldId: null,
+  checkpoint: -1,
+  checkpointCount: 0,
 
   begin: (worldId) =>
     set((s) => ({
       startedAt: performance.now(),
       finishedMs: null,
+      checkpoint: -1,
       // Re-read only when the world actually changes, so a respawn does not
       // hit storage on every fall.
       best: s.worldId === worldId ? s.best : readBest(worldId),
@@ -91,7 +120,29 @@ export const useCourse = create<CourseState>((set, get) => ({
     set({ finishedMs: ms, best });
   },
 
-  clear: () => set({ startedAt: null, finishedMs: null }),
+  clear: () =>
+    set({ startedAt: null, finishedMs: null, checkpoint: -1, checkpointCount: 0 }),
+
+  setCheckpointCount: (n) => set({ checkpointCount: n, checkpoint: -1 }),
+
+  reachCheckpoint: (index) =>
+    set((s) => (index > s.checkpoint ? { checkpoint: index } : s)),
+
+  respawned: () => {
+    const s = get();
+    if (s.worldId === null) return;
+    // A checkpoint means the attempt continues. Restarting the clock here
+    // would make every fall erase the time you had already put in, which is
+    // the opposite of what a checkpoint is for.
+    if (s.checkpoint >= 0) return;
+    set({ startedAt: performance.now(), finishedMs: null });
+  },
+
+  restart: () => {
+    const s = get();
+    if (s.worldId === null) return;
+    set({ startedAt: performance.now(), finishedMs: null, checkpoint: -1 });
+  },
 }));
 
 /** m:ss.cs — centiseconds, because tenths are too coarse to separate runs. */

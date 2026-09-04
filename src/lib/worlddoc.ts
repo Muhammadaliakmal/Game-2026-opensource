@@ -10,6 +10,33 @@ export interface PropInstance {
   rot: Vec3;
   scale: Vec3;
 }
+
+/**
+ * A place a run resumes from.
+ *
+ * ── Why a marker list and not a part kind ────────────────────────────────
+ *
+ * A checkpoint could have been a fifth `Shape`, and that was the first idea.
+ * Three things ruled it out:
+ *
+ *  - A part is a fixed seven-number tuple with no spare field, and a
+ *    checkpoint needs two things a block does not have: an ORDER, so it cannot
+ *    be reached out of sequence, and a FACING, so you resume looking the way
+ *    you were going rather than back down the course you just climbed.
+ *  - Every renderer, collider builder and greedy mesher switches on shape.
+ *    A shape that is not solid, not drawn like a block and not collidable
+ *    would need a special case in each of them.
+ *  - There are thousands of parts in a world and a handful of checkpoints. A
+ *    sparse list is the honest shape for sparse data, and it can be read
+ *    without walking the parts array.
+ *
+ * `yaw` is a camera heading in radians, in the same convention the player's
+ * look rig uses: forward is `(sin(yaw), cos(yaw))`.
+ */
+export interface Checkpoint {
+  pos: Vec3;
+  yaw: number;
+}
 export interface WorldDoc {
   v: 1;
   id: string;
@@ -25,6 +52,14 @@ export interface WorldDoc {
    * shows a timer and never finishes.
    */
   goal?: Vec3;
+  /**
+   * Ordered checkpoints, if this course has any.
+   *
+   * Optional for the same reason `goal` is: most worlds are not courses, and
+   * a world with no checkpoints simply respawns at its spawn point, which is
+   * what every world did before this existed.
+   */
+  checkpoints?: Checkpoint[];
   sky: number;
   parts: PartTuple[];
   props: PropInstance[];
@@ -57,6 +92,7 @@ export const propInstance = z.object({
   rot: vec3,
   scale: vec3,
 });
+export const checkpoint = z.object({ pos: vec3, yaw: z.number() });
 export const worldDocSchema = z.object({
   v: z.literal(1),
   id: z.string(),
@@ -64,6 +100,10 @@ export const worldDocSchema = z.object({
   ownerId: z.string(),
   spawn: vec3,
   goal: vec3.optional(),
+  // Capped low on purpose: a course with more than this many resume points is
+  // not a course, and the cap is what stops a crafted doc filling the play
+  // scene with detection zones.
+  checkpoints: z.array(checkpoint).max(64).optional(),
   sky: z.number().int().min(0),
   parts: z.array(partTuple).max(50000),
   props: z.array(propInstance).max(2000),

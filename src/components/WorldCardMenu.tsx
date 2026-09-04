@@ -116,7 +116,7 @@ export function WorldCardMenu({
     <div ref={wrap} className="relative shrink-0">
       <button
         onClick={() => (open ? close() : setOpen(true))}
-        className="text-steel-200 hover:bg-steel-800 hover:text-steel-050 -mr-1 flex h-7 w-7 items-center justify-center rounded-[var(--radius)] transition-colors"
+        className="text-dim hover:bg-surface hover:text-ink -mr-1 flex h-7 w-7 items-center justify-center rounded-[var(--radius)] transition-colors"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Options for ${worldName}`}
@@ -139,13 +139,13 @@ export function WorldCardMenu({
               role="menuitem"
               onClick={() => setPublished(!published)}
               disabled={busy}
-              className="text-steel-200 hover:bg-steel-800 hover:text-steel-050 flex w-full items-center gap-2 rounded-[var(--radius)] px-2.5 py-2 text-left text-2xs font-medium transition-colors disabled:opacity-50"
+              className="text-dim hover:bg-surface hover:text-ink flex w-full items-center gap-2 rounded-[var(--radius)] px-2.5 py-2 text-left text-2xs font-medium transition-colors disabled:opacity-50"
             >
               <span
                 className={`h-2 w-2 shrink-0 rounded-full ${
                   published
                     ? "bg-mint"
-                    : "bg-steel-500"
+                    : "bg-edge"
                 }`}
               />
               {published ? "Unpublish" : "Publish"}
@@ -153,7 +153,7 @@ export function WorldCardMenu({
             <button
               role="menuitem"
               onClick={copyLink}
-              className="text-steel-200 hover:bg-steel-800 hover:text-steel-050 flex w-full items-center gap-2 rounded-[var(--radius)] px-2.5 py-2 text-left text-2xs font-medium transition-colors"
+              className="text-dim hover:bg-surface hover:text-ink flex w-full items-center gap-2 rounded-[var(--radius)] px-2.5 py-2 text-left text-2xs font-medium transition-colors"
             >
               <span className="w-2 shrink-0" />
               {copied ? "Link copied" : "Copy play link"}
@@ -181,8 +181,8 @@ export function WorldCardMenu({
             </>
           ) : (
             <div className="p-1">
-              <p className="text-steel-200 mb-2 text-xs leading-snug">
-                Delete <span className="text-steel-050 font-semibold">{worldName}</span>{" "}
+              <p className="text-dim mb-2 text-xs leading-snug">
+                Delete <span className="text-ink font-semibold">{worldName}</span>{" "}
                 permanently? This can&apos;t be undone.
               </p>
               <div className="flex gap-1.5">

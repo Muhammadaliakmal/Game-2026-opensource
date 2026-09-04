@@ -128,12 +128,12 @@ export default function HeroCanvas() {
       {/* One prompt, and only until it has been acted on. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-3 flex flex-col items-center gap-2 px-3">
         {placed === 0 && (
-          <div className="hud-panel text-steel-200 px-3 py-2 text-2xs">
+          <div className="hud-panel text-dim px-3 py-2 text-2xs">
             Click anywhere to place a block · drag to turn
           </div>
         )}
         {placed === 1 && (
-          <div className="hud-panel text-steel-200 px-3 py-2 text-2xs">
+          <div className="hud-panel text-dim px-3 py-2 text-2xs">
             That is the whole idea. Place another.
           </div>
         )}

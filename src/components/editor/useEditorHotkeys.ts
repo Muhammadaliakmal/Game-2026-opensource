@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useEditorStore } from "@/stores/editor-store";
-import type { Shape } from "@/lib/worlddoc";
+import { PALETTE, type Shape } from "@/lib/worlddoc";
 
 /**
  * Keyboard shortcuts. Lives outside the Canvas because it binds to window —
@@ -83,7 +83,30 @@ export function useEditorHotkeys(onSave?: () => void | Promise<boolean>) {
       }
     }
 
+    /**
+     * Shift + wheel walks the palette — the hotbar scroll every block game
+     * has.
+     *
+     * Shifted rather than plain, because a plain wheel is the camera's zoom
+     * and taking that away to save a keystroke would be a poor trade. It is
+     * `passive: false` and preventDefault'd so the zoom does not also happen:
+     * a listener that cycles the colour AND zooms out is worse than neither.
+     */
+    function onWheel(e: WheelEvent) {
+      if (!e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+      const s = useEditorStore.getState();
+      if (s.readOnly) return;
+      e.preventDefault();
+      const step = e.deltaY > 0 ? 1 : -1;
+      const next = (s.colorIndex + step + PALETTE.length) % PALETTE.length;
+      s.setColorIndex(next);
+    }
+
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("wheel", onWheel);
+    };
   }, [onSave]);
 }

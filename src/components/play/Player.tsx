@@ -8,7 +8,8 @@ import { useKeyboardControls } from "@react-three/drei";
 import { Ecctrl, type EcctrlHandle } from "ecctrl";
 import { useJoystickStore } from "ecctrl/input";
 import { FEEL } from "@/lib/feel";
-import type { Vec3 } from "@/lib/worlddoc";
+import type { Checkpoint, Vec3 } from "@/lib/worlddoc";
+import { resumePose } from "@/lib/checkpoints";
 import { useCoarsePointer, useTouchControls } from "@/lib/use-media-query";
 import { useJumpFeel } from "./feel/useJumpFeel";
 import { useFootstepAudio } from "./feel/useFootstepAudio";
@@ -16,7 +17,9 @@ import { JumpParticles } from "./feel/JumpParticles";
 import { CharacterModel } from "./CharacterModel";
 import { touchInput } from "./touch-input";
 import { useMoveMode } from "./move-mode";
+import { useCourse } from "./course";
 import { consumeRespawn, notifyRespawned, requestRespawn } from "./play-actions";
+import { bound } from "@/lib/keybinds";
 import { sendMove } from "@/lib/net/presence";
 import {
   applyLook,
@@ -173,23 +176,20 @@ function usePlayHotkeys() {
         return;
       }
 
-      switch (e.code) {
-        case "ShiftLeft":
-        case "ShiftRight":
-          // Tap to lock on and sprint, tap again to release both.
-          useMoveMode.getState().toggleLockOn();
-          break;
-        case "KeyV":
-          useViewStore.getState().toggleFirstPerson();
-          break;
-        case "KeyC":
-          recenterPitch();
-          break;
-        case "KeyR":
-          requestRespawn();
-          break;
-        default:
-          return;
+      // Resolved against the player's own bindings rather than fixed codes.
+      // `bound()` reads the store outside React, so a rebind takes effect on
+      // the next keypress without this listener being rebuilt.
+      if (bound("foot", "run", e.code)) {
+        // Tap to lock on and sprint, tap again to release both.
+        useMoveMode.getState().toggleLockOn();
+      } else if (bound("foot", "view", e.code)) {
+        useViewStore.getState().toggleFirstPerson();
+      } else if (bound("foot", "recenter", e.code)) {
+        recenterPitch();
+      } else if (bound("foot", "respawn", e.code)) {
+        requestRespawn();
+      } else {
+        return;
       }
       e.preventDefault();
     };
@@ -222,6 +222,22 @@ function usePlayHotkeys() {
  * camera wants to be finds the first solid thing in the way and the eye stops
  * short of it.
  */
+
+/**
+ * ── Creative flight ──────────────────────────────────────────────────────
+ *
+ * Offered only where the player can edit the world they are in, because that
+ * is the only place it is a tool rather than a cheat: you cannot climb the
+ * scaffolding of a tower you have not built yet.
+ *
+ * Double-tap jump is the gesture every block game uses for this, so nobody has
+ * to be told it exists — and a player who does not know cannot trip over it,
+ * because two jumps in a third of a second is not something you do by accident
+ * while playing.
+ */
+const FLY_DOUBLE_TAP_MS = 320;
+/** Vertical speed in flight. Roughly the run speed, so it reads as one pace. */
+const FLY_VERTICAL = 5;
 
 /** Never let the eye get closer than this, or it ends up inside the avatar. */
 const CAMERA_MIN_DISTANCE = 0.55;
@@ -430,7 +446,17 @@ function useCameraRig(
   });
 }
 
-export function Player({ spawn }: { spawn: Vec3 }) {
+export function Player({
+  spawn,
+  canFly = false,
+  checkpoints,
+}: {
+  spawn: Vec3;
+  /** Whether creative flight is available here. See FLY_DOUBLE_TAP_MS. */
+  canFly?: boolean;
+  /** The course's resume points, if it has any. */
+  checkpoints?: readonly Checkpoint[];
+}) {
   const ref = useRef<EcctrlHandle>(null);
   /**
    * Strictly "there is no mouse here", not "the window is narrow".
@@ -446,6 +472,17 @@ export function Player({ spawn }: { spawn: Vec3 }) {
   const [, getKeys] = useKeyboardControls();
   const prevJump = useRef(false);
 
+  const flying = useMoveMode((s) => s.flying);
+  // The input predicates below are called from the frame loop, outside React,
+  // so they read the store directly rather than closing over a render's value.
+  // `canFly` is a prop and has no store to read, so it gets a ref — written
+  // after the render rather than during it.
+  const canFlyRef = useRef(canFly);
+  useEffect(() => {
+    canFlyRef.current = canFly;
+  }, [canFly]);
+  const lastJumpAt = useRef(0);
+
   // Space or the on-screen JUMP button — both feed the same forgiveness layer,
   // so coyote time / buffering / variable height work identically on touch.
   const jumpDown = () => Boolean(getKeys().jump) || touchInput.jump;
@@ -456,9 +493,50 @@ export function Player({ spawn }: { spawn: Vec3 }) {
     const now = jumpDown();
     const edge = now && !prevJump.current;
     prevJump.current = now;
-    return edge;
+    if (!edge) return false;
+
+    // The double-tap lives here rather than in a key handler because this is
+    // the one place that sees a press from the keyboard AND from the on-screen
+    // button, and the gesture has to work on both.
+    const at = performance.now();
+    const doubled = at - lastJumpAt.current < FLY_DOUBLE_TAP_MS;
+    lastJumpAt.current = at;
+    if (doubled && canFlyRef.current) {
+      useMoveMode.getState().toggleFly();
+      // The second tap toggles flight instead of jumping. Doing both would
+      // launch the player on the same press that took gravity away.
+      return false;
+    }
+    // In flight, jump is "up" and is applied in the frame loop below.
+    return !useMoveMode.getState().flying;
   };
-  const jumpHeld = () => jumpDown();
+  const jumpHeld = () => !useMoveMode.getState().flying && jumpDown();
+
+  /**
+   * Flight is gravity off plus a vertical velocity we own.
+   *
+   * ecctrl still runs its floating spring underneath, which is why the
+   * vertical velocity is written every frame rather than once: the spring can
+   * push, and the last writer before the step is the one that decides.
+   */
+  useEffect(() => {
+    const h = ref.current;
+    if (!h) return;
+    h.body.setGravityScale(flying ? 0 : 1, true);
+    if (flying) h.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+  }, [flying]);
+
+  useFrame(() => {
+    const h = ref.current;
+    if (!h || !flying) return;
+    const k = getKeys();
+    // Jump climbs, sprint descends — no new controls, and the pairing is the
+    // one every creative mode uses.
+    const up = jumpDown() ? 1 : 0;
+    const down = Boolean(k.run) || useMoveMode.getState().running ? 1 : 0;
+    const v = h.body.linvel();
+    h.body.setLinvel({ x: v.x, y: (up - down) * FLY_VERTICAL, z: v.z }, true);
+  });
 
   // ecctrl v2 ships no keyboard handling of its own — <KeyboardControls> only
   // fills a store, so the directional keys have to be forwarded to the
@@ -515,11 +593,22 @@ export function Player({ spawn }: { spawn: Vec3 }) {
     if (respawnTimer.current > 0) {
       respawnTimer.current -= dt;
       if (respawnTimer.current <= 0) {
-        h.body.setTranslation(
-          { x: spawn[0], y: spawn[1], z: spawn[2] },
-          true
+        // Where the run resumes is the course's decision — the last checkpoint
+        // reached, or the spawn if there is none. Read from the store rather
+        // than from a prop so a checkpoint banked half a second ago is already
+        // the answer.
+        const { pos, yaw } = resumePose(
+          checkpoints,
+          useCourse.getState().checkpoint,
+          spawn,
+          look.yaw
         );
+        h.body.setTranslation({ x: pos[0], y: pos[1], z: pos[2] }, true);
         h.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        // The facing matters as much as the position: arriving at a checkpoint
+        // looking back down the course you just climbed means every attempt
+        // starts by spinning round.
+        look.yaw = yaw;
         notifyRespawned();
       }
       return;
@@ -533,6 +622,10 @@ export function Player({ spawn }: { spawn: Vec3 }) {
     }
 
     if (h.currPos.y < FEEL.fallOutY) {
+      // Falling out of the world while flying should not be possible, but a
+      // respawn that leaves gravity off would drop the player into a hover at
+      // the spawn point and no way to explain it.
+      useMoveMode.getState().setFlying(false);
       respawnTimer.current = FEEL.respawnDelay;
     }
   });

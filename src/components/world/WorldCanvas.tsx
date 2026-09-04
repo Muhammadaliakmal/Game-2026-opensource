@@ -8,11 +8,17 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { KeyboardControls, OrbitControls } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { Physics, RigidBody } from "@react-three/rapier";
 
 import { useEditorStore } from "@/stores/editor-store";
-import { parseWorldDoc, type PartTuple, type PropInstance, type WorldDoc } from "@/lib/worlddoc";
+import {
+  parseWorldDoc,
+  type Checkpoint,
+  type PartTuple,
+  type PropInstance,
+  type WorldDoc,
+} from "@/lib/worlddoc";
 import {
   clearDraft,
   DRAFT_ID,
@@ -39,13 +45,14 @@ import { PropColliders } from "@/components/play/PropColliders";
 import { Player } from "@/components/play/Player";
 import { Peers } from "@/components/play/Peers";
 import { GoalZone } from "@/components/play/GoalZone";
+import { CheckpointZones } from "@/components/play/CheckpointZones";
 import { TouchControls } from "@/components/play/TouchControls";
 import { useTouchControls } from "@/lib/use-media-query";
 import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
 import { PlayHud } from "./PlayHud";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
-import { keyboardMap } from "@/components/play/controls";
+import { FootKeyboard } from "@/components/play/FootKeyboard";
 import { useRenderQuality } from "@/lib/quality";
 
 /**
@@ -84,6 +91,8 @@ interface Snapshot {
   spawn: [number, number, number];
   /** Undefined unless this world is a course — see WorldDoc.goal. */
   goal?: [number, number, number];
+  /** Empty unless the course has resume points — see WorldDoc.checkpoints. */
+  checkpoints: Checkpoint[];
 }
 
 function toSnapshot(doc: WorldDoc): Snapshot {
@@ -92,6 +101,7 @@ function toSnapshot(doc: WorldDoc): Snapshot {
     props: doc.props,
     spawn: [doc.spawn[0], doc.spawn[1], doc.spawn[2]],
     goal: doc.goal ? [doc.goal[0], doc.goal[1], doc.goal[2]] : undefined,
+    checkpoints: doc.checkpoints ?? [],
   };
 }
 
@@ -493,7 +503,7 @@ export default function WorldCanvas({
 
   if (status === "error") {
     return (
-      <div className="bg-steel-900 flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+      <div className="bg-base flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
         <p className="text-danger max-w-sm text-sm font-semibold">{error}</p>
         <div className="flex gap-2">
           <Link href="/" className="hud-chip hud-chip--primary">
@@ -510,7 +520,7 @@ export default function WorldCanvas({
   const playing = mode === "play";
 
   return (
-    <div className="bg-steel-900 relative min-h-0 flex-1">
+    <div className="bg-base relative min-h-0 flex-1">
       <Canvas
         // Building renders on demand — an idle editor should not burn a GPU.
         // Playing needs a continuous loop, but not an uncapped one: "always"
@@ -571,6 +581,11 @@ export default function WorldCanvas({
         {playing && snapshot?.goal && (
           <GoalZone goal={snapshot.goal} worldId={worldId} />
         )}
+        {/* Same reasoning as the goal: trigger volumes we test ourselves, not
+            colliders the character could be shoved off. */}
+        {playing && snapshot && snapshot.checkpoints.length > 0 && (
+          <CheckpointZones checkpoints={snapshot.checkpoints} />
+        )}
 
         {!playing && (
           <>
@@ -621,9 +636,15 @@ export default function WorldCanvas({
         <Physics timeStep={1 / 60} paused={!playing}>
           {playing && snapshot && (
             <>
-              <KeyboardControls map={keyboardMap}>
-                <Player spawn={snapshot.spawn} />
-              </KeyboardControls>
+              <FootKeyboard>
+                {/* Flight is a building tool, so it follows the same
+                    permission the build tools do. */}
+                <Player
+                  spawn={snapshot.spawn}
+                  canFly={canEdit || isDraft}
+                  checkpoints={snapshot.checkpoints}
+                />
+              </FootKeyboard>
               <WorldColliders parts={snapshot.parts} />
               <PropColliders props={snapshot.props} />
 
@@ -685,11 +706,13 @@ export default function WorldCanvas({
         </div>
       )}
 
-      {playing && status === "ready" && painted && touch && <TouchControls />}
+      {playing && status === "ready" && painted && touch && (
+        <TouchControls canFly={canEdit || isDraft} />
+      )}
 
       {(status === "loading" || !painted) && (
-        <div className="bg-steel-900 absolute inset-0 z-20 flex flex-col items-center justify-center gap-4">
-          <span className="border-signal h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
+        <div className="bg-base absolute inset-0 z-20 flex flex-col items-center justify-center gap-4">
+          <span className="border-accent h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
           <span className="hud-label">Loading world</span>
         </div>
       )}

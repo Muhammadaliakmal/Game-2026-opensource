@@ -16,6 +16,12 @@ import { create } from "zustand";
  * release both — which is what makes it a single-key mode switch rather than
  * two things to remember.
  *
+ * `flying` is the third, and it is a different kind of thing: creative flight,
+ * offered only to someone who can edit the world they are standing in. It is
+ * how you get to the top of a tower you are halfway through building without
+ * climbing the scaffolding you have not built yet. Double-tap jump toggles it,
+ * which is the gesture every block game uses, so nobody has to be told.
+ *
  * Real store state rather than a module object: unlike look yaw these change a
  * few times a minute, and the HUD renders an indicator from them.
  */
@@ -24,16 +30,22 @@ interface MoveMode {
   running: boolean;
   /** Face the camera instead of the direction of travel. */
   lockedOn: boolean;
+  /** Creative flight. Gravity off, jump and sprint become up and down. */
+  flying: boolean;
   /** Touch RUN: sprint only, so facing still follows the stick. */
   toggleRun(): void;
   /** Shift: lock-on and sprint as one mode. */
   toggleLockOn(): void;
+  /** Double-tap jump, or the FLY button. */
+  toggleFly(): void;
+  setFlying(on: boolean): void;
   reset(): void;
 }
 
 export const useMoveMode = create<MoveMode>((set) => ({
   running: false,
   lockedOn: false,
+  flying: false,
   toggleRun: () => set((s) => ({ running: !s.running })),
   toggleLockOn: () =>
     set((s) =>
@@ -41,5 +53,7 @@ export const useMoveMode = create<MoveMode>((set) => ({
         ? { lockedOn: false, running: false }
         : { lockedOn: true, running: true }
     ),
-  reset: () => set({ running: false, lockedOn: false }),
+  toggleFly: () => set((s) => ({ flying: !s.flying })),
+  setFlying: (flying) => set({ flying }),
+  reset: () => set({ running: false, lockedOn: false, flying: false }),
 }));

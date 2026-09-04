@@ -42,12 +42,13 @@ export function GoalZone({ goal, worldId }: { goal: Vec3; worldId: string }) {
   const begin = useCourse((s) => s.begin);
   const clear = useCourse((s) => s.clear);
 
-  // Start the clock on entry, and restart it on every respawn — a fall in an
-  // obby is a failed attempt, and carrying the old elapsed time into the next
-  // one would make the timer meaningless.
+  // Start the clock on entry, and tell the store about every respawn. What a
+  // respawn *means* is the store's decision, not this component's: on a course
+  // with checkpoints the attempt continues, and on one without it a fall is a
+  // failed attempt and the clock goes back to zero.
   useEffect(() => {
     begin(worldId);
-    const off = onRespawned(() => begin(worldId));
+    const off = onRespawned(() => useCourse.getState().respawned());
     return () => {
       off();
       clear();

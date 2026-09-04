@@ -14,8 +14,8 @@ import dynamic from "next/dynamic";
 const HeroCanvas = dynamic(() => import("./HeroCanvas"), {
   ssr: false,
   loading: () => (
-    <div className="bg-steel-900 flex h-[55vh] min-h-[20rem] w-full items-center justify-center">
-      <span className="border-signal h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
+    <div className="bg-base flex h-[55vh] min-h-[20rem] w-full items-center justify-center">
+      <span className="border-accent h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
     </div>
   ),
 });

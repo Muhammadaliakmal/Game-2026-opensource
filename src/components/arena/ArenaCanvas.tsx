@@ -4,7 +4,6 @@ import * as THREE from "three";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Canvas } from "@react-three/fiber";
-import { KeyboardControls } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
@@ -19,7 +18,7 @@ import { Player } from "@/components/play/Player";
 import { Peers } from "@/components/play/Peers";
 import { WorldColliders } from "@/components/play/WorldColliders";
 import { PropColliders } from "@/components/play/PropColliders";
-import { keyboardMap } from "@/components/play/controls";
+import { FootKeyboard } from "@/components/play/FootKeyboard";
 import { playerFocus } from "@/components/play/camera-rig";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
@@ -96,8 +95,8 @@ export default function ArenaCanvas({
 
   if (error && !snapshot) {
     return (
-      <div className="bg-steel-900 flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <p className="text-steel-050 max-w-sm text-sm">{error}</p>
+      <div className="bg-base flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-ink max-w-sm text-sm">{error}</p>
         <Link href="/arena" className="hud-chip hud-chip--primary">
           Back to matches
         </Link>
@@ -106,7 +105,7 @@ export default function ArenaCanvas({
   }
 
   return (
-    <div className="bg-steel-900 relative min-h-0 flex-1">
+    <div className="bg-base relative min-h-0 flex-1">
       <Canvas
         // Not "always": R3F's own loop renders on every rAF, so a 120Hz phone
         // renders twice the frames the game needs. <FrameLimiter> drives the
@@ -144,9 +143,9 @@ export default function ArenaCanvas({
         <Physics timeStep={1 / 60} paused={!snapshot}>
           {snapshot && (
             <>
-              <KeyboardControls map={keyboardMap}>
+              <FootKeyboard>
                 <Player spawn={snapshot.spawn} />
-              </KeyboardControls>
+              </FootKeyboard>
               <WorldColliders parts={snapshot.parts} />
               <PropColliders props={snapshot.props} />
             </>
@@ -157,8 +156,8 @@ export default function ArenaCanvas({
       <ArenaHud code={code} onAttack={attack} />
 
       {(!painted || !snapshot) && (
-        <div className="bg-steel-900 absolute inset-0 flex flex-col items-center justify-center gap-4">
-          <span className="border-signal h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
+        <div className="bg-base absolute inset-0 flex flex-col items-center justify-center gap-4">
+          <span className="border-accent h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
           <span className="hud-label">Joining match {code}</span>
         </div>
       )}
