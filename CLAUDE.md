@@ -120,6 +120,30 @@ stop drift, and there is only one value for both.
   stops from there — importing them from `atmosphere.ts` would pull the whole
   of three.js into the server bundle to render an SVG gradient.
 
+**Lighting a night scene is arithmetic, so check it with arithmetic.**
+`npm run light:check` prints what every finish and palette colour actually
+resolves to under each look — hemisphere irradiance, a Lambert key, the
+environment term for metals, then ACES and the sRGB transfer — with the
+editor's studio lighting alongside as the reference. Run it after touching any
+light colour, intensity or `envIntensity`.
+
+The first night pass shipped a world nobody could see, and the mistake was
+readable off those numbers: `hemiIntensity` went from 1.15 to 0.9, which looked
+like "a little dimmer", while the sky colour went from #c8d2dd to #4a5da8 —
+about a sixth as much light once both are linear. The product was a SEVENTH of
+the editor's fill, not four fifths. **Nearly all of a light's output is in its
+colour; the intensity is the small half of the decision.**
+
+Two other traps the check exists to catch:
+
+- `metal` is metalness 1.0, so the environment probe is the ONLY thing lighting
+  it. A night sky averages ~0.006 linear against RoomEnvironment's ~0.35, so a
+  night probe at daylight `envIntensity` renders every chrome rail pure black.
+  `NIGHT_LOOK.envIntensity` is 20 for that reason and no other.
+- What reads as night is a cool, strongly directional key over a genuinely dark
+  *sky*, not a dark *world*. Real moonlight is unplayable. The sky is what
+  makes it night; the fill is what makes it a game.
+
 Two things about the sky layers that are easy to get wrong:
 
 - **`renderOrder` only sorts within three's opaque and transparent groups.**

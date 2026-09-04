@@ -454,28 +454,55 @@ export const NIGHT_LOOK: SkyLook = {
   fogDensity: 0.0016,
   /** The moon's own glow bleeding into the sky around it. Cool, and slight. */
   biasColor: "#7e93d8",
-  biasStrength: 0.2,
+  biasStrength: 0.16,
   biasFalloff: 3.2,
   biasHeightFalloff: 0.7,
   /**
-   * Higher than the sunset's 0.8 against a far darker map, which nets out much
-   * dimmer. It is what stops `metal` finishes going to flat black.
+   * Far above the sunset's 0.8, and it has to be.
+   *
+   * `environmentIntensity` scales a probe generated from the ramp above, and
+   * that ramp averages somewhere near 0.006 in linear light — roughly two
+   * orders of magnitude under the grey RoomEnvironment box the canvases used
+   * before. For most surfaces that would not matter much. For the `metal`
+   * finish it is everything: metalness 1.0 means the environment is the ONLY
+   * thing lighting it, so a night probe at sunset intensities renders every
+   * chrome rail on Neon Circuit as pure black — which is exactly what
+   * happened, and is why the track looked like it was missing.
+   *
+   * Tuned against `scripts/light-check.mts`, which prints what each finish
+   * actually resolves to: this lands the chrome rails on Neon Circuit a little
+   * ABOVE where the old studio probe had them, which is the bar — a night look
+   * that made the track harder to see than the editor did would not be a look,
+   * it would be a regression with a mood.
    */
-  envIntensity: 1.1,
+  envIntensity: 20,
   /**
    * The fill, and the number this whole look lives or dies by.
    *
-   * Too low and a matte block is unreadable, which on a parkour course means a
-   * platform you cannot see the edge of - a difficulty nobody chose. Too high
-   * and it is a grey evening rather than a night. The sky colour is lifted
-   * well above any stop in the ramp for exactly this reason: it is doing the
-   * job of ambient light, not matching the gradient.
+   * ── The mistake this replaces ──────────────────────────────────────────
+   *
+   * It was #4a5da8 at 0.9, chosen by comparing 0.9 against the build canvas's
+   * 1.15 and calling that "a little dimmer". That reasoning ignored the
+   * colour, which is where nearly all of the light is: #4a5da8 is about a
+   * sixth of #c8d2dd once both are in linear space, so the product was closer
+   * to a SEVENTH of the fill the editor has, not four fifths of it. Every
+   * surface not facing the moon went black, and a matte platform is almost
+   * entirely diffuse fill.
+   *
+   * ── Day-for-night ──────────────────────────────────────────────────────
+   *
+   * So this is now a touch brighter than the editor's studio fill in blue and
+   * a little dimmer in red, which is the cheat every night scene ever shot has
+   * used: real moonlight is unplayably dark, and what reads as night is a
+   * cool, strongly directional key over a genuinely dark sky — not a dark
+   * world. The sky above is what makes it night. This is what makes it a game.
    */
-  hemiSky: "#4a5da8",
-  hemiGround: "#0a0d1c",
-  hemiIntensity: 0.9,
-  keyColor: "#c3d2ff",
-  keyIntensity: 1.9,
+  hemiSky: "#8ea4e8",
+  hemiGround: "#2b3350",
+  hemiIntensity: 1.45,
+  /** The moon, and it is allowed to be bright. See day-for-night above. */
+  keyColor: "#dce6ff",
+  keyIntensity: 2.6,
   /**
    * Further out than the sunset's 130 because the moon is 32 degrees up rather
    * than 7, and the shadow camera's far plane is derived from this.

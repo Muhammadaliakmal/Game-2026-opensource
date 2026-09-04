@@ -46,11 +46,20 @@ export const SKY_STOPS = [
  * near-black is deliberate and is the opposite of the sunset's rule — there, a
  * black zenith would have read as a bug in the gradient; here it is what lets
  * the stars carry the top of the frame on their own.
+ *
+ * ── Why these are darker than they first were ────────────────────────────
+ *
+ * The first pass put the horizon at #16224e, which is a perfectly good navy in
+ * isolation and was far too bright in place. A chase camera looks along the
+ * ground, so most of the frame is the BOTTOM of this ramp — and against that
+ * much mid-blue the track, which is #0f172a asphalt, read as a black hole with
+ * a bright sky over it. A sky is a backdrop. If it is the brightest thing on
+ * screen it is not doing its job.
  */
 export const NIGHT_STOPS = [
-  { at: 0.0, hex: "#16224e", note: "horizon — deep blue, still blue" },
-  { at: 0.1, hex: "#101a3c", note: "lower — THIS IS THE FOG COLOUR" },
-  { at: 0.32, hex: "#0a1028", note: "mid — the blue draining out" },
-  { at: 0.62, hex: "#040713", note: "upper — nearly gone" },
+  { at: 0.0, hex: "#0c1433", note: "horizon — deep blue, still blue" },
+  { at: 0.1, hex: "#080e26", note: "lower — THIS IS THE FOG COLOUR" },
+  { at: 0.32, hex: "#050818", note: "mid — the blue draining out" },
+  { at: 0.62, hex: "#02030c", note: "upper — nearly gone" },
   { at: 1.0, hex: "#000000", note: "zenith — black, so the stars own it" },
 ] as const;
