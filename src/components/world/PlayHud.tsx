@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { recenterPitch, useViewStore } from "@/components/play/camera-rig";
 import { useMoveMode } from "@/components/play/move-mode";
-import { onRespawned, requestRespawn } from "@/components/play/play-actions";
+import {
+  onRespawned,
+  requestRespawn,
+  requestRestart,
+} from "@/components/play/play-actions";
 import { formatTime, useCourse } from "@/components/play/course";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
@@ -63,6 +67,7 @@ export function PlayHud({
               <span className="truncate text-2xs font-medium">{name}</span>
             </div>
             <RunTimer />
+            <CheckpointPips />
           </div>
         </HudZone>
 
@@ -158,6 +163,47 @@ function RunTimer() {
 }
 
 /**
+ * How far through the course you have banked.
+ *
+ * The gates already confirm a checkpoint as you cross one — a sound, a buzz,
+ * and the ring going still. None of that answers the question you have thirty
+ * seconds later, which is how many are left, so this is the only part of the
+ * mechanic that persists on screen.
+ *
+ * Pips rather than "2/5" because the count is small by construction (the
+ * schema caps checkpoints at 64, but a course that uses more than a handful
+ * has stopped being a course), and a row of shapes is read without counting.
+ * Worlds with no checkpoints render nothing at all rather than an empty row.
+ */
+function CheckpointPips() {
+  const count = useCourse((s) => s.checkpointCount);
+  const held = useCourse((s) => s.checkpoint);
+  if (count === 0) return null;
+
+  return (
+    <div
+      className="hud-panel flex shrink-0 items-center gap-1 px-3 py-2"
+      // One label for the row: a screen reader announcing eight list items
+      // called "checkpoint" is worse than silence.
+      role="img"
+      aria-label={`Checkpoint ${held + 1} of ${count}`}
+    >
+      {Array.from({ length: count }, (_, i) => (
+        <span
+          key={i}
+          aria-hidden
+          className={
+            i <= held
+              ? "bg-accent h-1.5 w-1.5 rounded-full"
+              : "h-1.5 w-1.5 rounded-full bg-white/20"
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
  * The end of a run.
  *
  * A panel rather than the wash used for respawns: SPEC bans modals for things
@@ -200,8 +246,12 @@ function CourseComplete({
       )}
 
       <div className="flex flex-wrap items-center justify-center gap-2">
+        {/* A restart, not a respawn. Respawning here would resume at the last
+            checkpoint of a run that is already over: the clock would stay
+            stopped, this panel would stay up, and the button would appear to
+            do nothing at all. */}
         <button
-          onClick={requestRespawn}
+          onClick={requestRestart}
           className="hud-chip hud-chip--primary"
           autoFocus
         >
@@ -247,6 +297,8 @@ function PlayMenu({
 
   const firstPerson = useViewStore((s) => s.firstPerson);
   const toggleFirstPerson = useViewStore((s) => s.toggleFirstPerson);
+  // A run clock only exists on a world with a goal — see WorldDoc.goal.
+  const onCourse = useCourse((s) => s.startedAt !== null);
 
   // Leaving the game while still fullscreen strands the user in a chromeless
   // window, so drop out of it on the way to another route.
@@ -354,10 +406,22 @@ function PlayMenu({
           <button
             onClick={act(requestRespawn)}
             className="hud-menu-item"
-            title="Back to the start (R)"
+            title="Back to the last checkpoint (R)"
           >
             Respawn
           </button>
+          {/* Only on a course, and only once one has started: on a sandbox
+              world there is no run to throw away, and the entry would be a
+              second Respawn with a scarier name. */}
+          {onCourse && (
+            <button
+              onClick={act(requestRestart)}
+              className="hud-menu-item"
+              title="Start the course over, clock from zero (T)"
+            >
+              Restart run
+            </button>
+          )}
 
           <div className="hud-menu-sep" aria-hidden />
 

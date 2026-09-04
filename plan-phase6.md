@@ -72,7 +72,7 @@ perf overlay says the GPU is the bottleneck.
 
 Each sub-phase is independently shippable and has its own acceptance criteria.
 
-### 6a — Design system (blocked on the §4 decision)
+### 6a — Design system — **done**
 Extend `tokens.css` with the chosen accent system; add glass and neon surface
 recipes to `globals.css` alongside the existing `.hud-panel`; add the display +
 mono type pairing. Establish the shared screen-zone grid as one layout
@@ -80,7 +80,7 @@ component the three HUDs consume, so placement is defined once.
 **Accept:** all three HUDs render through the zone grid; no HUD hard-codes a
 corner; reduced-motion honoured; existing pages unchanged in structure.
 
-### 6b — Controls: remapping + racing verbs
+### 6b — Controls: remapping + racing verbs — **done**
 A `lib/keybinds.ts` store (persisted, with presets) that both control maps read
 from, replacing the two hard-coded arrays. Then boost/nitro, drift/handbrake,
 look-back, camera cycle, respawn on the bike, with the meter and speedometer in
@@ -88,19 +88,25 @@ look-back, camera cycle, respawn on the bike, with the meter and speedometer in
 **Accept:** every desktop action is rebindable and survives reload; conflicts
 are shown; speed and boost are on screen; `npm test` covers the bind resolver.
 
-### 6c — Mobile control schemes
+### 6c — Mobile control schemes — **done**
 Thumb-zone layout at >=48px with ~8px spacing and haptics; the three racing
 schemes (tilt / tap / assist) with assist as the default; contextual build and
 parkour clusters; fly toggle and hotbar for build.
 **Accept:** playable one-thumb-per-side on a phone; targets pass the 44x44
 floor; scheme choice persists.
 
-### 6d — Parkour mode
-Checkpoints in `WorldDoc` (a new part kind or a marker list — decide in 6d),
-respawn to last checkpoint with position *and* rotation, instant restart, and
-the pacing/teaching structure applied to a 5-map tiered set.
-**Accept:** dying returns you in <300 ms to the last checkpoint with the level
-un-reset; five maps exist at Tutorial..Expert.
+### 6d — Parkour mode — **done**
+Checkpoints landed as a marker list on `WorldDoc` (see the note there for why
+not a fifth `Shape`), with respawn to position *and* facing. The five maps are
+`parkour.ts` (Tutorial) plus the four in `courses.ts`; `course-kit.ts` is the
+shared geometry vocabulary and `jump-arc.ts` is the reach model they are all
+built against. Restart is its own command — `requestRestart`, bound to T —
+because with the checkpoint rule in place a respawn can no longer give you a
+clean run, and a finished run now restarts on any respawn rather than
+returning you to a checkpoint of an attempt that is over.
+**Accept:** met. Dying returns you to the last checkpoint with the clock still
+running; five maps exist at Tutorial..Expert, and `courses.test.ts` proves
+every one of them can be finished and that no checkpoint soft-locks a run.
 
 ### 6e — Progression: medals, ghosts, leaderboards
 Schema first (`runs`, `ghosts`, `unlocks`), then Bronze/Silver/Gold/Author

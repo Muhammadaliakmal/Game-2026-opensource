@@ -18,7 +18,13 @@ import { CharacterModel } from "./CharacterModel";
 import { touchInput } from "./touch-input";
 import { useMoveMode } from "./move-mode";
 import { useCourse } from "./course";
-import { consumeRespawn, notifyRespawned, requestRespawn } from "./play-actions";
+import {
+  consumeRespawn,
+  consumeRestart,
+  notifyRespawned,
+  requestRespawn,
+  requestRestart,
+} from "./play-actions";
 import { bound } from "@/lib/keybinds";
 import { sendMove } from "@/lib/net/presence";
 import {
@@ -188,6 +194,8 @@ function usePlayHotkeys() {
         recenterPitch();
       } else if (bound("foot", "respawn", e.code)) {
         requestRespawn();
+      } else if (bound("foot", "restart", e.code)) {
+        requestRestart();
       } else {
         return;
       }
@@ -593,6 +601,16 @@ export function Player({
     if (respawnTimer.current > 0) {
       respawnTimer.current -= dt;
       if (respawnTimer.current <= 0) {
+        // A respawn after the course has been won is a new attempt, whatever
+        // asked for it — the R key, the touch button, or walking off the
+        // finish tower. Returning to the last checkpoint of a finished run
+        // would leave the completion panel up, the clock stopped, and the
+        // player standing two thirds of the way along a course they cannot
+        // finish again.
+        if (useCourse.getState().finishedMs !== null) {
+          useCourse.getState().restart();
+        }
+
         // Where the run resumes is the course's decision — the last checkpoint
         // reached, or the spawn if there is none. Read from the store rather
         // than from a prop so a checkpoint banked half a second ago is already
@@ -611,6 +629,17 @@ export function Player({
         look.yaw = yaw;
         notifyRespawned();
       }
+      return;
+    }
+
+    // A restart is a respawn with the course's progress thrown away first, so
+    // the resume pose it reads a moment later resolves to the spawn rather
+    // than to the checkpoint being abandoned. Ordering is the whole trick: do
+    // it the other way round and the player is teleported to the checkpoint
+    // and only then told the run is over.
+    if (consumeRestart()) {
+      useCourse.getState().restart();
+      respawnTimer.current = Number.EPSILON;
       return;
     }
 

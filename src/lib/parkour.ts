@@ -1,4 +1,4 @@
-import type { PartTuple, Shape, Vec3, WorldDoc } from "./worlddoc";
+import type { Checkpoint, PartTuple, Shape, Vec3, WorldDoc } from "./worlddoc";
 
 /**
  * The default parkour course every new world starts from.
@@ -172,6 +172,27 @@ export const PARKOUR_SPAWN: Vec3 = [0, 2, 0];
  */
 export const PARKOUR_GOAL: Vec3 = [88.5, 10, 0.5];
 
+/**
+ * Four resume points, one per section.
+ *
+ * The tutorial is where a fall is most expensive, because it is the run where
+ * the player has not yet decided whether this game is worth being bad at. Each
+ * one sits on the wide surface at the END of a section rather than the start of
+ * the next: you bank the thing you just did, and the jump you failed is the
+ * one you retry.
+ *
+ * Positions are the top face of the cell you stand on, which is where the
+ * runner's feet are — `Course.checkpoint` in `course-kit.ts` does this
+ * conversion for the tiered maps; here the course predates the kit and the
+ * four are written out.
+ */
+export const PARKOUR_CHECKPOINTS: Checkpoint[] = [
+  { pos: [30.5, 6, -0.5], yaw: Math.PI / 2 }, // the last stepping stone
+  { pos: [48.5, 6, 0.5], yaw: Math.PI / 2 }, // the landing terrace
+  { pos: [65.5, 3, 2.5], yaw: Math.PI / 2 }, // the second floating island
+  { pos: [77.5, 4, 2.5], yaw: Math.PI / 2 }, // the last one, before the stairs
+];
+
 /** A new world: the parkour course, ready to play or to build on top of. */
 export function parkourWorldDoc(
   id: string,
@@ -185,6 +206,7 @@ export function parkourWorldDoc(
     ownerId,
     spawn: PARKOUR_SPAWN,
     goal: PARKOUR_GOAL,
+    checkpoints: PARKOUR_CHECKPOINTS,
     sky: 0,
     parts: parkourParts(),
     props: [],

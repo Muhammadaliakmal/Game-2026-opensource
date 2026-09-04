@@ -3,6 +3,8 @@ import { parkourWorldDoc } from "./parkour";
 import { islandWorldDoc } from "./island";
 import { cottageWorldDoc } from "./cottage";
 import { circuitWorldDoc } from "./circuit";
+import { TIERED_COURSES } from "./courses";
+import type { Tier } from "./course-kit";
 
 /**
  * Worlds that ship with the game.
@@ -20,6 +22,14 @@ export interface BuiltInWorld {
   slug: string;
   name: string;
   blurb: string;
+  /**
+   * Where this sits in the parkour ladder, if it is in it at all.
+   *
+   * Optional because most built-ins are not courses: the island and the
+   * cottage have nothing to complete, and giving them a difficulty would be
+   * claiming a progression they are deliberately outside of.
+   */
+  tier?: Tier;
   build(ownerId: string): WorldDoc;
 }
 
@@ -27,9 +37,14 @@ export const BUILT_IN_WORLDS: BuiltInWorld[] = [
   {
     slug: "parkour",
     name: "Neon Run",
+    tier: "Tutorial",
     blurb: "A forgiving obstacle course. Stones, a walkway, floating islands.",
     build: (ownerId) => parkourWorldDoc("parkour", ownerId, "Neon Run"),
   },
+  // The rest of the ladder. Kept in `courses.ts` rather than inlined here so
+  // the difficulty design and the registry stay separable — this file decides
+  // what ships, that one decides what the maps are.
+  ...TIERED_COURSES,
   {
     slug: "island",
     name: "Sky Yard",

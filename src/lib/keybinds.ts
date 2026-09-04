@@ -46,6 +46,7 @@ export const FOOT_ACTIONS = [
   "jump",
   "run",
   "respawn",
+  "restart",
   "view",
   "recenter",
 ] as const;
@@ -105,6 +106,7 @@ export const FOOT_LABELS: Record<FootAction, string> = {
   jump: "Jump",
   run: "Sprint / lock on",
   respawn: "Respawn",
+  restart: "Restart run",
   view: "First person",
   recenter: "Recentre camera",
 };
@@ -142,6 +144,10 @@ export const DEFAULT_BINDS: Binds = {
     jump: ["Space"],
     run: ["ShiftLeft", "ShiftRight"],
     respawn: ["KeyR"],
+    // Deliberately not next to R. Respawn costs you a checkpoint's worth of
+    // progress; restart costs the whole run, and the two should not be one
+    // finger apart on a key you press while falling.
+    restart: ["KeyT"],
     view: ["KeyV"],
     recenter: ["KeyC"],
   },
@@ -212,6 +218,9 @@ export const PRESETS: Record<PresetId, { name: string; binds: Binds }> = {
         // Next to the arrows rather than across the keyboard: a right-handed
         // layout whose verbs are still on the left hand is only half a layout.
         respawn: ["Delete"],
+        // The far corner of the six-key cluster, for the same reason T is not
+        // next to R: restarting is the expensive one.
+        restart: ["PageUp"],
         view: ["End"],
         recenter: ["PageDown"],
       },

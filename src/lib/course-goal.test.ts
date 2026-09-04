@@ -27,13 +27,52 @@ function reached(pos: [number, number, number], goal: readonly number[]) {
   return dy <= GOAL_ABOVE && dy >= -GOAL_BELOW;
 }
 
-test("only the course has a goal", () => {
+test("courses have a goal and sandboxes do not", () => {
   // A goal on the island or the cottage would invent a failure state for
-  // worlds whose whole point is not having one.
-  const withGoal = BUILT_IN_WORLDS.filter((w) => w.build("u").goal).map(
-    (w) => w.slug
-  );
-  assert.deepEqual(withGoal, ["parkour"]);
+  // worlds whose whole point is not having one. `tier` is what separates the
+  // two now that there are five courses — a world in the ladder is a world
+  // with a finish, and the test says that rather than naming a slug, so
+  // adding a sixth map cannot make this fail for the wrong reason.
+  for (const w of BUILT_IN_WORLDS) {
+    const doc = w.build("u");
+    if (w.tier) {
+      assert.ok(doc.goal, `${w.slug} is in the ladder and needs a goal`);
+      assert.ok(
+        (doc.checkpoints?.length ?? 0) > 0,
+        `${w.slug} is in the ladder and needs checkpoints`
+      );
+    } else {
+      assert.equal(doc.goal, undefined, `${w.slug} must not have a goal`);
+      assert.equal(doc.checkpoints, undefined, `${w.slug} must not have checkpoints`);
+    }
+  }
+});
+
+test("every course's goal is close enough to its podium to trigger", () => {
+  // `reached` is GoalZone's own cylinder. A marker placed two cells above the
+  // deck it belongs to passes every other test in the suite — the parts are
+  // valid, the deck is solid, the route gets there — and then the run never
+  // completes, because the player's body never enters the zone.
+  for (const w of BUILT_IN_WORLDS.filter((x) => x.tier)) {
+    const doc = w.build("u");
+    const solid = new Set(doc.parts.map((p) => `${p[0]},${p[1]},${p[2]}`));
+    const gx = Math.floor(doc.goal![0]);
+    const gz = Math.floor(doc.goal![2]);
+
+    let surface: number | null = null;
+    for (let y = Math.floor(doc.goal![1]); y >= 0; y--) {
+      if (solid.has(`${gx},${y},${gz}`)) {
+        surface = y + 1;
+        break;
+      }
+    }
+    assert.ok(surface !== null, `${w.slug}: nothing under the goal marker`);
+    // Standing on that surface: the capsule's centre rides about 0.8 above it.
+    assert.ok(
+      reached([gx + 0.5, surface! + 0.8, gz + 0.5], doc.goal!),
+      `${w.slug}: standing on the finish block does not finish the course`
+    );
+  }
 });
 
 test("the goal survives a WorldDoc round trip", () => {

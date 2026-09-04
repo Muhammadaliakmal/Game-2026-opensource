@@ -21,6 +21,11 @@ import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
 export const dynamic = "force-dynamic";
 
 export default async function BrowsePage() {
+  // BUILT_IN_WORLDS is already in ladder order, so this is a partition and not
+  // a sort — the difficulty sequence is defined once, where the maps are.
+  const ladder = BUILT_IN_WORLDS.filter((w) => w.tier);
+  const sandboxes = BUILT_IN_WORLDS.filter((w) => !w.tier);
+
   // Metadata only — see the note on the home page: a gallery of 60 worlds
   // would otherwise pull 60 full WorldDocs just to render a part count.
   const published = await db
@@ -41,14 +46,41 @@ export default async function BrowsePage() {
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
       <h1 className="mb-6 text-xl font-bold">Browse worlds</h1>
 
+      {/* The ladder first, in difficulty order, because it is the thing to do
+          on a first visit — and the tier is on the card rather than implied by
+          position, so a player who lands here from a link still knows what
+          they are opening. */}
+      <h2 className="mb-4 text-base font-semibold">The parkour ladder</h2>
       <ul className="mb-10 grid gap-4 sm:grid-cols-2">
-        {BUILT_IN_WORLDS.map((w) => (
+        {ladder.map((w) => (
           <li
             key={w.slug}
             className="card hover:border-accent/50 p-4 transition-colors"
           >
             <div className="flex items-start justify-between gap-3">
-              <h2 className="text-base font-semibold">{w.name}</h2>
+              <h3 className="text-base font-semibold">{w.name}</h3>
+              <span className="hud-label shrink-0">{w.tier}</span>
+            </div>
+            <p className="text-dim mt-1 text-sm">{w.blurb}</p>
+            <Link
+              href={`/play/${w.slug}`}
+              className="hud-chip hud-chip--primary mt-4"
+            >
+              Play
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      <h2 className="mb-4 text-base font-semibold">Sandboxes</h2>
+      <ul className="mb-10 grid gap-4 sm:grid-cols-2">
+        {sandboxes.map((w) => (
+          <li
+            key={w.slug}
+            className="card hover:border-accent/50 p-4 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-base font-semibold">{w.name}</h3>
               <span className="hud-label shrink-0">Built-in</span>
             </div>
             <p className="text-dim mt-1 text-sm">{w.blurb}</p>

@@ -24,6 +24,27 @@ dependency versions without checking in.
   `useEffect(() => setState(read()))`. The `react-hooks/set-state-in-effect`
   lint rule is on and will reject the latter.
 
+## Level geometry
+
+Anything a player has to jump between is built against `lib/jump-arc.ts`, and
+never against a number in a comment. The arc is derived from `FEEL` — and it
+is asymmetric, because `fallGravityScale` is 3, so the obvious `2v/g` airtime
+is wrong by about 40%.
+
+The unit is **empty cells between two platforms**, not centre-to-centre
+distance: the character takes off at one leading edge and lands on the other,
+so two pads three cells apart centre to centre have two cells of air between
+them. `canClear(gap, rise)` is the predicate; `DESIGN_MARGIN` is the 20% that
+separates a hard jump from a frame-perfect one, and Expert courses spend it
+rather than the safety underneath it.
+
+New courses go through `lib/course-kit.ts` (one part per cell, nothing below
+y=0) and get added to `TIERED_COURSES`. `courses.test.ts` then walks the
+surfaces as a graph and proves the goal is reachable, every checkpoint is on
+the route, and — the one that matters — that the goal is still reachable *from
+every checkpoint*, because a resume point you cannot continue from is a soft
+lock rather than a mercy.
+
 ## Frame rate
 
 Every continuously-animating canvas runs `frameloop="never"` with a
