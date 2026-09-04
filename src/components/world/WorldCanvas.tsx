@@ -46,6 +46,8 @@ import { Player } from "@/components/play/Player";
 import { Peers } from "@/components/play/Peers";
 import { GoalZone } from "@/components/play/GoalZone";
 import { CheckpointZones } from "@/components/play/CheckpointZones";
+import { NightSky } from "@/components/sky/NightSky";
+import { NIGHT_LOOK, moonDirection } from "@/lib/atmosphere";
 import { PerfProbe } from "@/components/perf/PerfProbe";
 import { PerfPanel } from "@/components/perf/PerfPanel";
 import { RunRecorder } from "@/components/play/RunRecorder";
@@ -145,19 +147,38 @@ function FirstFrame({ onPainted }: { onPainted: () => void }) {
   return null;
 }
 
-/** Keeps the key light's shadow camera over whatever is being looked at. */
+/**
+ * Keeps the key light's shadow camera over whatever is being looked at.
+ *
+ * Two lights in one, because the two modes want opposite things. Building
+ * wants a neutral overhead studio: you are judging colours and reading edges,
+ * and moonlight from one side would make half of every block a guess. Playing
+ * wants the moon that is actually in the sky, or the shadows fall from a
+ * direction with nothing there to cast them.
+ */
 function Sun({ mode }: { mode: Mode }) {
   const controls = useThree((s) => s.controls) as unknown as {
     target?: THREE.Vector3;
   } | null;
   const origin = useMemo(() => new THREE.Vector3(), []);
+  const playing = mode === "play";
+
+  // Memoised because <FollowSun> resolves its offset on the identity of this
+  // vector: a fresh one per render would rebuild that offset on every render.
+  const moon = useMemo(() => moonDirection(), []);
 
   return (
     <FollowSun
-      extent={mode === "play" ? 34 : 40}
-      getFocus={() =>
-        mode === "play" ? playerFocus : (controls?.target ?? origin)
-      }
+      extent={playing ? 34 : 40}
+      getFocus={() => (playing ? playerFocus : (controls?.target ?? origin))}
+      {...(playing
+        ? {
+            sunDir: moon,
+            color: NIGHT_LOOK.keyColor,
+            intensity: NIGHT_LOOK.keyIntensity,
+            distance: NIGHT_LOOK.keyDistance,
+          }
+        : {})}
     />
   );
 }
@@ -566,7 +587,16 @@ export default function WorldCanvas({
             below it has a frame to be rendered in. */}
         {playing && <FrameLimiter fps={60} />}
 
-        <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
+        {/* Build keeps the neutral studio fill it has always had. Play gets
+            the night sky instead, which brings its own fill, fog, background
+            and environment — having both would wash the black back to grey.
+            Declared as JSX so R3F restores the editor's own background and
+            environment when this unmounts on the way back to Build. */}
+        {playing ? (
+          <NightSky />
+        ) : (
+          <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
+        )}
         <Sun mode={mode} />
         <CameraHandoff mode={mode} />
         {!painted && <FirstFrame onPainted={() => setPainted(true)} />}

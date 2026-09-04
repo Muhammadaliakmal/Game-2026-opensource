@@ -3,7 +3,7 @@
 import * as THREE from "three";
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { SKY_RADIUS } from "@/lib/atmosphere";
+import { SKY_RADIUS, SUNSET_LOOK, type SkyLook } from "@/lib/atmosphere";
 import { makeSkyUniforms, skyFragmentShader, skyVertexShader } from "./sky-shader";
 
 /**
@@ -19,9 +19,16 @@ import { makeSkyUniforms, skyFragmentShader, skyVertexShader } from "./sky-shade
  * lib/atmosphere.ts, and scripts/render-sky.ts draws them to a PNG so the ramp
  * can be judged without a browser.
  */
-export function SkyDome({ sunDir }: { sunDir: React.RefObject<THREE.Vector3> }) {
+export function SkyDome({
+  sunDir,
+  /** Which sky to paint. See lib/atmosphere.ts. */
+  look = SUNSET_LOOK,
+}: {
+  sunDir: React.RefObject<THREE.Vector3>;
+  look?: SkyLook;
+}) {
   const mesh = useRef<THREE.Mesh>(null);
-  const uniforms = useMemo(() => makeSkyUniforms(), []);
+  const uniforms = useMemo(() => makeSkyUniforms(look), [look]);
   const fragmentShader = useMemo(() => skyFragmentShader(true), []);
 
   useFrame(({ camera }) => {

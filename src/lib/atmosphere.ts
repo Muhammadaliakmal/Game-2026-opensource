@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { NIGHT_STOPS, SKY_STOPS, type SkyStops } from "./sky-stops";
 
 /**
  * Every number that decides what the sky looks like, in one file.
@@ -45,13 +46,10 @@ import * as THREE from "three";
  * midpoint of two sRGB numbers is not the colour halfway between the two
  * lights they represent.
  */
-export const SKY_STOPS = [
-  { at: 0.0, hex: "#FFC28A", note: "horizon — bright, slightly desaturated" },
-  { at: 0.1, hex: "#F2A277", note: "lower — THIS IS THE FOG COLOUR" },
-  { at: 0.28, hex: "#C6577A", note: "mid — rose" },
-  { at: 0.55, hex: "#5B4A8A", note: "upper — the transition that sells it" },
-  { at: 1.0, hex: "#1B2A5B", note: "zenith — deep indigo, never black" },
-] as const;
+// Declared in lib/sky-stops.ts and re-exported here, so this file stays the
+// one place a reader looks while the raw data can be imported by server
+// components that must not pull three.js in. See that file.
+export { SKY_STOPS, NIGHT_STOPS, type SkyStops } from "./sky-stops";
 
 /**
  * The horizon colour, and therefore the fog colour.
@@ -276,10 +274,10 @@ export function linear(hex: string): THREE.Color {
 }
 
 /** The ramp as flat arrays, ready to hand to a shader as uniforms. */
-export function skyRampUniforms() {
+export function skyRampUniforms(stops: SkyStops = SKY_STOPS) {
   return {
-    colors: SKY_STOPS.map((s) => linear(s.hex)),
-    stops: SKY_STOPS.map((s) => s.at),
+    colors: stops.map((s) => linear(s.hex)),
+    stops: stops.map((s) => s.at),
   };
 }
 
@@ -290,9 +288,13 @@ export function skyRampUniforms() {
  * looked at without a browser, and by the tests. If this and the shader ever
  * disagree, the preview is lying and this is the copy to fix.
  */
-export function sampleRamp(t: number, out = new THREE.Color()): THREE.Color {
+export function sampleRamp(
+  t: number,
+  out = new THREE.Color(),
+  ramp: SkyStops = SKY_STOPS
+): THREE.Color {
   const h = THREE.MathUtils.clamp(t, 0, 1);
-  const { colors, stops } = skyRampUniforms();
+  const { colors, stops } = skyRampUniforms(ramp);
 
   for (let i = 0; i < stops.length - 1; i++) {
     const a = stops[i]!;
@@ -307,3 +309,195 @@ export function sampleRamp(t: number, out = new THREE.Color()): THREE.Color {
   }
   return out.copy(colors[colors.length - 1]!);
 }
+
+/* ------------------------------------------------------------------------
+ * Night - the look Play and Race actually run
+ * ------------------------------------------------------------------------
+ *
+ * The sunset above is a complete, coherent piece of work and it stays: it is
+ * still what `NEXT_PUBLIC_MAP_V2=1` selects. But the world it lights is a
+ * *neon voxel* world, and warm orange light is the one thing that fights that
+ * - a glowing cyan rail against a peach sky is two art directions arguing.
+ * Against black, the same rail is the brightest thing on screen.
+ *
+ * Everything below is the same machinery pointed at a different set of
+ * numbers: the same five-stop ramp, the same dome shader, the same PMREM, the
+ * same follow-light. Only the constants differ, which is the whole reason the
+ * sunset was built as constants in one file.
+ */
+
+/**
+ * A complete sky, as the one object a canvas has to name.
+ *
+ * The sunset's numbers were loose exports because there was one sky. With two,
+ * "which fog goes with which gradient" becomes a question somebody can get
+ * wrong, so the answer is a single value that carries both.
+ */
+export interface SkyLook {
+  name: string;
+  /** Exactly five stops - the dome shader's ramp loop is unrolled to that. */
+  stops: SkyStops;
+  /** Horizon colour, and therefore the fog colour. One value, never two. */
+  fogHex: string;
+  fogDensity: number;
+  /** The glow the sky takes on around the light source in it. */
+  biasColor: string;
+  biasStrength: number;
+  biasFalloff: number;
+  biasHeightFalloff: number;
+  /** How much the generated environment map contributes. */
+  envIntensity: number;
+  /** Fill light: sky above, ground below. */
+  hemiSky: string;
+  hemiGround: string;
+  hemiIntensity: number;
+  /** The key light - the sun or the moon. Handed to <FollowSun>. */
+  keyColor: string;
+  keyIntensity: number;
+  keyDistance: number;
+}
+
+/**
+ * The night ramp, bottom to top.
+ *
+ * "Dark blue to black" literally: a blue that is still recognisably blue at
+ * the horizon, and true black overhead. The zenith being black rather than
+ * near-black is deliberate and is the opposite of the sunset's rule - there,
+ * a black zenith would have read as a bug in the gradient; here it is what
+ * lets the stars carry the top of the frame on their own.
+ */
+
+
+/** Elevation and azimuth of the moon, degrees. */
+export const MOON_ELEVATION_DEG = 32;
+/**
+ * Placed off the start/finish straight rather than down it.
+ *
+ * The sun sits at azimuth 24, ahead of the grid, because a sunset wants to be
+ * driven into. A moon in the same place would be behind every shadow the
+ * rider needs to read, so this puts it over the rider's left shoulder.
+ */
+export const MOON_AZIMUTH_DEG = 128;
+
+/** Distance and diameter of the moon billboard. See SUN_SPRITE_DISTANCE. */
+export const MOON_SPRITE_DISTANCE = 620;
+/**
+ * Bigger than the sun's 78, which is not what an astronomer would draw.
+ *
+ * Every game that has ever put a moon in the sky has drawn it too large,
+ * because it is scenery rather than an astronomy lesson: at its true angular
+ * size it is a dot nobody notices, and the point of it here is to be the thing
+ * you look at when the sky is otherwise empty.
+ */
+export const MOON_SPRITE_SIZE = 96;
+
+/** Unit vector from the origin toward the moon. */
+export function moonDirection(): THREE.Vector3 {
+  const el = THREE.MathUtils.degToRad(MOON_ELEVATION_DEG);
+  const az = THREE.MathUtils.degToRad(MOON_AZIMUTH_DEG);
+  return new THREE.Vector3(
+    Math.cos(el) * Math.cos(az),
+    Math.sin(el),
+    Math.cos(el) * Math.sin(az)
+  );
+}
+
+/* -- Stars ------------------------------------------------------------- */
+
+/**
+ * How many, and how big.
+ *
+ * One draw call whatever the count, so the number is chosen by eye rather than
+ * by budget. Thirteen hundred is dense enough to read as a sky and sparse
+ * enough that individual stars are still individual - past about three
+ * thousand it turns into noise, which is the failure mode every procedural
+ * starfield has.
+ */
+export const STAR_COUNT = 1300;
+/** Just inside the dome, so draw order puts them in front of the gradient. */
+export const STAR_RADIUS = SKY_RADIUS * 0.9;
+/** Pixel sizes, before device pixel ratio. Most stars are the small one. */
+export const STAR_SIZE_MIN = 1.0;
+export const STAR_SIZE_MAX = 3.4;
+/**
+ * Stars are not white.
+ *
+ * A field of pure white points reads as dust on the lens. Real ones scatter
+ * from cool blue to warm amber, and that variation is most of what makes a
+ * starfield look like a sky rather than a texture.
+ */
+export const STAR_TINTS = ["#ffffff", "#cfe0ff", "#a9c6ff", "#ffe9c8", "#ffd2a8"];
+/** Twinkle rate, radians per second, and how deep the dip goes. */
+export const STAR_TWINKLE_SPEED = 1.6;
+export const STAR_TWINKLE_DEPTH = 0.38;
+/**
+ * Fade out near the horizon.
+ *
+ * Stars sitting on the skyline look pasted on, because in a real sky that is
+ * where the atmosphere is thickest and they are dimmest. It is also the band
+ * the world's own geometry occupies, so this keeps them out of the way of the
+ * thing being played.
+ */
+export const STAR_HORIZON_FADE = 0.16;
+
+export const NIGHT_LOOK: SkyLook = {
+  name: "night",
+  stops: NIGHT_STOPS,
+  fogHex: NIGHT_STOPS[1].hex,
+  /**
+   * Thinner than the sunset's 0.0027.
+   *
+   * Sunset haze is the point of a sunset; night haze just deletes the far side
+   * of the track. This puts the wall at roughly 1300 units - past CAMERA_FAR,
+   * so distance reads as a gentle darkening rather than as a curtain.
+   */
+  fogDensity: 0.0016,
+  /** The moon's own glow bleeding into the sky around it. Cool, and slight. */
+  biasColor: "#7e93d8",
+  biasStrength: 0.2,
+  biasFalloff: 3.2,
+  biasHeightFalloff: 0.7,
+  /**
+   * Higher than the sunset's 0.8 against a far darker map, which nets out much
+   * dimmer. It is what stops `metal` finishes going to flat black.
+   */
+  envIntensity: 1.1,
+  /**
+   * The fill, and the number this whole look lives or dies by.
+   *
+   * Too low and a matte block is unreadable, which on a parkour course means a
+   * platform you cannot see the edge of - a difficulty nobody chose. Too high
+   * and it is a grey evening rather than a night. The sky colour is lifted
+   * well above any stop in the ramp for exactly this reason: it is doing the
+   * job of ambient light, not matching the gradient.
+   */
+  hemiSky: "#4a5da8",
+  hemiGround: "#0a0d1c",
+  hemiIntensity: 0.9,
+  keyColor: "#c3d2ff",
+  keyIntensity: 1.9,
+  /**
+   * Further out than the sunset's 130 because the moon is 32 degrees up rather
+   * than 7, and the shadow camera's far plane is derived from this.
+   */
+  keyDistance: 150,
+};
+
+/** The sunset, as the same shape, so a canvas can hold either in one variable. */
+export const SUNSET_LOOK: SkyLook = {
+  name: "sunset",
+  stops: SKY_STOPS,
+  fogHex: FOG_HEX,
+  fogDensity: FOG_DENSITY,
+  biasColor: "#FFD8A8",
+  biasStrength: SUN_BIAS_STRENGTH,
+  biasFalloff: SUN_BIAS_FALLOFF,
+  biasHeightFalloff: SUN_BIAS_HEIGHT_FALLOFF,
+  envIntensity: ENV_INTENSITY,
+  hemiSky: HEMI_SKY_COLOR,
+  hemiGround: HEMI_GROUND_COLOR,
+  hemiIntensity: HEMI_INTENSITY,
+  keyColor: SUN_LIGHT_COLOR,
+  keyIntensity: SUN_LIGHT_INTENSITY,
+  keyDistance: 130,
+};

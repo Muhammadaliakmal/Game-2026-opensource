@@ -65,6 +65,25 @@ export const BUILT_IN_WORLDS: BuiltInWorld[] = [
   },
 ];
 
+/**
+ * The parkour ladder, in tier order, and everything else.
+ *
+ * `tier` is already what separates the two: a course has a difficulty because
+ * it has a goal to be difficult about, and the island, the cottage and the
+ * walkable circuit deliberately have neither. Splitting on it here means the
+ * menu cannot disagree with the registry — adding a fifth course to
+ * `TIERED_COURSES` puts it on the parkour screen and nowhere else, with no
+ * second list to remember to update.
+ */
+export const PARKOUR_COURSES: BuiltInWorld[] = BUILT_IN_WORLDS.filter(
+  (w) => w.tier !== undefined
+);
+
+/** The worlds with nothing to complete. Somewhere to stand and build. */
+export const SANDBOX_WORLDS: BuiltInWorld[] = BUILT_IN_WORLDS.filter(
+  (w) => w.tier === undefined
+);
+
 const BY_SLUG = new Map(BUILT_IN_WORLDS.map((w) => [w.slug, w]));
 
 /**

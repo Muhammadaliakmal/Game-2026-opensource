@@ -7,7 +7,9 @@ import { NewWorldButton } from "@/components/NewWorldButton";
 import { WorldCardMenu } from "@/components/WorldCardMenu";
 import { RemixButton } from "@/components/RemixButton";
 import { HeroMount } from "@/components/hero/HeroMount";
-import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
+import { PARKOUR_COURSES, SANDBOX_WORLDS } from "@/lib/built-in-worlds";
+import { ModeCard } from "@/components/modes/ModeCard";
+import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
 
 /**
  * Home: a live world for a visitor, a world list for a player.
@@ -22,6 +24,55 @@ import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
  * gradient accent word and "Build · Play · Remix" eyebrow were template
  * chrome that said nothing it does not.
  */
+
+/**
+ * The two things you can go and do, as covers rather than as a list.
+ *
+ * ── Order ────────────────────────────────────────────────────────────────
+ *
+ * Parkour first and race second, and not alphabetically. Parkour is the mode
+ * that works alone, offline, on the first visit, with no code to share and
+ * nobody else needed; racing needs a room server and — to be a race rather
+ * than a time trial — somebody else. Leading with the one that can fail to
+ * connect is leading with the one that can disappoint.
+ *
+ * ── Why both are one tile each ───────────────────────────────────────────
+ *
+ * Racing used to be a chip in the page header, which is the same as not
+ * shipping it: a five-word link between "Browse" and "Get the app" does not
+ * read as a game mode. And the five parkour courses used to be five entries in
+ * a flat list of built-in worlds, so the ladder they form was invisible. One
+ * cover each, one screen behind each, and the covers are drawn from the game's
+ * own night sky so they show what pressing them gets you.
+ */
+function Modes() {
+  return (
+    <section>
+      <h2 className="mb-4 text-xl font-bold">Play</h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ModeCard
+          href="/parkour"
+          art="parkour"
+          eyebrow={`${PARKOUR_COURSES.length} courses · Tutorial to Expert`}
+          title="Parkour"
+          blurb="Jump it, time it, take the medal. Checkpoints keep the clock running through a fall, and a ghost of your best run is out there ahead of you."
+          meta={["Solo", "Medals", "Ghosts", "Leaderboards"]}
+          cta="Choose a course"
+        />
+        <ModeCard
+          href="/race"
+          art="race"
+          eyebrow={`Up to ${MAX_RIDERS} riders · ${RACE_LAPS} laps`}
+          title="Race"
+          blurb="Neon Circuit, on bikes. Drift to fill the boost, spend it down the straight, and send the code to whoever you want on the grid."
+          meta={["Multiplayer", "Boost", "Drift", "Time trial"]}
+          cta="Open a grid"
+        />
+      </div>
+    </section>
+  );
+}
+
 export default async function Home() {
   const { userId } = await auth();
 
@@ -69,10 +120,15 @@ export default async function Home() {
             </div>
           </section>
 
+          <Modes />
+
+          {/* The worlds with nothing to complete. Kept as a plain list on
+              purpose: they are somewhere to stand and look around, not a mode,
+              and giving them cover art would claim they were. */}
           <section>
-            <h2 className="mb-4 text-xl font-bold">Worlds to play</h2>
+            <h2 className="mb-4 text-xl font-bold">Worlds to explore</h2>
             <ul className="grid gap-4 sm:grid-cols-2">
-              {BUILT_IN_WORLDS.map((w) => (
+              {SANDBOX_WORLDS.map((w) => (
                 <li
                   key={w.slug}
                   className="card hover:border-accent/50 p-4 transition-colors"
@@ -151,12 +207,16 @@ export default async function Home() {
 
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
-      {/* Built-ins first: they are always here, and they give a brand-new
-          account something to play before it has built anything. */}
+      {/* The modes first: they are always here, and they give a brand-new
+          account something to do before it has built anything. */}
+      <div className="mb-12">
+        <Modes />
+      </div>
+
       <section className="mb-12">
-        <h2 className="mb-4 text-xl font-bold">Featured worlds</h2>
+        <h2 className="mb-4 text-xl font-bold">Worlds to explore</h2>
         <ul className="grid gap-4 sm:grid-cols-2">
-          {BUILT_IN_WORLDS.map((w) => (
+          {SANDBOX_WORLDS.map((w) => (
             <li
               key={w.slug}
               className="card hover:border-accent/50 p-4 transition-colors"

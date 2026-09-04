@@ -158,15 +158,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/browse" className="hud-chip">
                 Browse
               </Link>
-              {/* Racing was reachable only by typing the URL, which is the same
-                  as not shipping it. Hidden on the narrowest screens so the
-                  header does not wrap behind the sign-in buttons. */}
-              <Link href="/race" className="hud-chip hidden xs:inline-flex sm:inline-flex">
-                Race
-              </Link>
-              {/* Hidden on the narrowest screens along with Race: the header
-                  wraps behind the sign-in buttons otherwise. Anyone on a phone
-                  who wants this is being sent a link to it. */}
+              {/* Racing is NOT a chip here any more. It was, because it was
+                  otherwise reachable only by typing the URL — but a five-word
+                  link wedged between "Browse" and "Get the app" is not how
+                  anybody finds a game mode, and it competed with the header's
+                  actual job. It is a cover on the home page now, next to
+                  parkour, which is where someone looking for something to play
+                  is already looking. */}
+              {/* Hidden on the narrowest screens: the header wraps behind the
+                  sign-in buttons otherwise. Anyone on a phone who wants this is
+                  being sent a link to it. */}
               <Link href="/download" className="hud-chip hidden sm:inline-flex">
                 Get the app
               </Link>

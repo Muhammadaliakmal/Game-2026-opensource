@@ -102,6 +102,54 @@ the route, and — the one that matters — that the goal is still reachable *fr
 every checkpoint*, because a resume point you cannot continue from is a soft
 lock rather than a mercy.
 
+## The sky
+
+Play and Race run **night**: a dark-blue-to-black dome, a starfield and a moon.
+Every number is a `SkyLook` in `lib/atmosphere.ts` (`NIGHT_LOOK`), which carries
+the gradient AND the fog AND the light colours together, so they cannot be
+edited apart — the world-edge seam happens when the fog colour and the horizon
+stop drift, and there is only one value for both.
+
+- The sunset (`SUNSET_LOOK`, `SunsetSky`) is still complete and still selected
+  by `NEXT_PUBLIC_MAP_V2=1`. It was kept rather than deleted: nothing about it
+  is wrong, it simply is not how a neon world wants to be lit.
+- Build mode keeps its neutral studio fill. A black sky is right for playing
+  and wrong for judging a colour you are placing.
+- The raw gradient data is in `lib/sky-stops.ts`, which imports nothing.
+  `atmosphere.ts` re-exports it. Server components (the mode covers) read the
+  stops from there — importing them from `atmosphere.ts` would pull the whole
+  of three.js into the server bundle to render an SVG gradient.
+
+Two things about the sky layers that are easy to get wrong:
+
+- **`renderOrder` only sorts within three's opaque and transparent groups.**
+  The dome is opaque, so its `-1000` really does put it first. The stars and
+  the moon are transparent, so they draw after *every* solid block whatever
+  their order — which is why they depth-test against the world and the dome
+  does not.
+- The starfield's geometry, shaders and per-frame write all live in
+  `star-field.ts`, not in the component. That is what the lint rules require:
+  `react-hooks/purity` rejects `Math.random()` reached from render, and
+  `react-hooks/immutability` rejects assigning to a member of a value a hook
+  returned.
+
+## The menu
+
+There are two modes, and each is a cover you press, not a row with a button
+after it: `/parkour` (the five-course ladder) and `/race`. Parkour first —
+it works alone, offline, on the first visit; racing needs a room server and
+somebody else, and leading with the one that can fail to connect is leading
+with the one that can disappoint.
+
+- Racing is deliberately **not** a chip in the page header any more.
+- `PARKOUR_COURSES` / `SANDBOX_WORLDS` in `built-in-worlds.ts` split on `tier`,
+  so adding a course to `TIERED_COURSES` puts it on the parkour screen and
+  nowhere else. There is no second list to keep in step.
+- Cover art is SVG generated from `NIGHT_STOPS` and `var(--color-accent)`,
+  which `data-mode` has already rebound per mode — the same mechanism the HUDs
+  recolour with. Not screenshots: those would be seven PNGs to re-capture every
+  time a course or the sky changed, and silently wrong the rest of the time.
+
 ## Perf overlay
 
 `?perf=1` on any live canvas — Play, Race and Arena all mount `PerfProbe` and

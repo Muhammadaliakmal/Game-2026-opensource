@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { isMatchCode, makeMatchCode, normalizeMatchCode } from "@/lib/match-code";
 import { multiplayerEnabled } from "@/lib/net/room";
 import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
+import { ModeCover } from "@/components/modes/ModeCover";
 
 /**
  * The race lobby: open a grid, or join one somebody sent you.
@@ -30,17 +31,38 @@ export default function RaceLobbyPage() {
   };
 
   return (
-    <main className="bg-base min-h-dvh px-5 py-10 sm:px-8">
+    // Rebinds --color-accent to the racing magenta for the whole screen, the
+    // same mechanism the in-game HUD uses. See globals.css.
+    <main data-mode="race" className="bg-base min-h-dvh px-5 py-10 sm:px-8">
       <div className="mx-auto flex max-w-2xl flex-col gap-8">
-        <header className="flex flex-col gap-2">
-          <Link href="/" className="hud-label w-fit">
-            ← Blockworld
-          </Link>
-          <h1 className="text-ink text-2xl font-semibold">Races</h1>
-          <p className="text-dim text-sm">
-            Up to {MAX_RIDERS} riders, {RACE_LAPS} laps of Neon Circuit, on
-            bikes. Open a grid and send the link to whoever you want to race.
-          </p>
+        {/* The same cover the home page shows, at full width.
+            Arriving here used to mean a heading and two sentences, which made
+            the mode feel like a form to fill in — and the picture is what
+            carries the promise from the tile that was pressed to the screen
+            that opens. */}
+        <header className="relative overflow-hidden rounded-[var(--radius)] border border-[var(--border-color)]">
+          <div className="relative h-44 w-full sm:h-56">
+            <ModeCover art="race" />
+            <div
+              aria-hidden
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(2,3,10,0.94) 0%, rgba(2,3,10,0.7) 38%, rgba(2,3,10,0.1) 72%, rgba(2,3,10,0) 100%)",
+              }}
+            />
+            <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-5">
+              <Link href="/" className="hud-label text-accent w-fit">
+                ← Blockworld
+              </Link>
+              <h1 className="text-ink text-3xl leading-tight font-bold">Race</h1>
+              <p className="text-dim max-w-md text-sm">
+                Up to {MAX_RIDERS} riders, {RACE_LAPS} laps of Neon Circuit, on
+                bikes. Open a grid and send the link to whoever you want to
+                race.
+              </p>
+            </div>
+          </div>
         </header>
 
         {!multiplayerEnabled && (

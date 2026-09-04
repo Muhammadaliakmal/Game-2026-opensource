@@ -4,12 +4,7 @@ import { useEffect, useMemo } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Environment } from "@react-three/drei";
 import {
-  ENV_INTENSITY,
-  FOG_DENSITY,
-  FOG_HEX,
-  HEMI_GROUND_COLOR,
-  HEMI_INTENSITY,
-  HEMI_SKY_COLOR,
+  SUNSET_LOOK,
   SUN_DRIFT_DEG_PER_MIN,
   sunDirection,
 } from "@/lib/atmosphere";
@@ -55,7 +50,10 @@ export function SunsetSky() {
    * far below what a blurred irradiance map can represent, so rebuilding it
    * per frame would cost a PMREM render to change nothing.
    */
-  const env = useMemo(() => buildSkyEnvironment(gl, sunDirection()), [gl]);
+  const env = useMemo(
+    () => buildSkyEnvironment(gl, sunDirection(), SUNSET_LOOK),
+    [gl]
+  );
 
   // Allocated outside the R3F tree, so nothing else will free it.
   useEffect(() => env.dispose, [env]);
@@ -72,24 +70,31 @@ export function SunsetSky() {
       {/* The fog colour and the sky's horizon stop are the same constant, not
           two hex strings kept in step by hand — MAP.md §3.1's world-edge seam
           cannot appear if there is only one value. */}
-      <fogExp2 attach="fog" args={[FOG_HEX, FOG_DENSITY]} />
+      <fogExp2
+        attach="fog"
+        args={[SUNSET_LOOK.fogHex, SUNSET_LOOK.fogDensity]}
+      />
       {/* Only ever visible for the frame before the dome draws, but a black
           flash on load reads as a bug on a slow phone. */}
-      <color attach="background" args={[FOG_HEX]} />
+      <color attach="background" args={[SUNSET_LOOK.fogHex]} />
 
       <Environment
         map={env.texture}
         background={false}
-        environmentIntensity={ENV_INTENSITY}
+        environmentIntensity={SUNSET_LOOK.envIntensity}
       />
 
-      <SkyDome sunDir={sunDir.ref} />
+      <SkyDome sunDir={sunDir.ref} look={SUNSET_LOOK} />
       <SunSprite sunDir={sunDir.ref} />
 
       {/* Fill. Warm from the sky, dark earth from below, so the shadowed side
           of a block is tinted rather than merely darker. */}
       <hemisphereLight
-        args={[HEMI_SKY_COLOR, HEMI_GROUND_COLOR, HEMI_INTENSITY]}
+        args={[
+          SUNSET_LOOK.hemiSky,
+          SUNSET_LOOK.hemiGround,
+          SUNSET_LOOK.hemiIntensity,
+        ]}
       />
     </>
   );

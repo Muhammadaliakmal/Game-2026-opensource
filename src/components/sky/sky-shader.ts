@@ -1,10 +1,5 @@
 import * as THREE from "three";
-import {
-  SUN_BIAS_FALLOFF,
-  SUN_BIAS_HEIGHT_FALLOFF,
-  SUN_BIAS_STRENGTH,
-  skyRampUniforms,
-} from "@/lib/atmosphere";
+import { SUNSET_LOOK, skyRampUniforms, type SkyLook } from "@/lib/atmosphere";
 
 /**
  * The sky gradient as a material, built twice from one shader.
@@ -119,18 +114,23 @@ export interface SkyUniforms {
   uBiasColor: { value: THREE.Color };
 }
 
-export function makeSkyUniforms(): SkyUniforms {
-  const { colors, stops } = skyRampUniforms();
+/**
+ * @param look which sky. Defaults to the sunset, so every existing caller is
+ *   unchanged; `NIGHT_LOOK` is the one Play and Race actually pass.
+ */
+export function makeSkyUniforms(look: SkyLook = SUNSET_LOOK): SkyUniforms {
+  const { colors, stops } = skyRampUniforms(look.stops);
   return {
     uColors: { value: colors },
     uStops: { value: stops },
     uSunDir: { value: new THREE.Vector3(1, 0, 0) },
-    uBiasStrength: { value: SUN_BIAS_STRENGTH },
-    uBiasFalloff: { value: SUN_BIAS_FALLOFF },
-    uBiasHeightFalloff: { value: SUN_BIAS_HEIGHT_FALLOFF },
-    // Warmer and lighter than any stop, so the bias reads as glow rather than
-    // as a shift toward one of the ramp's own colours.
-    uBiasColor: { value: new THREE.Color("#FFD8A8") },
+    uBiasStrength: { value: look.biasStrength },
+    uBiasFalloff: { value: look.biasFalloff },
+    uBiasHeightFalloff: { value: look.biasHeightFalloff },
+    // Lighter than any stop in its own ramp, so the bias reads as glow rather
+    // than as a shift toward one of the ramp's own colours. Warm for the sun,
+    // cool for the moon.
+    uBiasColor: { value: new THREE.Color(look.biasColor) },
   };
 }
 
@@ -143,9 +143,10 @@ export function makeSkyUniforms(): SkyUniforms {
  */
 export function buildSkyEnvironment(
   renderer: THREE.WebGLRenderer,
-  sunDir: THREE.Vector3
+  sunDir: THREE.Vector3,
+  look: SkyLook = SUNSET_LOOK
 ): { texture: THREE.Texture; dispose: () => void } {
-  const uniforms = makeSkyUniforms();
+  const uniforms = makeSkyUniforms(look);
   uniforms.uSunDir.value.copy(sunDir);
 
   const material = new THREE.ShaderMaterial({

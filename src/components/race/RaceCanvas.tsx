@@ -4,7 +4,6 @@ import * as THREE from "three";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Physics } from "@react-three/rapier";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import Link from "next/link";
 import type { PartTuple, PropInstance, WorldDoc } from "@/lib/worlddoc";
 import { useEditorStore } from "@/stores/editor-store";
@@ -18,13 +17,16 @@ import { PropColliders } from "@/components/play/PropColliders";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
 import { SunsetSky } from "@/components/sky/SunsetSky";
+import { NightSky } from "@/components/sky/NightSky";
 import { PerfProbe } from "@/components/perf/PerfProbe";
 import { PerfPanel } from "@/components/perf/PerfPanel";
 import {
   CAMERA_FAR,
   CAMERA_NEAR,
+  NIGHT_LOOK,
   SUN_LIGHT_COLOR,
   SUN_LIGHT_INTENSITY,
+  moonDirection,
   sunDirection,
 } from "@/lib/atmosphere";
 import { MAP_V2 } from "@/lib/map-v2";
@@ -143,17 +145,12 @@ export default function RaceCanvas({ code }: { code: string }) {
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.05;
 
-          // Under MAP_V2 the background, the environment and the fog all come
-          // from <SunsetSky>, generated from the same gradient the dome paints
-          // so they cannot disagree. RoomEnvironment is a neutral grey box —
-          // correct when there is no sky, wrong the moment there is one.
-          if (!MAP_V2) {
-            scene.background = new THREE.Color("#14171a");
-            const pmrem = new THREE.PMREMGenerator(gl);
-            scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-            scene.environmentIntensity = 0.4;
-            pmrem.dispose();
-          }
+          // Nothing to set here any more. Both sky components own the
+          // background, the fog and the environment, and generate the last of
+          // those from the same gradient the dome paints so the two cannot
+          // disagree. RoomEnvironment — a neutral grey box — used to fill in
+          // when there was no sky; there is always a sky now, and a grey box
+          // is exactly wrong under a black one.
 
           setPainted(true);
         }}
@@ -162,14 +159,16 @@ export default function RaceCanvas({ code }: { code: string }) {
             frame to be rendered in. */}
         <FrameLimiter fps={60} />
 
-        {/* The sunset owns the fill, the ambient and everything visible; the
-            neutral hemisphere light is the old look's, and having both would
-            wash the warmth straight back out. */}
-        {MAP_V2 ? (
-          <SunsetSky />
-        ) : (
-          <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
-        )}
+        {/* Night is the look. The sky owns the fill, the ambient, the fog and
+            everything visible, so there is no second hemisphere light here —
+            the neutral one that used to stand in would wash the black straight
+            back out to grey.
+
+            The sunset is still a complete, working sky and is what
+            NEXT_PUBLIC_MAP_V2=1 selects. It is kept rather than deleted
+            because nothing about it is wrong; it simply is not the direction
+            this world is lit in. */}
+        {MAP_V2 ? <SunsetSky /> : <NightSky />}
 
         {/* Wider than the arena's: a bike covers ground fast enough that a
             tight shadow box pops its edge in front of the rider.
@@ -187,7 +186,16 @@ export default function RaceCanvas({ code }: { code: string }) {
                 color: SUN_LIGHT_COLOR,
                 intensity: SUN_LIGHT_INTENSITY,
               }
-            : {})}
+            : {
+                // Moonlight: cool, weaker than the sun, and coming from 32
+                // degrees up rather than 7 — so the track keeps readable
+                // shadows instead of the shadow of every kerb reaching the
+                // far rail.
+                sunDir: moonDirection(),
+                color: NIGHT_LOOK.keyColor,
+                intensity: NIGHT_LOOK.keyIntensity,
+                distance: NIGHT_LOOK.keyDistance,
+              })}
         />
 
         {/* The racing surface is a single flat layer at y=0 — see circuit.ts,
