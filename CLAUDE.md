@@ -23,6 +23,63 @@ dependency versions without checking in.
 - Read a value that lives outside React with `useSyncExternalStore`, not
   `useEffect(() => setState(read()))`. The `react-hooks/set-state-in-effect`
   lint rule is on and will reject the latter.
+- Do not assign to a property of something a hook returned — `camera.position.x
+  += n` is a `react-hooks/immutability` error. Build the value and hand it over
+  in one call (`camera.position.set(...)`, `.copy(...)`).
+- A control inside a `<ThumbCluster>` must be pressable. The cluster is
+  `pointer-events: none` so its gaps stay transparent to the world; `TouchButton`
+  and `ThumbStack` opt back in themselves. Anything new that goes in a cluster
+  has to do the same — the race's steering pads once did not, and were
+  untappable on every phone while the assist quietly drove the bike.
+
+## Which way things face
+
+There is one yaw convention and it is easy to get backwards. The look rig puts
+the eye at `+(sin yaw, cos yaw)` from the character and then looks **back** down
+that offset, so the direction a player sees along is the **negation** of it:
+
+    forward = (-sin(yaw), -cos(yaw))
+
+`yawTowards(dx, dz)` in `play/camera-rig.ts` is the authority. `FACING` in
+`lib/course-kit.ts` is a copy of it — course-kit is pure and the headless room
+server imports it, so it must not pull in three.js — and `facing.test.ts` pins
+the two together and checks that no shipped checkpoint or spawn faces away from
+what comes next. Never write a `Checkpoint.yaw` or a `WorldDoc.spawnYaw` by
+hand; use `FACING`.
+
+`WorldDoc.spawnYaw` is optional. A course states one and the player arrives
+looking down it; a sandbox leaves it undefined and keeps whatever yaw the rig
+was holding.
+
+## Juice and `prefers-reduced-motion`
+
+`lib/motion.ts` is the only reader of the setting outside `globals.css`. The
+rule: feedback that moves the camera or the world (screen shake, hit-stop,
+particle bursts) is dropped under reduced motion; feedback local to the thing
+you touched (a button lighting, the block placement pop, haptics, sound) is
+kept, shortened rather than removed where it is an animation.
+
+Hit-stop is `gate.hold(seconds)` on the frame gate, asked for through
+`requestHitStop`. It returns the same elapsed value for a few frames, which
+hands every `useFrame` — and Rapier, which accumulates that same delta — a step
+of exactly zero while the frame is still drawn. Do not add a per-loop "am I
+frozen" flag; that is the thing this replaced.
+
+## Runs, boards and ghosts
+
+`runs` is **one row per (world, player)** holding their best, not one per
+attempt. `world_id` is `text` with no foreign key, because the courses that
+ship are slugs generated from code and have no row to point at.
+
+- Submission upserts with `setWhere` on the time, so a slower concurrent write
+  cannot land last. It refuses times under `floorMs` — the solver's route.
+  That is a guard against a hand-written `fetch`, not anti-cheat, and the
+  comment in `medals.ts` says so.
+- The board endpoint never returns a ghost. Ghosts are the largest thing in the
+  table and exactly one is ever watched; `runs/ghost` serves that one.
+- Ghosts are fixed-rate (10 Hz) fixed-point tracks — see `lib/ghost.ts` — read
+  back with an index and a lerp, and recorded against the course's own clock so
+  the replay and the on-screen timer cannot drift apart.
 
 ## Level geometry
 
@@ -44,6 +101,17 @@ surfaces as a graph and proves the goal is reachable, every checkpoint is on
 the route, and — the one that matters — that the goal is still reachable *from
 every checkpoint*, because a resume point you cannot continue from is a soft
 lock rather than a mercy.
+
+## Perf overlay
+
+`?perf=1` on any live canvas — Play, Race and Arena all mount `PerfProbe` and
+`PerfPanel`. Keep it that way: the reason the parkour courses went unprofiled
+for a phase is that only the race had it, and "profile before optimising" is
+not advice you can follow on a canvas with no instrument.
+
+Read draw calls, triangles, geometries and programs — those are
+device-independent. fps and worst-frame only mean something on the device you
+actually care about.
 
 ## Frame rate
 

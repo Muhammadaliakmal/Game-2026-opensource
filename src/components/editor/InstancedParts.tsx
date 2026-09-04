@@ -6,6 +6,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEditorStore } from "@/stores/editor-store";
 import { PALETTE, type PartTuple } from "@/lib/worlddoc";
 import { FEEL } from "@/lib/feel";
+import { reducedMotion } from "@/lib/motion";
 import { keyOf } from "@/lib/grid";
 import { punches } from "./punch";
 import { createFinishMaterial, shapeGeometries } from "./shapes";
@@ -18,12 +19,13 @@ const col = new THREE.Color();
  * How long the placement scale-in should last, honouring the OS motion
  * setting. Queried per use rather than cached, so toggling the setting takes
  * effect without a reload.
+ *
+ * Shortened rather than removed: this is the physical feedback for the core
+ * action of the whole app, and a build tool that does not acknowledge a click
+ * is broken rather than restrained. See lib/motion.ts.
  */
-function reducedMotion(): number {
-  const reduce =
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  return reduce ? FEEL.placePunchTimeReduced : FEEL.placePunchTime;
+function punchTime(): number {
+  return reducedMotion() ? FEEL.placePunchTimeReduced : FEEL.placePunchTime;
 }
 
 /** Round up to a power of two so capacity changes (and remounts) stay rare. */
@@ -156,7 +158,7 @@ function Bucket({
     if (!mesh) return;
 
     const now = performance.now();
-    const ms = reducedMotion() * 1000;
+    const ms = punchTime() * 1000;
     let touched = false;
 
     for (const [key, started] of punches) {

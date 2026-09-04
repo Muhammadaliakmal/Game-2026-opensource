@@ -23,6 +23,9 @@ import { raceTelemetry, resetTelemetry } from "./telemetry";
 import { CAMERA_MODES, raceCamera, cycleRaceCamera } from "./race-camera";
 import { bound } from "@/lib/keybinds";
 import { assistSteer } from "@/lib/race-assist";
+import { reducedMotion } from "@/lib/motion";
+import { requestHitStop } from "@/lib/hit-stop";
+import { FEEL } from "@/lib/feel";
 
 /**
  * The player's bike.
@@ -150,6 +153,47 @@ const CAM_LAG = 0.06;
  */
 const RECOVER_BELOW_Y = 0.2;
 
+/**
+ * ── Hitting things ───────────────────────────────────────────────────────
+ *
+ * The bike is driven by `setLinvel` every frame, which is what makes it stable
+ * and is also why it never noticed a wall: the solver refused the motion, the
+ * position did not change, and `speed` — which is the model, not a measurement
+ * — carried on saying 18. The speedometer read 180 kph against a rail, a rider
+ * had no way to tell they had stopped except that the scenery was not moving,
+ * and the way out was to reverse.
+ *
+ * So the loop compares where the bike actually got to against where it meant
+ * to go, and believes the world. That is the whole fix: a wall now costs
+ * speed, the gauge is honest, and a hard one is worth a couple of frames of
+ * freeze and a shake.
+ */
+/** Below this there is no speed worth taking away. */
+const IMPACT_MIN_SPEED = 2;
+/** Fraction of the intended speed that still counts as having gone somewhere. */
+const IMPACT_RATIO = 0.6;
+/**
+ * Frames of shortfall before the bike believes it.
+ *
+ * Rapier runs on a fixed 1/60 timestep behind an accumulator, so a render
+ * frame that arrives a hair early steps the world zero times and the bike
+ * genuinely does not move — through no wall at all. One frame of shortfall is
+ * therefore not evidence of anything; two consecutive frames cannot be that,
+ * because the accumulator will have caught up by then. It costs about 33ms of
+ * latency on a real impact, which is under the frame budget for feedback.
+ */
+const IMPACT_CONFIRM = 2;
+/** Speed lost to one impact that earns the whole-screen treatment. */
+const IMPACT_SHAKE_LOSS = 6;
+
+/** Camera shake: how long, and how far, in world units. */
+const SHAKE_DUR = 0.16;
+const SHAKE_AMP = 0.3;
+const SHAKE_FREQ = 34;
+/** The kick when a boost lights. Small — it is a shove, not a collision. */
+const BOOST_SHAKE_AMP = 0.09;
+const BOOST_SHAKE_DUR = 0.12;
+
 const UP = new THREE.Vector3(0, 1, 0);
 
 interface Pose {
@@ -205,6 +249,18 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
   const primed = useRef(false);
   const safe = useRef<Pose | null>(null);
   const steer = useRef(0);
+  /**
+   * Last frame's ground position, for the impact test.
+   *
+   * Null immediately after any teleport: a placement moves the bike further in
+   * one frame than any crash ever could, and reading that as an impact would
+   * shake the screen every time the grid formed.
+   */
+  const prevGround = useRef<{ x: number; z: number } | null>(null);
+  /** Consecutive frames the bike has failed to go where it was sent. */
+  const blockedFor = useRef(0);
+  const shake = useRef({ time: 0, amp: 0, dur: SHAKE_DUR });
+  const wasBoosting = useRef(false);
 
   /** Put the bike down at a pose, upright and stationary. */
   const place = (b: RapierRigidBody, pose: Pose) => {
@@ -220,6 +276,8 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     // for one mistake — but an unbanked drift charge dies with the drift.
     charge.current = 0;
     primed.current = false;
+    prevGround.current = null;
+    blockedFor.current = 0;
   };
 
   /**
@@ -307,6 +365,42 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
         }
       }
 
+      // ── Impact ──────────────────────────────────────────────────────────
+      // Measured, not modelled: how far the bike actually travelled since the
+      // last frame against how far the motion model asked it to. See the
+      // constants above for why the model could not tell on its own.
+      const ground = prevGround.current;
+      if (ground && step > 0) {
+        const actual =
+          Math.hypot(view.current.x - ground.x, view.current.z - ground.z) /
+          step;
+        const intent = Math.abs(speed.current);
+        const short = intent > IMPACT_MIN_SPEED && actual < intent * IMPACT_RATIO;
+        blockedFor.current = short ? blockedFor.current + 1 : 0;
+
+        if (blockedFor.current >= IMPACT_CONFIRM) {
+          const lost = intent - actual;
+          // Believe the world. Scrubbing to what happened is what makes a
+          // wall cost something and the speedometer tell the truth.
+          speed.current = Math.sign(speed.current) * actual;
+          // A drift's banked charge does not survive a crash.
+          charge.current = 0;
+          // Only on the frame the impact is confirmed. A rider holding the
+          // throttle into a rail is one crash, not sixty a second.
+          if (
+            blockedFor.current === IMPACT_CONFIRM &&
+            lost > IMPACT_SHAKE_LOSS &&
+            !reducedMotion()
+          ) {
+            requestHitStop(FEEL.hitStop);
+            shake.current.time = SHAKE_DUR;
+            shake.current.dur = SHAKE_DUR;
+            shake.current.amp = SHAKE_AMP;
+          }
+        }
+      }
+      prevGround.current = { x: view.current.x, z: view.current.z };
+
       // ── Input ───────────────────────────────────────────────────────────
       const k = getKeys();
       const stick = useJoystickStore.getState().joysticks.default;
@@ -357,6 +451,16 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
         Math.abs(steer.current) > 0.15;
       const boosting =
         armed && (Boolean(k.boost) || raceTouch.boost) && boost.current > 0;
+
+      // A boost with no kick to it is a number going up. One short shake on
+      // the rising edge, well under the crash one, so the two are never
+      // confused for each other.
+      if (boosting && !wasBoosting.current && !reducedMotion()) {
+        shake.current.time = BOOST_SHAKE_DUR;
+        shake.current.dur = BOOST_SHAKE_DUR;
+        shake.current.amp = BOOST_SHAKE_AMP;
+      }
+      wasBoosting.current = boosting;
 
       // ── Boost tank ──────────────────────────────────────────────────────
       if (drifting) {
@@ -490,7 +594,25 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
         eye.current.lerp(want.current, 1 - Math.pow(CAM_LAG, step));
       }
 
-      camera.position.copy(eye.current);
+      // Shake displaces the eye, never the aim, so the view shudders without
+      // the horizon swinging — the same division the on-foot rig uses. It is
+      // added on top of `eye` rather than into it, or each frame's wobble
+      // would become part of the position the next frame eases from and the
+      // camera would drift away from the bike.
+      let shakeX = 0;
+      let shakeY = 0;
+      if (shake.current.time > 0) {
+        shake.current.time -= step;
+        const falloff = Math.max(0, shake.current.time / shake.current.dur);
+        const at = performance.now() / 1000;
+        shakeX = Math.sin(at * SHAKE_FREQ) * shake.current.amp * falloff;
+        shakeY = Math.cos(at * SHAKE_FREQ * 1.3) * shake.current.amp * falloff;
+      }
+      camera.position.set(
+        eye.current.x + shakeX,
+        eye.current.y + shakeY,
+        eye.current.z
+      );
       camera.lookAt(p.x, p.y + cam.aim, p.z);
     } catch (e) {
       // Once, not every frame: a fault here repeats at the frame rate, and a

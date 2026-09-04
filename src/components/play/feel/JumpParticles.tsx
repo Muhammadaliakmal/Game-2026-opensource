@@ -6,6 +6,7 @@ import { useFrame } from "@react-three/fiber";
 import type { RefObject } from "react";
 import type { EcctrlHandle } from "ecctrl";
 import { FEEL } from "@/lib/feel";
+import { reducedMotion } from "@/lib/motion";
 
 /**
  * Dust puffs kicked up on takeoff and on a hard landing.
@@ -94,8 +95,15 @@ export function JumpParticles({
       }
     };
 
+    // A spray of motes across a chunk of the screen is exactly the kind of
+    // motion `prefers-reduced-motion` is asking about, so nothing new is
+    // emitted while it is set. The edges are still tracked, and live motes
+    // still finish their lives below, so turning the setting on mid-jump
+    // fades the existing puff out rather than deleting it mid-air.
+    const quiet = reducedMotion();
+
     // Takeoff: jumpActive rising edge.
-    if (h.jumpActive && !s.wasJumping) spawn(FEEL.jumpBurst, 1);
+    if (h.jumpActive && !s.wasJumping && !quiet) spawn(FEEL.jumpBurst, 1);
     s.wasJumping = h.jumpActive;
 
     // Hard landing: back on the ground with real downward speed.
@@ -103,7 +111,7 @@ export function JumpParticles({
       h.isOnGround &&
       !s.wasOnGround &&
       Math.abs(h.verticalSpeed) > FEEL.hardLandVel;
-    if (landedHard) spawn(FEEL.landBurst, 1.6);
+    if (landedHard && !quiet) spawn(FEEL.landBurst, 1.6);
     s.wasOnGround = h.isOnGround;
 
     // Integrate + fade.

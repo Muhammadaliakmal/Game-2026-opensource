@@ -108,37 +108,106 @@ returning you to a checkpoint of an attempt that is over.
 running; five maps exist at Tutorial..Expert, and `courses.test.ts` proves
 every one of them can be finished and that no checkpoint soft-locks a run.
 
-### 6e — Progression — **medals done, the rest outstanding**
+### 6e — Progression — **done**
 
-Medals shipped, and they are derived rather than hand-set: `course-graph.ts`
-finds the cheapest route a map admits (walk edges at run speed, jump edges at
-their airtime), the Author time is that floor times `HUMAN`, and the ladder is
-multiples of it. `AUTHOR_MS` caches the five answers and `medals.test.ts`
-recomputes them from the geometry, so editing a course fails the build with
-the number to write instead of leaving a stale target. The completion panel
-shows the medal earned and the next one to chase.
+Medals shipped first, and they are derived rather than hand-set:
+`course-graph.ts` finds the cheapest route a map admits (walk edges at run
+speed, jump edges at their airtime), the Author time is that floor times
+`HUMAN`, and the ladder is multiples of it. `AUTHOR_MS` caches the five
+answers and `medals.test.ts` recomputes them from the geometry, so editing a
+course fails the build with the number to write instead of leaving a stale
+target.
 
-The honest caveat: `HUMAN` (1.3) has not been playtested. The times cannot be
-*impossible* — they are anchored to a route the geometry admits — but whether
-Gold is a fair ask is a guess until someone runs the maps. One constant
-retunes all five.
+The honest caveat stands: `HUMAN` (1.3) has not been playtested. The times
+cannot be *impossible* — they are anchored to a route the geometry admits —
+but whether Gold is a fair ask is a guess until someone runs the maps. One
+constant retunes all five.
 
-**Still to do:** the `runs` schema and migration, run submission, global
-leaderboards, and ghost record + replay. Two notes for whoever picks it up:
+**Runs, boards and ghosts** landed on top of that:
 
-- Keep one row per (world, player) holding the best, not one per attempt —
-  the board wants the best per player, and a player grinding a map 500 times
-  should not write 500 rows. It costs run history, which nothing needs yet.
-- `worlds.id` is a uuid but built-in courses are slugs (`parkour`), so a
-  `runs.world_id` column has to be `text`, not `uuid`.
-- "Friends boards" needs a social graph the app does not have — the same
-  reason `BuildRoom.canEdit` has no collaborator model. Global and personal
-  best are what can be built honestly today.
+- `runs` (`drizzle/0001_lame_silhouette.sql`) is one row per (world, player)
+  holding their best, keyed on that pair, with `runs_board_idx` on
+  `(world_id, time_ms)` for the only query a page load makes. `world_id` is
+  `text` and carries no foreign key, because the maps a board is actually for
+  are the shipped courses and those are slugs generated from code with no row
+  to point at.
+- `POST /api/worlds/:id/runs` upserts in SQL with `setWhere` on the time, so
+  two tabs finishing at once cannot let the slower one land last. It refuses
+  anything under `floorMs` — the solver's route, which is a physical floor.
+  That is not anti-cheat and does not pretend to be; it is what stops one
+  `fetch` with a zero in it from ruining a board.
+- `GET /api/worlds/:id/runs` returns the top N plus the caller's own row and
+  rank, and never a ghost. `runs/ghost` serves the one replay actually watched.
+- Ghosts are a fixed-rate fixed-point track (`lib/ghost.ts`, 10 Hz, capped at
+  three minutes), recorded against the course's own clock so the replay and the
+  timer cannot disagree, and read back with an index and a lerp.
+  `GhostRunner` chases your own best first and falls back to the record.
 
-### 6f — Juice, then perf re-measure
-Screen shake, hit-stop (40-80 ms), particle bursts, <=100 ms feedback on every
-input — all gated behind `prefers-reduced-motion`. Then re-run the perf overlay
-on the tier-3 device budget and decide about WebGPU with numbers in hand.
+Two things deliberately not built, and why:
+
+- **Friends boards.** They need a social graph the app does not have — the
+  same reason `BuildRoom.canEdit` has no collaborator model. Global and
+  personal best are what can be built honestly today.
+- **Run history.** One row per player rather than per attempt. A player
+  grinding a map five hundred times should not write five hundred rows for a
+  board that shows one of them, and nothing in the app asks to see the others.
+
+**Accept:** met. A finished run posts, the panel shows the board with your own
+rank appended when you are off the bottom of it, and a translucent runner is
+on the course from the first attempt after anybody has set a time.
+
+### 6f — Juice, then perf re-measure — **done**
+
+`prefers-reduced-motion` had exactly one reading in CSS and one inline query
+in `InstancedParts`. The WebGL side — which is where all the motion actually
+is — had none, so the setting did nothing about the two effects it is most
+obviously about. `lib/motion.ts` is now the one reader, and the rule it
+documents is the one applied throughout: feedback that moves the camera or the
+world is dropped, feedback local to the thing you touched is kept.
+
+- **Hit-stop** (`FEEL.hitStop`, defined since Phase 1 and never used) is a
+  `hold()` on the frame gate: the same elapsed value returned twice, which
+  hands every `useFrame` — and Rapier's accumulator, which reads that same
+  delta — a step of exactly zero while the frame is still drawn. One place
+  rather than a flag sixty loops have to remember to check.
+  `frame-cap.test.ts` covers the freeze, the ceiling and overlapping holds.
+- **Screen shake** on a hard landing and on a bike impact, and a smaller kick
+  when a boost lights so it reads as a shove rather than a number going up.
+- **Impact, on the bike.** Worth calling out because it was a bug the juice
+  work found rather than an effect: the body is driven by `setLinvel`, so a
+  wall stopped it without the motion model ever hearing about it. `speed`
+  stayed at 18 against a rail, the speedometer read 180 kph while the bike was
+  motionless, and the only feedback for hitting a wall was that the scenery
+  had stopped moving. The loop now compares where the bike got to against
+  where it meant to go — confirmed over two frames, because Rapier's fixed
+  timestep genuinely skips a step now and then — and believes the world.
+
+**Perf, re-measured.** The overlay existed only on the race canvas, so the
+five parkour courses — the largest part counts in the game — were the one
+thing that could not be profiled. `PerfProbe`/`PerfPanel` now mount on the
+Play and Arena canvases too.
+
+Numbers, off the actual overlay (`?perf=1`):
+
+| | draw calls | triangles | programs |
+|---|---|---|---|
+| Neon Run (Play) | 10 | 221,568 | 9 |
+| Neon Circuit (race, grid up) | 60 | 1,609,476 | 8 |
+
+Two readings of that, and one non-answer:
+
+- The draw-call budget is not close to being a problem: 60 against a ceiling
+  of ~100, and against the 10,000+ where the WebGPU figure §2C quotes comes
+  from. **So the WebGPU swap stays deferred**, which is what §2C predicted —
+  now with a number rather than an argument.
+- Triangles are down from the 2.53M camera + 2.53M shadow recorded in
+  `lib/quality.ts` to 1.6M total, so `blockDetail` and `groundCastsShadow` are
+  holding.
+- **fps and worst-frame from this run mean nothing.** It was taken headless on
+  a software rasteriser at DPR 1. Draw calls, triangles, geometries and
+  programs are device-independent and are the numbers the WebGPU decision
+  rests on; the frame budget still has to be re-run on a real tier-3 phone,
+  and now there is an overlay on every canvas to do it with.
 
 ## 4. Open decision — the one thing that blocks 6a
 

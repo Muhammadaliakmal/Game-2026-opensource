@@ -122,6 +122,17 @@ export function TouchButton({
         fontWeight: 700,
         letterSpacing: "0.1em",
         touchAction: "none",
+        // Opted in here rather than by the caller. <ThumbCluster> is
+        // pointer-events:none so its gaps stay transparent to the world
+        // underneath, and every control inside it has to opt back in — which
+        // is a rule that gets forgotten. It was: the race's steering pads sat
+        // directly in the cluster with no <ThumbStack> around them, so they
+        // computed pointer-events:none and a tap at their centre landed on
+        // <html>. On the assisted scheme (the default) that read as a bike
+        // that steers itself and ignores the rider, which is exactly what it
+        // was. A control that cannot be pressed is not a control, so the
+        // button now carries the opt-in itself and no placement can lose it.
+        pointerEvents: "auto",
         userSelect: "none",
         WebkitUserSelect: "none",
         opacity: disabled ? 0.35 : 1,
@@ -184,8 +195,10 @@ export function ThumbCluster({
         ...style,
       }}
     >
-      {/* Children opt back in individually, so the gaps between controls stay
-          transparent to the world underneath. */}
+      {/* The gaps between controls stay transparent to the world underneath.
+          Controls themselves opt back in: <ThumbStack> for a column of them,
+          and <TouchButton> individually, so a button placed straight into a
+          cluster is still pressable. */}
       {children}
     </div>
   );

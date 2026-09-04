@@ -26,6 +26,16 @@ const CATCHUP_FRAMES = 4;
 /** Longest step handed to the scene, ms. A wake-from-sleep frame is clamped. */
 const MAX_STEP_MS = 100;
 
+/**
+ * The longest a hit-stop may freeze the simulation, in seconds.
+ *
+ * The game-feel literature puts a useful freeze at 40-80ms; anything past
+ * about a fifth of a second stops reading as impact and starts reading as the
+ * game having crashed. This is the ceiling, not the value — see `FEEL.hitStop`
+ * for what is actually asked for.
+ */
+const MAX_HOLD_S = 0.2;
+
 export interface FrameGate {
   /**
    * Offer a rAF timestamp in milliseconds.
@@ -36,6 +46,24 @@ export interface FrameGate {
    *   straight to `clock.elapsedTime` and derives delta from the difference.
    */
   tick: (nowMs: number) => number | null;
+  /**
+   * Freeze simulation time for a moment without freezing rendering.
+   *
+   * ── Why this belongs to the gate ─────────────────────────────────────
+   *
+   * A hit-stop is the classic impact effect: the world stops for two or three
+   * frames so the collision lands. The naive implementation is a flag every
+   * `useFrame` in the tree has to check, which is a rule that gets forgotten
+   * in exactly the frame loop that most needs it.
+   *
+   * Here it is one place, because the gate already owns the only clock the
+   * scene has. Holding the returned elapsed value steady hands every consumer
+   * a delta of zero — physics included, since Rapier accumulates that same
+   * delta — so nothing simulates, while `advance()` still runs and the frame
+   * is still drawn. The HUD, which animates in CSS, is unaffected, which is
+   * what you want: freezing the interface as well would read as a stutter.
+   */
+  hold: (seconds: number) => void;
 }
 
 export function createFrameGate(fps: number): FrameGate {
@@ -48,8 +76,18 @@ export function createFrameGate(fps: number): FrameGate {
   /** Monotonic seconds handed to the renderer. */
   let elapsed = 0;
   let started = false;
+  /** rAF timestamp the current hit-stop ends at, or 0 for none. */
+  let holdUntil = 0;
 
   return {
+    hold(seconds: number) {
+      if (!(seconds > 0)) return;
+      const until = prev + Math.min(seconds, MAX_HOLD_S) * 1000;
+      // Extend rather than restart: two impacts in the same instant are one
+      // impact, and the second must not double the freeze.
+      holdUntil = Math.max(holdUntil, until);
+    },
+
     tick(nowMs: number): number | null {
       if (started && nowMs < due - TOLERANCE_MS) return null;
 
@@ -74,6 +112,11 @@ export function createFrameGate(fps: number): FrameGate {
 
       const stepMs = Math.min(nowMs - prev, MAX_STEP_MS);
       prev = nowMs;
+
+      // Frozen: draw the frame, advance nothing. Returning the unchanged
+      // elapsed value is what makes the delta exactly zero — see `hold`.
+      if (nowMs < holdUntil) return elapsed;
+
       elapsed += stepMs / 1000;
       return elapsed;
     },

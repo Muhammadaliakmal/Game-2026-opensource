@@ -31,7 +31,10 @@ export interface PropInstance {
  *    without walking the parts array.
  *
  * `yaw` is a camera heading in radians, in the same convention the player's
- * look rig uses: forward is `(sin(yaw), cos(yaw))`.
+ * look rig uses. Note the sign: the rig puts the eye at `+(sin yaw, cos yaw)`
+ * from the character and looks back down it, so the direction the player sees
+ * along is `-(sin yaw, cos yaw)`. Use `FACING` in lib/course-kit.ts rather than
+ * writing one of these by hand.
  */
 export interface Checkpoint {
   pos: Vec3;
@@ -43,6 +46,17 @@ export interface WorldDoc {
   name: string;
   ownerId: string;
   spawn: Vec3;
+  /**
+   * Which way a runner faces when they arrive at the spawn.
+   *
+   * Optional, and in the same convention as `Checkpoint.yaw`. Without it the
+   * camera keeps whatever yaw the look rig happened to be holding — a fixed
+   * quarter turn on a fresh page — so every course opened by walking into it
+   * from the menu began by facing the wrong way and spinning round. A course
+   * that goes somewhere has a direction; a sandbox does not, and leaving this
+   * undefined is how a sandbox says so.
+   */
+  spawnYaw?: number;
   /**
    * Where the course is won, if it is a course at all.
    *
@@ -99,6 +113,7 @@ export const worldDocSchema = z.object({
   name: z.string().min(1).max(80),
   ownerId: z.string(),
   spawn: vec3,
+  spawnYaw: z.number().finite().optional(),
   goal: vec3.optional(),
   // Capped low on purpose: a course with more than this many resume points is
   // not a course, and the cap is what stops a crafted doc filling the play

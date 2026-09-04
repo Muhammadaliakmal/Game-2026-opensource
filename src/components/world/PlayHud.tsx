@@ -11,6 +11,7 @@ import {
 } from "@/components/play/play-actions";
 import { formatTime, useCourse } from "@/components/play/course";
 import { MEDAL_LABELS, medalFor, nextMedal } from "@/lib/medals";
+import { useRuns, type BoardRow } from "@/lib/runs";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { RemixButton } from "@/components/RemixButton";
@@ -157,9 +158,35 @@ function RunTimer() {
   const ms = finishedMs ?? elapsed;
 
   return (
-    <div className="hud-panel flex shrink-0 items-center px-3 py-2">
+    <div className="hud-panel flex shrink-0 flex-col items-start px-3 py-2">
       <span className="num text-2xs font-medium">{formatTime(ms)}</span>
+      <GhostLine />
     </div>
+  );
+}
+
+/**
+ * Who the translucent runner up ahead is.
+ *
+ * A ghost with no name attached is a bug report — "there is a blue person on
+ * my course" — so the one line that turns it into a feature goes under the
+ * clock, which is where the eye already is and where the time it is worth
+ * comparing against is already displayed.
+ *
+ * No delta. "You are 4.2s behind" needs a shared notion of progress along the
+ * course, and this game measures progress in checkpoints, which are far too
+ * coarse to subtract times at. The figure on screen already answers the
+ * question more precisely than a number could.
+ */
+function GhostLine() {
+  const name = useRuns((s) => s.ghostName);
+  const ms = useRuns((s) => s.ghostMs);
+  const has = useRuns((s) => s.ghost !== null);
+  if (!has || ms === null) return null;
+  return (
+    <span className="hud-label num text-[10px] leading-tight">
+      ◇ {name ?? "Ghost"} {formatTime(ms)}
+    </span>
   );
 }
 
@@ -215,6 +242,89 @@ function CheckpointPips() {
  * the panel is a result and not a cage, and "Run again" is a respawn rather
  * than a reload — the same quarter-second cost as any other attempt.
  */
+/**
+ * The global board, on the panel that already exists.
+ *
+ * ── Why here and not a page of its own ───────────────────────────────────
+ *
+ * The one moment a player cares where they stand is the moment they have just
+ * finished. A separate screen would be somewhere they have to decide to go,
+ * which is the same as somewhere they never go — and it would compete with
+ * "Run again", which is the button this panel exists to offer.
+ *
+ * Deliberately short. Five rows plus your own is a thing you read; a
+ * scrollable fifty is a thing you close.
+ */
+const BOARD_ROWS = 5;
+
+function Leaderboard() {
+  const board = useRuns((s) => s.board);
+  const loading = useRuns((s) => s.loading);
+  const error = useRuns((s) => s.error);
+  const submitting = useRuns((s) => s.submitting);
+
+  if (loading || submitting) {
+    return <span className="hud-label">Posting your run…</span>;
+  }
+  // Nothing to say rather than an empty box: a course nobody has finished yet
+  // has no board, and drawing the frame of one is worse than drawing none.
+  if (error || !board || board.top.length === 0) {
+    return error ? <span className="hud-label">{error}</span> : null;
+  }
+
+  const top = board.top.slice(0, BOARD_ROWS);
+  // Your own row, appended when the top few do not already contain it — the
+  // half of a leaderboard that matters once you are off the bottom of it.
+  const mine =
+    board.me && !top.some((r) => r.userId === board.me!.userId)
+      ? board.me
+      : null;
+
+  return (
+    <div className="flex w-full flex-col gap-1">
+      <span className="hud-label">Fastest runs</span>
+      {top.map((row, i) => (
+        <BoardLine
+          key={row.userId}
+          rank={i + 1}
+          row={row}
+          you={row.userId === board.me?.userId}
+        />
+      ))}
+      {mine && (
+        <>
+          <span className="text-dim text-center text-[10px] leading-none">
+            ⋯
+          </span>
+          <BoardLine rank={board.rank ?? 0} row={mine} you />
+        </>
+      )}
+    </div>
+  );
+}
+
+function BoardLine({
+  rank,
+  row,
+  you,
+}: {
+  rank: number;
+  row: BoardRow;
+  you: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-baseline gap-2 text-xs ${
+        you ? "text-accent" : "text-dim"
+      }`}
+    >
+      <span className="num w-5 shrink-0 text-right opacity-70">{rank}</span>
+      <span className="min-w-0 flex-1 truncate text-left">{row.name}</span>
+      <span className="num shrink-0">{formatTime(row.timeMs)}</span>
+    </div>
+  );
+}
+
 function CourseComplete({
   canEdit,
   onEdit,
@@ -264,6 +374,8 @@ function CourseComplete({
           {MEDAL_LABELS[chase.medal]} at {formatTime(chase.ms)}
         </span>
       )}
+
+      <Leaderboard />
 
       <div className="flex flex-wrap items-center justify-center gap-2">
         {/* A restart, not a respawn. Respawning here would resume at the last

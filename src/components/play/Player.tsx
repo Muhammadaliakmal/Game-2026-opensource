@@ -1,7 +1,7 @@
 "use client";
 
 import * as THREE from "three";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRapier } from "@react-three/rapier";
 import { useKeyboardControls } from "@react-three/drei";
@@ -26,6 +26,8 @@ import {
   requestRestart,
 } from "./play-actions";
 import { bound } from "@/lib/keybinds";
+import { reducedMotion } from "@/lib/motion";
+import { requestHitStop } from "@/lib/hit-stop";
 import { sendMove } from "@/lib/net/presence";
 import {
   applyLook,
@@ -316,14 +318,19 @@ function useCameraRig(
     const follow = firstPerson ? 1 : 1 - Math.pow(1 - FEEL.camLag, dt * 60);
     target.current.lerp(desired.current, follow);
 
-    // Screen shake on a hard landing.
+    // A hard landing is the one impact an on-foot course produces, so it is
+    // where the two whole-screen effects go: a couple of frames of freeze so
+    // the landing lands, then a short shake. Both are dropped outright under
+    // `prefers-reduced-motion` — see lib/motion.ts on why the squash, the dust
+    // and the sound are not.
     const landedHard =
       h.isOnGround &&
       !wasOnGround.current &&
       Math.abs(h.verticalSpeed) > FEEL.hardLandVel;
-    if (landedHard) {
+    if (landedHard && !reducedMotion()) {
       shake.current.time = FEEL.shakeDur;
       shake.current.amp = FEEL.shakeAmp;
+      requestHitStop(FEEL.hitStop);
     }
     wasOnGround.current = h.isOnGround;
 
@@ -456,16 +463,41 @@ function useCameraRig(
 
 export function Player({
   spawn,
+  spawnYaw,
   canFly = false,
   checkpoints,
 }: {
   spawn: Vec3;
+  /** Which way to face on arrival, if the world says. See WorldDoc.spawnYaw. */
+  spawnYaw?: number;
   /** Whether creative flight is available here. See FLY_DOUBLE_TAP_MS. */
   canFly?: boolean;
   /** The course's resume points, if it has any. */
   checkpoints?: readonly Checkpoint[];
 }) {
   const ref = useRef<EcctrlHandle>(null);
+
+  /**
+   * Point the camera down the course before the first frame draws.
+   *
+   * `look` is module state that survives between worlds, and its initial yaw
+   * is a fixed quarter turn chosen years ago to match an orbit camera. Every
+   * shipped course runs east from a plaza at the origin, so entering one put
+   * the player's back to it: the run began by spinning round to find out where
+   * it went. A layout effect rather than a plain one because the rig's own
+   * frame subscription is a layout effect too, and the yaw has to be right
+   * before the eye is first placed — otherwise the first frame is the wrong
+   * view and the rig then eases away from it, which reads as a lurch.
+   *
+   * A world with no stated facing keeps whatever the rig was holding, which is
+   * the old behaviour and the right one for a sandbox with no direction to it.
+   */
+  useLayoutEffect(() => {
+    if (spawnYaw !== undefined) look.yaw = spawnYaw;
+    // Deliberately mount-only. Re-running this on a prop change would snatch
+    // the camera back mid-run every time the doc reloaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   /**
    * Strictly "there is no mouse here", not "the window is narrow".
    *
@@ -619,7 +651,10 @@ export function Player({
           checkpoints,
           useCourse.getState().checkpoint,
           spawn,
-          look.yaw
+          // Back to the start means back to the start's facing. Keeping the
+          // camera's current yaw here is what made a restart drop the runner
+          // at the plaza looking at the wall behind it.
+          spawnYaw ?? look.yaw
         );
         h.body.setTranslation({ x: pos[0], y: pos[1], z: pos[2] }, true);
         h.body.setLinvel({ x: 0, y: 0, z: 0 }, true);

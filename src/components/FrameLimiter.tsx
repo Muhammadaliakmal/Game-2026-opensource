@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import { createFrameGate } from "@/lib/frame-cap";
+import { takeHitStop } from "@/lib/hit-stop";
 
 /**
  * Caps the render loop at a frame rate, and drives it.
@@ -76,6 +77,10 @@ export function FrameLimiter({ fps = 60 }: { fps?: number }) {
 
     const loop = (t: number) => {
       raf = requestAnimationFrame(loop);
+      // Drained here rather than inside the gate so the gate stays pure and
+      // testable. See lib/hit-stop.ts for why the request is a module object.
+      const freeze = takeHitStop();
+      if (freeze > 0) gate.hold(freeze);
       const elapsed = gate.tick(t);
       if (elapsed !== null) advance(elapsed);
     };

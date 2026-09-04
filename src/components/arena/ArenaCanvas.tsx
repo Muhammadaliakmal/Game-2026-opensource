@@ -23,6 +23,8 @@ import { playerFocus } from "@/components/play/camera-rig";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
 import { ArenaHud } from "./ArenaHud";
+import { PerfProbe } from "@/components/perf/PerfProbe";
+import { PerfPanel } from "@/components/perf/PerfPanel";
 import { useRenderQuality } from "@/lib/quality";
 
 /**
@@ -151,8 +153,12 @@ export default function ArenaCanvas({
             </>
           )}
         </Physics>
+        {/* Same reasoning as the race and Play canvases: last child, and
+            inert unless ?perf=1 is on the URL. */}
+        <PerfProbe />
       </Canvas>
 
+      <PerfPanel />
       <ArenaHud code={code} onAttack={attack} />
 
       {(!painted || !snapshot) && (

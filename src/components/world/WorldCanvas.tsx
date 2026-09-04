@@ -46,6 +46,10 @@ import { Player } from "@/components/play/Player";
 import { Peers } from "@/components/play/Peers";
 import { GoalZone } from "@/components/play/GoalZone";
 import { CheckpointZones } from "@/components/play/CheckpointZones";
+import { PerfProbe } from "@/components/perf/PerfProbe";
+import { PerfPanel } from "@/components/perf/PerfPanel";
+import { RunRecorder } from "@/components/play/RunRecorder";
+import { GhostRunner } from "@/components/play/GhostRunner";
 import { TouchControls } from "@/components/play/TouchControls";
 import { useTouchControls } from "@/lib/use-media-query";
 import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
@@ -89,6 +93,8 @@ interface Snapshot {
   parts: PartTuple[];
   props: PropInstance[];
   spawn: [number, number, number];
+  /** Undefined unless the world states one — see WorldDoc.spawnYaw. */
+  spawnYaw?: number;
   /** Undefined unless this world is a course — see WorldDoc.goal. */
   goal?: [number, number, number];
   /** Empty unless the course has resume points — see WorldDoc.checkpoints. */
@@ -100,6 +106,7 @@ function toSnapshot(doc: WorldDoc): Snapshot {
     parts: doc.parts,
     props: doc.props,
     spawn: [doc.spawn[0], doc.spawn[1], doc.spawn[2]],
+    spawnYaw: doc.spawnYaw,
     goal: doc.goal ? [doc.goal[0], doc.goal[1], doc.goal[2]] : undefined,
     checkpoints: doc.checkpoints ?? [],
   };
@@ -579,7 +586,13 @@ export default function WorldCanvas({
             giving it a real sensor would mean a rigid body that the character
             can be pushed off by. */}
         {playing && snapshot?.goal && (
-          <GoalZone goal={snapshot.goal} worldId={worldId} />
+          <>
+            <GoalZone goal={snapshot.goal} worldId={worldId} />
+            {/* Only a course has a time worth recording, so the recorder and
+                the ghost live under the same condition the goal does. */}
+            <RunRecorder worldId={worldId} />
+            <GhostRunner />
+          </>
         )}
         {/* Same reasoning as the goal: trigger volumes we test ourselves, not
             colliders the character could be shoved off. */}
@@ -641,6 +654,7 @@ export default function WorldCanvas({
                     permission the build tools do. */}
                 <Player
                   spawn={snapshot.spawn}
+                  spawnYaw={snapshot.spawnYaw}
                   canFly={canEdit || isDraft}
                   checkpoints={snapshot.checkpoints}
                 />
@@ -675,7 +689,18 @@ export default function WorldCanvas({
             </>
           )}
         </Physics>
+
+        {/* Last, so it reads the frame everything above it just drew. Costs a
+            boolean check per frame when ?perf=1 is absent.
+
+            Only the race had this, which meant the parkour maps — the five
+            courses with the largest part counts in the game — were the one
+            thing that could not be measured. "Profile before optimising" is
+            not advice you can follow on a canvas with no instrument. */}
+        <PerfProbe />
       </Canvas>
+
+      <PerfPanel />
 
       {/* Chrome. The incoming set fades in; the outgoing one unmounts, because
           a Toolbar left mounted during Play would still be listening for B, E

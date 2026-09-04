@@ -1,4 +1,5 @@
 import type { Checkpoint, PartTuple, Shape, Vec3, WorldDoc } from "./worlddoc";
+import { FACING } from "./course-kit";
 
 /**
  * The default parkour course every new world starts from.
@@ -187,10 +188,10 @@ export const PARKOUR_GOAL: Vec3 = [88.5, 10, 0.5];
  * four are written out.
  */
 export const PARKOUR_CHECKPOINTS: Checkpoint[] = [
-  { pos: [30.5, 6, -0.5], yaw: Math.PI / 2 }, // the last stepping stone
-  { pos: [48.5, 6, 0.5], yaw: Math.PI / 2 }, // the landing terrace
-  { pos: [65.5, 3, 2.5], yaw: Math.PI / 2 }, // the second floating island
-  { pos: [77.5, 4, 2.5], yaw: Math.PI / 2 }, // the last one, before the stairs
+  { pos: [30.5, 6, -0.5], yaw: FACING.east }, // the last stepping stone
+  { pos: [48.5, 6, 0.5], yaw: FACING.east }, // the landing terrace
+  { pos: [65.5, 3, 2.5], yaw: FACING.east }, // the second floating island
+  { pos: [77.5, 4, 2.5], yaw: FACING.east }, // the last one, before the stairs
 ];
 
 /** A new world: the parkour course, ready to play or to build on top of. */
@@ -205,6 +206,9 @@ export function parkourWorldDoc(
     name,
     ownerId,
     spawn: PARKOUR_SPAWN,
+    // The whole course lies east of the plaza, so that is where a runner
+    // should be looking when they arrive.
+    spawnYaw: FACING.east,
     goal: PARKOUR_GOAL,
     checkpoints: PARKOUR_CHECKPOINTS,
     sky: 0,

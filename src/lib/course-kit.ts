@@ -63,12 +63,32 @@ export const HUE = {
   white: 31,
 } as const;
 
-/** Yaw headings, in the look rig's convention: forward is (sin y, cos y). */
+/**
+ * The camera yaw that looks along a horizontal direction.
+ *
+ * A duplicate of `yawTowards` in components/play/camera-rig.ts, and
+ * deliberately so: this module is pure and is pulled in by the headless room
+ * server, which must not drag three.js and zustand behind it. `facing.test.ts`
+ * pins the two together, so the copy cannot drift from the rig it describes.
+ *
+ * ── Why it is not atan2(dx, dz) ──────────────────────────────────────────
+ *
+ * The rig places the eye at `+offset` from the character and then looks back
+ * down that offset, so the direction the player SEES along is the negation of
+ * `(sin yaw, cos yaw)`. These constants used to be written against the
+ * un-negated reading — the one WorldDoc's own comment stated — which made
+ * every one of them exactly half a turn wrong: reaching a checkpoint spun you
+ * round to look back down the course you had just climbed, on a mechanic whose
+ * whole job is to let you carry on.
+ */
+const facing = (dx: number, dz: number): number => Math.atan2(-dx, -dz);
+
+/** Yaw headings for a runner who should be looking along a compass direction. */
 export const FACING = {
-  north: 0, // +z
-  east: Math.PI / 2, // +x
-  south: Math.PI, // -z
-  west: -Math.PI / 2, // -x
+  north: facing(0, 1), // looking toward +z
+  east: facing(1, 0), // looking toward +x
+  south: facing(0, -1), // looking toward -z
+  west: facing(-1, 0), // looking toward -x
 } as const;
 
 /** The world-space centre of a run of `n` cells starting at `a`. */
@@ -242,6 +262,8 @@ export function courseDoc(
     ownerId: string;
     name: string;
     spawn: Vec3;
+    /** Which way the runner faces on arrival. Defaults to east — see below. */
+    spawnYaw?: number;
     goal: Vec3;
     sky?: number;
   }
@@ -252,6 +274,10 @@ export function courseDoc(
     name: opts.name,
     ownerId: opts.ownerId,
     spawn: opts.spawn,
+    // Every map in courses.ts is laid out running east from a plaza at the
+    // origin, so east is the default rather than a value each one repeats. A
+    // course that ever breaks that habit passes its own.
+    spawnYaw: opts.spawnYaw ?? FACING.east,
     goal: opts.goal,
     checkpoints: course.checkpoints,
     sky: opts.sky ?? 0,

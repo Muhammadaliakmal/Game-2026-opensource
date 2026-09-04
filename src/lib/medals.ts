@@ -87,6 +87,31 @@ export function routeFloorMs(doc: WorldDoc): number | null {
 export const authorFromFloor = (floorMs: number) => Math.round(floorMs * HUMAN);
 
 /**
+ * The fastest a submitted time is allowed to be, in ms. Null if unknown.
+ *
+ * The inverse of `authorFromFloor`: the solver's route is a hard physical
+ * floor — instant acceleration, perfect pathing, no aiming — so a time under
+ * it did not happen on this geometry, whatever produced it. This is the only
+ * validation a run submission can do honestly. It is not anti-cheat: someone
+ * determined can post the floor plus a millisecond and there is nothing here
+ * that could tell. It is the guard that keeps a board from being ruined by one
+ * `fetch` with a zero in it, which is the realistic threat to a game like
+ * this, and it costs a lookup rather than a Dijkstra per request.
+ */
+export function floorMs(slug: string): number | null {
+  const author = AUTHOR_MS[slug];
+  return author === undefined ? null : Math.floor(author / HUMAN);
+}
+
+/**
+ * The slowest a submitted time is allowed to be.
+ *
+ * An hour. Long enough that no genuine run is ever refused and short enough
+ * that the column stays an `integer`.
+ */
+export const MAX_RUN_MS = 60 * 60 * 1000;
+
+/**
  * Author times for the maps that ship, by slug.
  *
  * Written down rather than computed on demand: the computation is a Dijkstra

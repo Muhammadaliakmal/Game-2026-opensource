@@ -105,3 +105,72 @@ test("a stall resyncs instead of paying back owed frames", () => {
   // skip it rather than firing a burst to catch up.
   assert.equal(gate.tick(31001), null);
 });
+
+/**
+ * Hit-stop: the frame is still drawn, the simulation does not move.
+ *
+ * The property that matters is the delta the scene sees, and the scene sees
+ * differences between consecutive returned values — so "frozen" means the same
+ * number twice, not a skipped tick. A skipped tick would stop drawing, which
+ * would look like the game hanging rather than like an impact.
+ */
+test("a hold freezes elapsed time without skipping frames", () => {
+  const gate = createFrameGate(60);
+  const step = 1000 / 60;
+
+  let t = 1000;
+  const first = gate.tick(t)!;
+  t += step;
+  const second = gate.tick(t)!;
+  assert.ok(second > first, "time runs normally before the hold");
+
+  // Freeze for a shade over three frames' worth. Deliberately not exactly
+  // three: rAF timestamps accumulate float error, and a boundary this test
+  // sits exactly on is a flake rather than a finding.
+  gate.hold(0.06);
+
+  const frozen: number[] = [];
+  for (let i = 0; i < 3; i++) {
+    t += step;
+    const v = gate.tick(t);
+    assert.notEqual(v, null, "frames keep being drawn while frozen");
+    frozen.push(v!);
+  }
+  for (const v of frozen) assert.equal(v, second, "no simulation time passed");
+
+  t += step;
+  const after = gate.tick(t)!;
+  assert.ok(after > second, "time resumes once the hold expires");
+  // And it resumes at one frame, not with the whole freeze paid back at once,
+  // which would fling everything the freeze was meant to punctuate.
+  assert.ok(after - second < (step * 2) / 1000, `caught up by ${after - second}s`);
+});
+
+test("a hold is clamped, so a bad caller cannot stop the game", () => {
+  const gate = createFrameGate(60);
+  const step = 1000 / 60;
+  let t = 1000;
+  gate.tick(t);
+  t += step;
+  const before = gate.tick(t)!;
+
+  gate.hold(60);
+  // Well past the 200ms ceiling.
+  t += 400;
+  const after = gate.tick(t)!;
+  assert.ok(after > before, "the freeze ended on its own");
+});
+
+test("overlapping holds do not add up", () => {
+  const gate = createFrameGate(60);
+  const step = 1000 / 60;
+  let t = 1000;
+  gate.tick(t);
+  t += step;
+  const before = gate.tick(t)!;
+
+  gate.hold(0.05);
+  gate.hold(0.05);
+  t += 60; // past 50ms
+  assert.ok(gate.tick(t)! > before, "two 50ms holds are still one 50ms hold");
+});
