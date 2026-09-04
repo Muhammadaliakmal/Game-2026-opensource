@@ -4,14 +4,37 @@
 /*
   Blockworld — base layer and chrome primitives.
 
-  Design direction (UI spec §1): Blockworld is a workbench, not a dashboard.
-  The chrome is tool steel and recedes; the world is the only saturated thing
-  on screen. See tokens.css for the palette and the reasoning behind it.
+  Design direction (plan-phase6.md, "Neon Drift"): dark translucent glass,
+  one live accent keyed to the current mode, glow used as emphasis rather
+  than decoration. See tokens.css for the palette and the reasoning.
 
   Everything here is written as a named class rather than repeated utility
   strings, because every chrome surface shares one recipe and the recipe is
   what keeps the interface reading as one system.
 */
+
+/*
+  ── Mode accents ────────────────────────────────────────────────────────
+  The whole per-mode theming system. Tailwind compiles `bg-accent`,
+  `text-accent` and `border-accent` to `var(--color-accent)`, so rebinding
+  that one variable on a subtree recolours every accented element inside it —
+  no component takes a `mode` prop, and no HUD branches on one.
+
+  These are unlayered, so they beat Tailwind's `@layer theme` defaults
+  regardless of specificity. `data-mode` is set on the HudZones root rather
+  than on <html>: it scopes the recolour to the HUD, which is the thing the
+  direction says should follow the mode, and it needs no effect to apply.
+*/
+[data-mode="race"],
+[data-mode="arena"] {
+  --color-accent: var(--color-accent-race);
+}
+[data-mode="parkour"] {
+  --color-accent: var(--color-accent-parkour);
+}
+[data-mode="build"] {
+  --color-accent: #00fff5;
+}
 
 html,
 body {
@@ -19,21 +42,23 @@ body {
 }
 
 body {
-  background: var(--color-steel-900);
-  color: var(--color-steel-050);
+  background: var(--color-base);
+  color: var(--color-ink);
   font-family: var(--font-plex), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: var(--text-xs);
 }
 
-/* Headlines carry the character; the UI face stays neutral underneath them. */
+/* Headlines carry the character; the UI face stays neutral underneath them.
+   Orbitron is wide, so headings get negative tracking to stop them sprawling
+   — the opposite of the HUD labels below, which want the extra air. */
 h1,
 h2,
 h3 {
-  font-family: var(--font-bricolage), var(--font-plex), ui-sans-serif, system-ui,
+  font-family: var(--font-orbitron), var(--font-plex), ui-sans-serif, system-ui,
     sans-serif;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 /* Body copy stays inside a readable measure. */
@@ -48,10 +73,10 @@ canvas {
 }
 
 input {
-  caret-color: var(--color-signal);
+  caret-color: var(--color-accent);
 }
 ::selection {
-  background: color-mix(in oklab, var(--color-signal) 35%, transparent);
+  background: color-mix(in oklab, var(--color-accent) 35%, transparent);
 }
 
 /*
@@ -60,34 +85,53 @@ input {
   unusable without a mouse.
 */
 :focus-visible {
-  outline: 2px solid var(--color-signal);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: var(--radius);
 }
 
 /* ── Surfaces ──────────────────────────────────────────────────────────
-   Two elevations, no third tier. `.hud-panel` floats over the 3D canvas and
-   is the only thing allowed a shadow; `.card` is a flat page surface and
-   separates by border and background alone. */
+   Two elevations, no third tier. `.hud-panel` is glass floating over the 3D
+   canvas and is the only thing allowed a shadow; `.card` is a flat page
+   surface and separates by border and background alone.
+
+   Glass is only honest over the world. `.card` sits on a flat page where
+   there is nothing behind it to refract, so blurring there would cost a
+   full-screen backdrop read to reveal the page's own background colour. */
 
 .hud-panel {
-  background: color-mix(in oklab, var(--color-steel-700) 92%, transparent);
-  border: var(--border);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--lift);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--lift), var(--glow);
+}
+
+/*
+  The fallback matters more than it looks. Without `backdrop-filter` the panel
+  is 5% white over whatever the world happens to be, and white HUD text over a
+  bright sky is unreadable. Anything that cannot blur gets an opaque panel
+  instead — the layout is identical, only the material changes.
+*/
+@supports not (backdrop-filter: blur(1px)) {
+  .hud-panel {
+    background: color-mix(in oklab, var(--color-panel) 94%, transparent);
+  }
 }
 
 .card {
-  background: var(--color-steel-700);
+  background: var(--color-panel);
   border: var(--border);
   border-radius: var(--radius);
 }
 
 /* ── Buttons ───────────────────────────────────────────────────────────
-   Sentence case, no letter-spacing, no all-caps: labels are read, not
-   shouted. One accent for the primary action, one outline treatment for
-   "this tool is armed", and a single destructive variant. */
+   Sentence case, no letter-spacing, no all-caps: button labels are read, not
+   shouted — the uppercase treatment belongs to `.hud-label`, which names a
+   readout rather than inviting a press. One accent for the primary action,
+   one outline treatment for "this tool is armed", and a single destructive
+   variant. */
 
 .hud-chip {
   display: inline-flex;
@@ -102,50 +146,54 @@ input {
   font-size: var(--text-2xs);
   font-weight: 500;
   line-height: 1.2;
-  color: var(--color-steel-200);
-  background: rgb(255 255 255 / 0.04);
+  color: var(--color-dim);
+  background: rgb(255 255 255 / 0.05);
   transition:
     background-color var(--dur-ui) var(--ease-ui),
     color var(--dur-ui) var(--ease-ui),
-    border-color var(--dur-ui) var(--ease-ui);
+    border-color var(--dur-ui) var(--ease-ui),
+    box-shadow var(--dur-ui) var(--ease-ui);
 }
 .hud-chip:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.09);
-  color: var(--color-steel-050);
+  background: rgb(255 255 255 / 0.1);
+  color: var(--color-ink);
 }
 .hud-chip:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* The primary action on a screen. There is only ever one that matters. */
+/* The primary action on a screen. There is only ever one that matters, which
+   is why it is the one element allowed to glow at rest. */
 .hud-chip--primary {
-  background: var(--color-signal);
-  border-color: var(--color-signal);
-  color: var(--color-steel-900);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-ink);
   font-weight: 600;
+  box-shadow: var(--glow);
 }
 .hud-chip--primary:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--color-signal) 88%, white);
-  color: var(--color-steel-900);
+  background: color-mix(in oklab, var(--color-accent) 88%, white);
+  color: var(--color-accent-ink);
+  box-shadow: var(--glow-strong);
 }
 
 /* An armed tool: outlined rather than filled, so a row of them reads as a
    segmented control instead of a row of competing primary buttons. */
 .hud-chip.is-active {
-  border-color: var(--color-signal);
-  color: var(--color-signal);
-  background: color-mix(in oklab, var(--color-signal) 12%, transparent);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent) 14%, transparent);
 }
 
 .hud-chip--danger {
   border-color: color-mix(in oklab, var(--color-danger) 60%, transparent);
   color: var(--color-danger);
-  background: color-mix(in oklab, var(--color-danger) 10%, transparent);
+  background: color-mix(in oklab, var(--color-danger) 12%, transparent);
 }
 .hud-chip--danger:hover:not(:disabled) {
   background: var(--color-danger);
-  color: var(--color-steel-050);
+  color: var(--color-ink);
 }
 
 /* Icon-only buttons stay square so a toolbar of them lines up on the grid. */
@@ -153,6 +201,24 @@ input {
   padding: 6px;
   width: 28px;
   height: 28px;
+}
+
+/*
+  The touch floor. Apple HIG asks 44x44pt, Material 48x48dp and WCAG 2.5.5 AAA
+  44x44 CSS px — so a control that is only ever pressed with a thumb is 48px
+  and nothing smaller. This raises the target without growing the ink: the
+  chip keeps its 28px painted box and gains an invisible pressable area.
+*/
+.hud-chip--touch {
+  position: relative;
+}
+.hud-chip--touch::after {
+  content: "";
+  position: absolute;
+  inset: 50% 50%;
+  width: 48px;
+  height: 48px;
+  translate: -50% -50%;
 }
 
 /* ── Play menu ─────────────────────────────────────────────────────────
@@ -175,15 +241,15 @@ input {
   font-weight: 500;
   line-height: 1.2;
   text-align: left;
-  color: var(--color-steel-200);
+  color: var(--color-dim);
   background: transparent;
   transition:
     background-color var(--dur-ui) var(--ease-ui),
     color var(--dur-ui) var(--ease-ui);
 }
 .hud-menu-item:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.09);
-  color: var(--color-steel-050);
+  background: rgb(255 255 255 / 0.1);
+  color: var(--color-ink);
 }
 .hud-menu-item:disabled {
   opacity: 0.4;
@@ -192,7 +258,7 @@ input {
 /* A toggle that is currently on. Colour only — an outline on a full-width row
    reads as a text field rather than an armed control. */
 .hud-menu-item.is-active {
-  color: var(--color-signal);
+  color: var(--color-accent);
 }
 
 /* The state of a toggle, right-aligned so the labels stay on one column and
@@ -201,7 +267,7 @@ input {
   margin-left: auto;
   font-size: var(--text-2xs);
   font-weight: 500;
-  color: var(--color-steel-200);
+  color: var(--color-dim);
   opacity: 0.7;
 }
 
@@ -221,23 +287,45 @@ input {
 
 /* ── Text roles ────────────────────────────────────────────────────────── */
 
-/* A quiet label. Sentence case — the spec bans all-caps chrome, and an
-   eyebrow that shouts competes with the world for attention. */
+/*
+  A readout's name. Uppercase, tracked out, in the display face — the one
+  place the direction's "uppercase tracking-wider" belongs, because a label
+  like SPEED or LAP is a legend for a number rather than prose. It is also
+  set small and dim: it should be findable, not readable at a glance. The
+  number underneath is what the eye is going to.
+*/
 .hud-label {
-  font-size: var(--text-2xs);
+  font-family: var(--font-orbitron), var(--font-plex), sans-serif;
+  font-size: 0.625rem; /* 10px — below the type scale on purpose; see above */
   font-weight: 500;
-  color: var(--color-steel-200);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-dim);
   opacity: 0.75;
 }
 
 /*
-  Every number in the HUD — coordinates, block counts — uses tabular figures.
-  Without them the digits change width as values change and the readout
-  jitters while you move the cursor.
+  Every number in the HUD — speed, splits, coordinates, block counts — is
+  mono and tabular. Without tabular figures the digits change width as values
+  change and a speedometer visibly jitters while you ride.
 */
 .num {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
+}
+
+/* A primary readout: the speed, the split, the position. Big, mono, and
+   glowing in the mode's accent, because these are the two or three values a
+   player reads with 20% of their attention while driving with the other 80%. */
+.hud-readout {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--color-ink);
+  text-shadow: 0 0 12px
+    color-mix(in oklab, var(--color-accent) 55%, transparent);
 }
 
 /* ── Block swatches ────────────────────────────────────────────────────── */
@@ -255,9 +343,10 @@ input {
   transform: translateY(-2px);
 }
 .swatch[aria-pressed="true"] {
-  outline: 2px solid var(--color-signal);
+  outline: 2px solid var(--color-accent);
   outline-offset: 1px;
   transform: translateY(-2px);
+  box-shadow: var(--glow);
 }
 
 /* Panels that appear over the canvas animate in at the spec's tool-panel
@@ -289,6 +378,9 @@ input {
   Respect the OS setting. The one deliberate exception is the block placement
   pop, which is the physical feedback for the core action — it shortens rather
   than disappearing (handled in FEEL, not here).
+
+  Glow is a colour, not a motion, so it survives here — but anything that
+  *pulses* a glow is motion, and is caught by the animation rules below.
 */
 @media (prefers-reduced-motion: reduce) {
   *,

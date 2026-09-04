@@ -7,20 +7,21 @@ import {
 } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
-import { Bricolage_Grotesque, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Orbitron, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import { RoomAuth } from "@/components/RoomAuth";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import "./globals.css";
 
 /**
- * Two families, clearly distinct (UI spec §1).
+ * Three families, each with one job (Neon Drift direction, tokens.css).
  *
- * Bricolage Grotesque has actual character — irregular widths and a slightly
- * built quality that suits a block editor — and it is variable, so headline
- * weights come from one file rather than three.
+ * Orbitron is the techno display face: wide, geometric, and the thing that
+ * makes a heading or a HUD legend read as instrumentation. It is used ONLY
+ * for headings and `.hud-label` — it is genuinely unreadable as body copy,
+ * which is why the UI face below still exists.
  */
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
+const orbitron = Orbitron({
+  variable: "--font-orbitron",
   subsets: ["latin"],
   display: "swap",
 });
@@ -37,8 +38,14 @@ const plex = IBM_Plex_Sans({
   display: "swap",
 });
 
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
+/**
+ * JetBrains Mono carries every number in the app — speed, splits, lap times,
+ * coordinates. Chosen over Plex Mono for its taller x-height and its clearly
+ * disambiguated 0/O and 1/l, which is what a readout glanced at from a moving
+ * bike actually needs.
+ */
+const jetbrains = JetBrains_Mono({
+  variable: "--font-jetbrains",
   subsets: ["latin"],
   weight: ["400", "500"],
   display: "swap",
@@ -73,7 +80,7 @@ export const metadata: Metadata = {
  * rounded corners and notch instead of letterboxing the canvas.
  */
 export const viewport: Viewport = {
-  themeColor: "#1a1d21",
+  themeColor: "#0a0a0f",
   viewportFit: "cover",
 };
 
@@ -81,7 +88,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${bricolage.variable} ${plex.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${orbitron.variable} ${plex.variable} ${jetbrains.variable} h-full antialiased`}
     >
       {/*
         `h-dvh` (not `min-h-full`) is deliberate: the R3F <Canvas> sizes itself
@@ -93,11 +100,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ClerkProvider
           appearance={{
             variables: {
-              colorPrimary: "#ffb020",
-              colorBackground: "#2b3037",
-              colorForeground: "#edf0f3",
-              colorMutedForeground: "#c3c9d0",
-              colorDanger: "#e5484d",
+              // Clerk renders in its own tree and cannot read our CSS
+              // variables, so the palette is restated here. These are the
+              // literal values of --color-accent (cyan, the neutral default;
+              // Clerk's modal is not inside any mode), --color-panel,
+              // --color-ink, --color-dim and --color-danger.
+              colorPrimary: "#00fff5",
+              colorBackground: "#16161f",
+              colorForeground: "#eef1ff",
+              colorMutedForeground: "#a3a8c8",
+              colorDanger: "#ff3b30",
               borderRadius: "3px",
             },
           }}
@@ -106,12 +118,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <RoomAuth />
           {/* Also renders nothing. Production only — see the component. */}
           <ServiceWorkerRegistrar />
-          <header className="border-[var(--border-color)] bg-steel-800 flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 sm:px-6">
+          <header className="border-[var(--border-color)] bg-surface flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 sm:px-6">
             <Link href="/" className="group flex items-center gap-2.5">
-              {/* A single amber block, rotated to read as a voxel corner. The
-                  old gradient mark was exactly the decorative chrome the design
-                  direction rules out. */}
-              <span className="bg-signal block h-4 w-4 rotate-45 transition-transform group-hover:rotate-[135deg]" />
+              {/* A single accent block, rotated to read as a voxel corner —
+                  and lit, because in the Neon Drift direction the mark is the
+                  one place on the page chrome allowed to glow. */}
+              <span
+                className="bg-accent block h-4 w-4 rotate-45 transition-transform group-hover:rotate-[135deg]"
+                style={{ boxShadow: "var(--glow-strong)" }}
+              />
               <span className="text-sm font-semibold">Blockworld</span>
             </Link>
             <div className="flex items-center gap-3">

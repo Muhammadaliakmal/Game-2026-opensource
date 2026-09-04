@@ -72,9 +72,9 @@ export function InstallPanel({
 
   if (installed) {
     return (
-      <section className="card border-signal/40 flex flex-col gap-2 p-5">
-        <h2 className="text-steel-050 text-sm font-semibold">Already installed</h2>
-        <p className="text-steel-200 text-xs">
+      <section className="card border-accent/40 flex flex-col gap-2 p-5">
+        <h2 className="text-ink text-sm font-semibold">Already installed</h2>
+        <p className="text-dim text-xs">
           You are running Blockworld as an app. Nothing to do here.
         </p>
       </section>
@@ -86,10 +86,10 @@ export function InstallPanel({
       {/* ── Install from the browser ── */}
       <section className="card flex flex-col gap-4 p-5">
         <div className="flex flex-col gap-2">
-          <h2 className="text-steel-050 text-sm font-semibold">
+          <h2 className="text-ink text-sm font-semibold">
             Install from the browser
           </h2>
-          <p className="text-steel-200 text-xs">
+          <p className="text-dim text-xs">
             Adds Blockworld to your home screen and runs it fullscreen, without
             the address bar. It updates itself with the site, so there is
             nothing to reinstall later — this is the route to prefer if your
@@ -108,7 +108,7 @@ export function InstallPanel({
         )}
 
         {!available && platform === "ios" && (
-          <ol className="text-steel-200 flex list-decimal flex-col gap-1.5 pl-4 text-xs">
+          <ol className="text-dim flex list-decimal flex-col gap-1.5 pl-4 text-xs">
             <li>
               Open this page in <span className="num">Safari</span> — other iOS
               browsers cannot install it.
@@ -121,7 +121,7 @@ export function InstallPanel({
         )}
 
         {!available && platform !== "ios" && (
-          <p className="text-steel-200 text-xs">
+          <p className="text-dim text-xs">
             Your browser has not offered an install prompt. Chrome and Edge show
             one from an install icon in the address bar; Firefox does not
             support installing web apps on desktop at all.
@@ -133,10 +133,10 @@ export function InstallPanel({
       {platform !== "ios" && (
         <section className="card flex flex-col gap-4 p-5">
           <div className="flex flex-col gap-2">
-            <h2 className="text-steel-050 text-sm font-semibold">
+            <h2 className="text-ink text-sm font-semibold">
               Android APK
             </h2>
-            <p className="text-steel-200 text-xs">
+            <p className="text-dim text-xs">
               A signed Android package, for installing without a store. Same
               game — it opens the live site in a fullscreen app window, so a
               network connection is still needed to build or race.
@@ -152,7 +152,7 @@ export function InstallPanel({
               >
                 Download the APK
               </a>
-              <details className="text-steel-200 text-xs">
+              <details className="text-dim text-xs">
                 <summary className="cursor-pointer select-none">
                   Installing an APK
                 </summary>
@@ -173,7 +173,7 @@ export function InstallPanel({
               </details>
             </>
           ) : (
-            <p className="text-steel-200 text-xs">
+            <p className="text-dim text-xs">
               Not published yet. Install from the browser above — on Android
               that produces the same fullscreen app, with the same icon, and it
               stays up to date on its own.

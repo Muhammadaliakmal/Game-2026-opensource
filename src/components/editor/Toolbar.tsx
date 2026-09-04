@@ -10,6 +10,8 @@ import { PropBrowser } from "./PropBrowser";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { useCoarsePointer } from "@/lib/use-media-query";
+import { HudZone, HudZones } from "@/components/hud/HudZones";
+import { SettingsButton } from "@/components/hud/SettingsButton";
 
 /**
  * The editor chrome: floating islands over a full-bleed canvas, never a
@@ -21,6 +23,11 @@ import { useCoarsePointer } from "@/lib/use-media-query";
  * than it looks: invisible HUD padding that swallows clicks meant for the
  * world produces "sometimes my block does not place" bugs that are miserable
  * to track down.
+ *
+ * Placement is the builder convention, via HudZones: the world's identity and
+ * anything wrong with it top-left, chrome and help top-right, the palette and
+ * tools bottom-left within reach of the hand that is already there, and the
+ * coordinate readout bottom-right. The mode accent is the build cyan.
  */
 
 const HELP_SEEN_KEY = "blockworld:editor-help-seen";
@@ -38,6 +45,8 @@ const CONTROLS: Array<[string, string]> = [
   ["P", "place / select props"],
   ["Delete", "remove the selected prop"],
   ["1 – 9", "pick a colour"],
+  ["Shift + scroll", "walk the palette"],
+  ["Middle click", "pick the colour you clicked"],
   ["Shift + 1 – 4", "pick a shape"],
   ["R", "rotate the brush"],
   ["Ctrl + Z / Y", "undo / redo"],
@@ -118,10 +127,10 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
       <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1">
         {CONTROLS.map(([key, what]) => (
           <div key={key} className="contents">
-            <dt className="bg-steel-800 text-steel-050 justify-self-start rounded-[var(--radius)] px-1.5 py-0.5 font-mono text-[0.6875rem] ring-1 ring-white/10">
+            <dt className="bg-surface text-ink justify-self-start rounded-[var(--radius)] px-1.5 py-0.5 font-mono text-[0.6875rem] ring-1 ring-white/10">
               {key}
             </dt>
-            <dd className="text-steel-200 text-2xs">{what}</dd>
+            <dd className="text-dim text-2xs">{what}</dd>
           </div>
         ))}
       </dl>
@@ -159,7 +168,7 @@ function Readout() {
   }, []);
 
   return (
-    <div className="num text-steel-200/60 pointer-events-none shrink-0 text-right text-2xs leading-snug">
+    <div className="num text-dim/60 pointer-events-none shrink-0 text-right text-2xs leading-snug">
       <span ref={cell} className="block" />
       <span ref={parts} className="block" />
     </div>
@@ -180,13 +189,11 @@ function TouchHint() {
 
   return (
     <div
-      className={`pointer-events-none absolute inset-x-0 top-16 flex justify-center px-3 transition-opacity duration-700 ${
+      className={`hud-panel text-dim px-3 py-2 text-center text-2xs transition-opacity duration-700 ${
         show ? "opacity-100" : "opacity-0"
       }`}
     >
-      <div className="hud-panel text-steel-200 px-3 py-2 text-center text-2xs">
-        One finger builds · two fingers move the camera
-      </div>
+      One finger builds · two fingers move the camera
     </div>
   );
 }
@@ -308,76 +315,87 @@ export function Toolbar({
             : "No changes yet";
 
   return (
-    <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-2 p-2">
-      {/* ── Top: identity left, actions right ── */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-col items-start gap-2">
-          <div className="hud-panel pointer-events-auto flex min-w-0 items-center gap-1.5 p-1">
-            <Link
-              href="/"
-              className="hud-chip hud-chip--icon"
-              title="Back to your worlds"
-              aria-label="Back to your worlds"
-            >
-              <Icon path="M15 5l-7 7 7 7" />
-            </Link>
-            <input
-              value={name}
-              onChange={(e) => useEditorStore.getState().setName(e.target.value)}
-              disabled={readOnly}
-              className="text-steel-050 placeholder:text-steel-500 min-w-0 flex-1 bg-transparent px-1 text-2xs font-medium outline-none disabled:opacity-70 sm:w-40 sm:flex-none"
-              aria-label="World name"
-              placeholder="World name"
-            />
-            <span
-              className={`h-1.5 w-1.5 shrink-0 ${
-                readOnly
-                  ? "bg-steel-500"
-                  : saving || dirty
-                    ? "bg-signal"
-                    : "bg-steel-200"
-              }`}
-              title={statusLabel}
-              aria-label={statusLabel}
-            />
-          </div>
-
-          {/* Say a world is read-only BEFORE the work happens, and offer the
-              one action that does work: copy it. */}
-          {isDraft && (
-            <div className="hud-panel pointer-events-auto flex max-w-[min(92vw,26rem)] flex-wrap items-center gap-2 px-2 py-1.5">
-              <span className="text-steel-200 text-2xs">
-                Building without an account — saved on this device only.
-              </span>
-            </div>
-          )}
-
-          {lockedReason && (
-            <div className="hud-panel pointer-events-auto flex max-w-[min(92vw,26rem)] flex-wrap items-center gap-2 px-2 py-1.5">
-              <span className="text-signal text-2xs">{lockedReason}</span>
-              <button
-                onClick={remix}
-                disabled={remixing}
-                className="hud-chip hud-chip--primary"
-              >
-                {remixing ? "Copying…" : "Make my copy"}
-              </button>
-            </div>
-          )}
-
-          {saveError && (
-            <div className="hud-panel pointer-events-auto flex max-w-[min(92vw,26rem)] items-center gap-2 px-2 py-1.5">
-              <span className="text-danger text-2xs">{saveError}</span>
-              <button onClick={onDismissSaveError} className="hud-chip">
-                Dismiss
-              </button>
-            </div>
-          )}
+    <HudZones mode="build">
+      {/* ── Top-left: which world this is, and anything wrong with it ── */}
+      <HudZone at="top-left" className="min-w-0">
+        <div className="hud-panel pointer-events-auto flex min-w-0 items-center gap-1.5 p-1">
+          <Link
+            href="/"
+            className="hud-chip hud-chip--icon"
+            title="Back to your worlds"
+            aria-label="Back to your worlds"
+          >
+            <Icon path="M15 5l-7 7 7 7" />
+          </Link>
+          <input
+            value={name}
+            onChange={(e) => useEditorStore.getState().setName(e.target.value)}
+            disabled={readOnly}
+            className="text-ink placeholder:text-edge min-w-0 flex-1 bg-transparent px-1 text-2xs font-medium outline-none disabled:opacity-70 sm:w-40 sm:flex-none"
+            aria-label="World name"
+            placeholder="World name"
+          />
+          <span
+            className={`h-1.5 w-1.5 shrink-0 ${
+              readOnly
+                ? "bg-edge"
+                : saving || dirty
+                  ? "bg-accent"
+                  : "bg-dim"
+            }`}
+            title={statusLabel}
+            aria-label={statusLabel}
+          />
         </div>
 
+        {/* Say a world is read-only BEFORE the work happens, and offer the
+            one action that does work: copy it. */}
+        {isDraft && (
+          <div className="hud-panel pointer-events-auto flex max-w-[min(92vw,26rem)] flex-wrap items-center gap-2 px-2 py-1.5">
+            <span className="text-dim text-2xs">
+              Building without an account — saved on this device only.
+            </span>
+          </div>
+        )}
+
+        {lockedReason && (
+          <div className="hud-panel pointer-events-auto flex max-w-[min(92vw,26rem)] flex-wrap items-center gap-2 px-2 py-1.5">
+            <span className="text-accent text-2xs">{lockedReason}</span>
+            <button
+              onClick={remix}
+              disabled={remixing}
+              className="hud-chip hud-chip--primary"
+            >
+              {remixing ? "Copying…" : "Make my copy"}
+            </button>
+          </div>
+        )}
+
+        {saveError && (
+          <div className="hud-panel pointer-events-auto flex max-w-[min(92vw,26rem)] items-center gap-2 px-2 py-1.5">
+            <span className="text-danger text-2xs">{saveError}</span>
+            <button onClick={onDismissSaveError} className="hud-chip">
+              Dismiss
+            </button>
+          </div>
+        )}
+      </HudZone>
+
+      {/* On a phone the split between "one finger builds" and "two fingers
+          move the camera" is the one thing that has to be said out loud —
+          nothing on screen implies it. */}
+      {touch && !help && (
+        <HudZone at="top-center">
+          <TouchHint />
+        </HudZone>
+      )}
+
+      {/* ── Top-right: chrome, and the help panel that hangs under it ── */}
+      <HudZone at="top-right">
         <div className="hud-panel pointer-events-auto flex shrink-0 items-center gap-1 p-1">
           <MuteButton className="hud-chip hud-chip--icon" />
           <FullscreenButton className="hud-chip hud-chip--icon" />
+          <SettingsButton className="hud-chip hud-chip--icon" />
           <button
             onClick={() => setHelp((v) => !v)}
             className={`hud-chip hud-chip--icon ${help ? "is-active" : ""}`}
@@ -432,22 +450,18 @@ export function Toolbar({
             {entering ? "Entering…" : "Play"}
           </button>
         </div>
-      </div>
 
-      {help && (
-        <div className="pointer-events-none absolute top-14 right-2">
-          <HelpPanel onClose={() => setHelp(false)} />
-        </div>
-      )}
+        {/* Under the chrome it belongs to, rather than at a hand-measured
+            `top-14 right-2` that had to be re-measured every time that row
+            changed height. */}
+        {help && <HelpPanel onClose={() => setHelp(false)} />}
+      </HudZone>
 
-      {/* On a phone the split between "one finger builds" and "two fingers
-          move the camera" is the one thing that has to be said out loud —
-          nothing on screen implies it. */}
-      {touch && !help && <TouchHint />}
-
-      {/* ── Bottom: tools and palette left, readout right ── */}
-      <div className="flex items-end justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-2">
+      {/* ── Bottom-left: the palette and the tools, under the building hand.
+             Two columns wide: sixteen swatches and six tools do not fit in a
+             third of a phone, and bottom-center is unused while building. ── */}
+      <HudZone at="bottom-left" className="col-end-3">
+        <div className="flex min-w-0 max-w-full flex-col gap-2">
           {/* Colour and shape don't apply to a placed prop — the prop tool
               gets its own browser instead of these. */}
           {tool === "prop" ? (
@@ -455,7 +469,7 @@ export function Toolbar({
           ) : (
             /* Palette: 0-radius swatches, because blocks are not round and a
                pill stops reading as a block. */
-            <div className="hud-panel hud-scroll pointer-events-auto flex max-w-[min(92vw,32rem)] flex-nowrap gap-1 overflow-x-auto p-1.5 sm:flex-wrap">
+            <div className="hud-panel hud-scroll pointer-events-auto flex max-w-[min(100%,32rem)] flex-nowrap gap-1 overflow-x-auto p-1.5 sm:flex-wrap">
               {PALETTE.map((hex, i) => (
                 <button
                   key={hex + i}
@@ -477,7 +491,7 @@ export function Toolbar({
             </div>
           )}
 
-          <div className="hud-scroll flex max-w-[calc(100vw-1rem)] items-center gap-2 overflow-x-auto">
+          <div className="hud-scroll flex max-w-full items-center gap-2 overflow-x-auto">
             {/* Tool group */}
             <div className="hud-panel pointer-events-auto flex shrink-0 items-center gap-1 p-1">
               {TOOL_ORDER.map((t) => (
@@ -550,9 +564,11 @@ export function Toolbar({
             )}
           </div>
         </div>
+      </HudZone>
 
+      <HudZone at="bottom-right">
         <Readout />
-      </div>
-    </div>
+      </HudZone>
+    </HudZones>
   );
 }

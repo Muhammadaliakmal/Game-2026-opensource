@@ -32,21 +32,21 @@ export default function ArenaLobbyPage() {
   };
 
   return (
-    <main className="bg-steel-900 min-h-dvh px-5 py-10 sm:px-8">
+    <main className="bg-base min-h-dvh px-5 py-10 sm:px-8">
       <div className="mx-auto flex max-w-2xl flex-col gap-8">
         <header className="flex flex-col gap-2">
           <Link href="/" className="hud-label w-fit">
             ← Blockworld
           </Link>
-          <h1 className="text-steel-050 text-2xl font-semibold">Matches</h1>
-          <p className="text-steel-200 text-sm">
+          <h1 className="text-ink text-2xl font-semibold">Matches</h1>
+          <p className="text-dim text-sm">
             Two players, one world. Land five knockdowns to win. Open a match and
             send the link to whoever you want to fight.
           </p>
         </header>
 
         {!multiplayerEnabled && (
-          <p className="card border-signal/40 text-steel-200 p-4 text-xs">
+          <p className="card border-accent/40 text-dim p-4 text-xs">
             Matches need the room server running.{" "}
             <span className="num">NEXT_PUBLIC_MULTIPLAYER_URL</span> is not set, so
             opening one here will not connect.
@@ -54,7 +54,7 @@ export default function ArenaLobbyPage() {
         )}
 
         <section className="card flex flex-col gap-4 p-5">
-          <h2 className="text-steel-050 text-sm font-semibold">Open a match</h2>
+          <h2 className="text-ink text-sm font-semibold">Open a match</h2>
           <div className="flex flex-col gap-2">
             <span className="hud-label">Fight in</span>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -64,11 +64,11 @@ export default function ArenaLobbyPage() {
                   onClick={() => setWorldId(w.slug)}
                   aria-pressed={worldId === w.slug}
                   className={`card flex flex-col items-start gap-1 p-3 text-left transition ${
-                    worldId === w.slug ? "border-signal" : "hover:border-steel-500"
+                    worldId === w.slug ? "border-accent" : "hover:border-edge"
                   }`}
                 >
-                  <span className="text-steel-050 text-xs font-medium">{w.name}</span>
-                  <span className="text-steel-200 text-2xs">{w.blurb}</span>
+                  <span className="text-ink text-xs font-medium">{w.name}</span>
+                  <span className="text-dim text-2xs">{w.blurb}</span>
                 </button>
               ))}
             </div>
@@ -79,7 +79,7 @@ export default function ArenaLobbyPage() {
         </section>
 
         <section className="card flex flex-col gap-4 p-5">
-          <h2 className="text-steel-050 text-sm font-semibold">Join with a code</h2>
+          <h2 className="text-ink text-sm font-semibold">Join with a code</h2>
           <form onSubmit={join} className="flex flex-wrap items-center gap-2">
             <input
               value={code}
@@ -89,7 +89,7 @@ export default function ArenaLobbyPage() {
               autoCapitalize="characters"
               spellCheck={false}
               aria-label="Match code"
-              className="bg-steel-900 border-steel-500 text-steel-050 num focus:border-signal w-40 rounded border px-3 py-2 text-sm tracking-[0.3em] uppercase outline-none"
+              className="bg-base border-edge text-ink num focus:border-accent w-40 rounded border px-3 py-2 text-sm tracking-[0.3em] uppercase outline-none"
             />
             <button className="hud-chip" disabled={!isMatchCode(code)}>
               Join match

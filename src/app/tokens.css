@@ -1,45 +1,74 @@
 /*
-  Blockworld design tokens.
+  Blockworld design tokens — "Neon Drift".
 
-  The governing decision (UI spec §1): the chrome is deliberately desaturated
-  so the world's colours are the only saturated thing on screen. Every voxel
-  builder surrounds a colourful world with more colour, and the result is mud.
-  Tool-steel greys here; grass green and lantern amber exist only as blocks and
-  as palette swatches.
+  ── The governing decision, and the one it replaced ──────────────────────
 
-  Block material colours are NOT tokens. They live in PALETTE in
+  This file used to hold a desaturated tool-steel palette, on the reasoning
+  that "every voxel builder surrounds a colourful world with more colour, and
+  the result is mud." That reasoning was about the *builder*, and it lost to a
+  bigger one: Blockworld is three games — build, race, parkour — and the two
+  arcade modes had no identity of their own. The Neon Drift direction is
+  neon-on-dark glassmorphism across all three (see plan-phase6.md §4).
+
+  The mud problem was real, so it is solved differently rather than ignored:
+
+  - The chrome is not saturated, it is *dark and translucent*. Panels are
+    near-black glass; the only saturated pixels are the accent, used on one
+    element per panel, and glow, which is accent at low alpha.
+  - There is still exactly ONE accent live at a time. It is not fixed — it is
+    keyed to the current mode (build cyan / race magenta / parkour acid), which
+    is what makes a mode switch legible at a glance instead of a label change.
+
+  Block material colours are still NOT tokens. They live in PALETTE in
   lib/worlddoc.ts and reach the screen only as blocks and swatches.
 */
 
 @theme {
-  /* ── Chrome ─────────────────────────────────────────────────────────── */
-  --color-steel-900: #1a1d21; /* editor chrome background, deepest surface */
-  --color-steel-800: #212529; /* raised surface between 900 and 700 */
-  --color-steel-700: #2b3037; /* panels, tool islands */
-  --color-steel-500: #4a525c; /* borders, dividers, inactive icons */
-  --color-steel-200: #c3c9d0; /* secondary text, icon default */
-  --color-steel-050: #edf0f3; /* primary text on dark */
+  /* ── Surfaces ────────────────────────────────────────────────────────
+     Never pure black — a slight blue/violet tint, so neon accents sit on a
+     ground that shares their hue family instead of fighting a neutral. */
+  --color-base: #0a0a0f; /* page ground, deepest surface */
+  --color-surface: #12121b; /* header and raised page chrome */
+  --color-panel: #16161f; /* opaque cards on a page */
+  --color-edge: #2f3350; /* borders, dividers, inactive icons */
+  --color-dim: #a3a8c8; /* secondary text, icon default */
+  --color-ink: #eef1ff; /* primary text on dark */
 
   /*
-    The one accent. Amber because it reads as "machine active" (a CNC status
-    light), it survives against both the steel chrome and against grass, sky
-    and stone in the 3D scene, and it does not collide with a common block
-    colour the way blue or green would.
+    The accent. Cyan is the DEFAULT only — every mode surface overrides
+    `--color-accent` (see globals.css, `[data-mode]`), and because Tailwind's
+    utilities compile to `var(--color-accent)`, `bg-accent` and `text-accent`
+    follow the mode with no per-component branching at all.
   */
-  --color-signal: #ffb020;
+  --color-accent: #00fff5; /* build / neutral */
+  --color-accent-race: #ff0080;
+  --color-accent-parkour: #7cff3d;
 
   /*
-    A functional exception to the one-accent rule, used only to mark a
-    destructive confirmation (deleting a world). An irreversible action that
-    looks identical to every other button is a usability problem that
-    out-weighs the palette discipline.
+    Text placed ON a filled accent. Always the ground colour: all three
+    accents are bright enough to carry dark text, and a single rule means a
+    primary button does not need to know which mode it is in.
   */
-  --color-danger: #e5484d;
+  --color-accent-ink: #0a0a0f;
 
-  /* ── Type ───────────────────────────────────────────────────────────── */
-  --font-display: var(--font-bricolage);
+  /*
+    A functional exception to the one-accent rule, marking a destructive
+    confirmation. Deliberately red-orange rather than the red-pink that would
+    read as "neon danger": in race mode the accent is magenta, and a danger
+    colour a hue away from the accent is not a warning.
+  */
+  --color-danger: #ff3b30;
+
+  /* ── Type ───────────────────────────────────────────────────────────
+     Three roles. Orbitron is the techno display face the direction asks for
+     and is used ONLY for headings and HUD labels — it is unreadable as body
+     copy. IBM Plex Sans stays the UI face: drafting-table utilitarian and
+     excellent at the sizes chrome actually renders at. JetBrains Mono carries
+     every number, because telemetry wants tabular figures with unambiguous
+     digits. */
+  --font-display: var(--font-orbitron);
   --font-sans: var(--font-plex);
-  --font-mono: var(--font-plex-mono);
+  --font-mono: var(--font-jetbrains);
 
   /* 1.25 ratio on a 16px base. */
   --text-2xs: 0.75rem; /* 12 */
@@ -70,11 +99,29 @@
   /* Interactive chrome is barely rounded; block swatches are not rounded at
      all, because blocks are not round and a pill stops reading as a block. */
   --radius: 3px;
-  --border-color: rgb(74 82 92 / 0.4);
+  --border-color: rgb(255 255 255 / 0.1);
   --border: 1px solid var(--border-color);
 
-  /* Exactly two elevation levels: the canvas, and things over the canvas. */
-  --lift: 0 8px 24px rgb(0 0 0 / 0.45);
+  /* ── Glass ──────────────────────────────────────────────────────────
+     One recipe, three variables, so every floating surface in the app is
+     the same material. `--glass-blur` is the expensive one: `backdrop-filter`
+     costs a full-screen read per stacking context, so panels using it are
+     kept few and small, and the value stays at one blur radius rather than
+     drifting per component. */
+  --glass-bg: rgb(255 255 255 / 0.055);
+  --glass-border: rgb(255 255 255 / 0.12);
+  --glass-blur: blur(16px) saturate(140%);
+
+  /*
+    Elevation is two things at once now: a real shadow that separates the
+    panel from the world behind it, and an accent bloom that ties it to the
+    mode. The bloom is deliberately weak — it is the difference between "this
+    panel belongs to the race" and "this panel is a light source".
+  */
+  --lift: 0 8px 24px rgb(0 0 0 / 0.55);
+  --glow: 0 0 20px color-mix(in oklab, var(--color-accent) 22%, transparent);
+  --glow-strong: 0 0 28px
+    color-mix(in oklab, var(--color-accent) 45%, transparent);
 
   --ease-ui: cubic-bezier(0.2, 0, 0, 1);
   --dur-ui: 120ms;

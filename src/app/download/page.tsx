@@ -26,16 +26,16 @@ export default async function DownloadPage() {
   const apk = await apkInfo();
 
   return (
-    <main className="bg-steel-900 min-h-dvh px-5 py-10 sm:px-8">
+    <main className="bg-base min-h-dvh px-5 py-10 sm:px-8">
       <div className="mx-auto flex max-w-2xl flex-col gap-8">
         <header className="flex flex-col gap-2">
           <Link href="/" className="hud-label w-fit">
             ← Blockworld
           </Link>
-          <h1 className="text-steel-050 text-2xl font-semibold">
+          <h1 className="text-ink text-2xl font-semibold">
             Get Blockworld
           </h1>
-          <p className="text-steel-200 text-sm">
+          <p className="text-dim text-sm">
             Blockworld runs in a browser, so there is nothing you have to
             install. Installing it anyway gets you a home-screen icon, a
             fullscreen window with no address bar over the HUD, and a game that
@@ -47,14 +47,14 @@ export default async function DownloadPage() {
 
         {apk.available && (
           <section className="card flex flex-col gap-3 p-5">
-            <h2 className="text-steel-050 text-sm font-semibold">This build</h2>
-            <dl className="text-steel-200 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
+            <h2 className="text-ink text-sm font-semibold">This build</h2>
+            <dl className="text-dim grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
               <dt>Version</dt>
-              <dd className="num text-steel-050">{apk.version}</dd>
+              <dd className="num text-ink">{apk.version}</dd>
               <dt>Size</dt>
-              <dd className="num text-steel-050">{formatBytes(apk.size)}</dd>
+              <dd className="num text-ink">{formatBytes(apk.size)}</dd>
               <dt>Built</dt>
-              <dd className="num text-steel-050">
+              <dd className="num text-ink">
                 {apk.built ? apk.built.slice(0, 10) : "—"}
               </dd>
             </dl>
@@ -62,10 +62,10 @@ export default async function DownloadPage() {
         )}
 
         <section className="card flex flex-col gap-3 p-5">
-          <h2 className="text-steel-050 text-sm font-semibold">
+          <h2 className="text-ink text-sm font-semibold">
             What you need either way
           </h2>
-          <ul className="text-steel-200 flex flex-col gap-1.5 text-xs">
+          <ul className="text-dim flex flex-col gap-1.5 text-xs">
             <li>
               A connection. Worlds live on the server and races run through a
               room, so none of it works offline.

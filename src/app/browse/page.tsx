@@ -45,13 +45,13 @@ export default async function BrowsePage() {
         {BUILT_IN_WORLDS.map((w) => (
           <li
             key={w.slug}
-            className="card hover:border-signal/50 p-4 transition-colors"
+            className="card hover:border-accent/50 p-4 transition-colors"
           >
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-base font-semibold">{w.name}</h2>
               <span className="hud-label shrink-0">Built-in</span>
             </div>
-            <p className="text-steel-200 mt-1 text-sm">{w.blurb}</p>
+            <p className="text-dim mt-1 text-sm">{w.blurb}</p>
             <Link
               href={`/play/${w.slug}`}
               className="hud-chip hud-chip--primary mt-4"
@@ -65,7 +65,7 @@ export default async function BrowsePage() {
       <h2 className="mb-4 text-base font-semibold">Published by players</h2>
 
       {published.length === 0 ? (
-        <div className="text-steel-200 rounded-[var(--radius)] border border-dashed border-[var(--border-color)] p-12 text-center text-sm">
+        <div className="text-dim rounded-[var(--radius)] border border-dashed border-[var(--border-color)] p-12 text-center text-sm">
           Nothing published yet. Build something and publish it from your
           world&apos;s ⋮ menu.
         </div>
@@ -74,7 +74,7 @@ export default async function BrowsePage() {
           {published.map((w) => (
             <li
               key={w.id}
-              className="card hover:border-signal/50 p-4 transition-colors"
+              className="card hover:border-accent/50 p-4 transition-colors"
             >
               {w.thumbnailUrl && (
                 // A data URI or (later) an R2 URL — next/image has nothing to optimize here.

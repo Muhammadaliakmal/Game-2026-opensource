@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { requestRematch } from "@/lib/net/arena";
 import { splitFighters, useArenaStore } from "@/stores/arena-store";
+import { HudZone, HudZones } from "@/components/hud/HudZones";
 
 const MAX_HP = 100;
 const WIN_AT = 5;
@@ -14,6 +15,11 @@ const WIN_AT = 5;
  * Same restraint as the play HUD: what is on screen is what cannot be
  * discovered by pressing something — the two health bars, the score, and the
  * one thing you do (swing). The rest of the screen belongs to the fight.
+ *
+ * Placement is the fighting-game convention, via HudZones: the two fighters
+ * face each other across the top, yours on the left, and the match identity
+ * sits between them. The swing button is bottom-right, on the same thumb as
+ * every other primary action in the app.
  */
 export function ArenaHud({ code, onAttack }: { code: string; onAttack: () => void }) {
   // One selector per field: zustand v5 re-renders on reference change, and an
@@ -27,59 +33,79 @@ export function ArenaHud({ code, onAttack }: { code: string; onAttack: () => voi
 
   return (
     <>
+      {/* Outside the zone grid on purpose: a full-screen wash is not a panel,
+          and pushing it inside the safe-area insets would leave an unwashed
+          frame around the notch. */}
       <HurtFlash tick={hurtTick} />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 sm:p-3">
-        <HealthBar label={me?.name ?? "You"} hp={me?.hp ?? MAX_HP} score={me?.score ?? 0} mine />
-        <div className="hud-panel pointer-events-auto flex items-center gap-2 px-3 py-2">
-          <span className="hud-label">Match</span>
-          <span className="num text-2xs tracking-widest">{code}</span>
-        </div>
-        <HealthBar
-          label={them?.name ?? "Waiting…"}
-          hp={them?.hp ?? 0}
-          score={them?.score ?? 0}
-          absent={!them}
-        />
-      </div>
+      <HudZones mode="arena">
+        {/* ── The two fighters, facing each other across the top ── */}
+        <HudZone at="top-left">
+          <HealthBar label={me?.name ?? "You"} hp={me?.hp ?? MAX_HP} score={me?.score ?? 0} mine />
+        </HudZone>
 
-      {phase === "waiting" && (
-        <Banner
-          title="Waiting for a challenger"
-          body={`Share this link — the code is ${code}. The fight starts when someone joins.`}
-          action={<CopyLink />}
-        />
-      )}
+        <HudZone at="top-center">
+          <div className="hud-panel pointer-events-auto flex items-center gap-2 px-3 py-2">
+            <span className="hud-label">Match</span>
+            <span className="num text-2xs tracking-widest">{code}</span>
+          </div>
+        </HudZone>
 
-      {phase === "over" && (
-        <Banner
-          title={winner === selfId ? "You win" : "You lose"}
-          body={`First to ${WIN_AT} knockdowns.`}
-          action={
-            <div className="flex gap-2">
-              <button className="hud-chip hud-chip--primary" onClick={requestRematch}>
-                Rematch
-              </button>
-              <Link href="/arena" className="hud-chip">
-                Leave
-              </Link>
-            </div>
-          }
-        />
-      )}
+        <HudZone at="top-right">
+          <HealthBar
+            label={them?.name ?? "Waiting…"}
+            hp={them?.hp ?? 0}
+            score={them?.score ?? 0}
+            absent={!them}
+          />
+        </HudZone>
 
-      {/* The one control. A key for a keyboard, a big target for a thumb. */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between p-3">
-        <span className="hud-label hidden sm:block">F — swing</span>
-        <button
-          className="hud-chip hud-chip--danger pointer-events-auto h-16 w-16 rounded-full text-sm font-semibold"
-          onClick={onAttack}
-          disabled={phase !== "fighting"}
-          aria-label="Swing"
-        >
-          HIT
-        </button>
-      </div>
+        {/* ── Center: the two moments that own the screen ── */}
+        <HudZone at="center">
+          {phase === "waiting" && (
+            <Banner
+              title="Waiting for a challenger"
+              body={`Share this link — the code is ${code}. The fight starts when someone joins.`}
+              action={<CopyLink />}
+            />
+          )}
+
+          {phase === "over" && (
+            <Banner
+              title={winner === selfId ? "You win" : "You lose"}
+              body={`First to ${WIN_AT} knockdowns.`}
+              action={
+                <div className="flex gap-2">
+                  <button className="hud-chip hud-chip--primary" onClick={requestRematch}>
+                    Rematch
+                  </button>
+                  <Link href="/arena" className="hud-chip">
+                    Leave
+                  </Link>
+                </div>
+              }
+            />
+          )}
+        </HudZone>
+
+        {/* The one control. A key for a keyboard, a big target for a thumb —
+            and the keyboard's version stays on the far side of the screen so
+            it never sits under the thumb that is pressing the button. */}
+        <HudZone at="bottom-left" className="hidden sm:flex">
+          <span className="hud-label">F — swing</span>
+        </HudZone>
+
+        <HudZone at="bottom-right">
+          <button
+            className="hud-chip hud-chip--danger pointer-events-auto h-16 w-16 rounded-full text-sm font-semibold"
+            onClick={onAttack}
+            disabled={phase !== "fighting"}
+            aria-label="Swing"
+          >
+            HIT
+          </button>
+        </HudZone>
+      </HudZones>
     </>
   );
 }
@@ -105,10 +131,10 @@ function HealthBar({
           {score}/{WIN_AT}
         </span>
       </div>
-      <div className="bg-steel-900 h-1.5 w-24 overflow-hidden rounded-full sm:w-32">
+      <div className="bg-base h-1.5 w-24 overflow-hidden rounded-full sm:w-32">
         <div
           className={`h-full transition-[width] duration-200 ${
-            mine ? "bg-signal" : "bg-white/70"
+            mine ? "bg-accent" : "bg-white/70"
           }`}
           style={{ width: `${absent ? 0 : Math.max(0, Math.min(100, hp))}%` }}
         />
@@ -127,12 +153,10 @@ function Banner({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-      <div className="hud-panel pointer-events-auto panel-enter flex max-w-sm flex-col items-center gap-3 px-6 py-5 text-center">
-        <h2 className="text-steel-050 text-base font-semibold">{title}</h2>
-        <p className="text-steel-200 text-xs">{body}</p>
-        {action}
-      </div>
+    <div className="hud-panel pointer-events-auto panel-enter flex max-w-sm flex-col items-center gap-3 px-6 py-5 text-center">
+      <h2 className="text-ink text-base font-semibold">{title}</h2>
+      <p className="text-dim text-xs">{body}</p>
+      {action}
     </div>
   );
 }

@@ -51,7 +51,7 @@ export default async function Home() {
             <h1 className="max-w-2xl text-3xl leading-[1.1] font-bold sm:text-4xl">
               Build worlds out of blocks, then walk around inside them.
             </h1>
-            <p className="text-steel-200 text-sm">
+            <p className="text-dim text-sm">
               A voxel editor and a platformer in the same browser tab. Place a
               block, hit play, and you&apos;re standing on it. No account
               needed to start.
@@ -75,13 +75,13 @@ export default async function Home() {
               {BUILT_IN_WORLDS.map((w) => (
                 <li
                   key={w.slug}
-                  className="card hover:border-signal/50 p-4 transition-colors"
+                  className="card hover:border-accent/50 p-4 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <h3 className="text-base font-semibold">{w.name}</h3>
                     <span className="hud-label shrink-0">Built-in</span>
                   </div>
-                  <p className="text-steel-200 mt-1 text-sm">{w.blurb}</p>
+                  <p className="text-dim mt-1 text-sm">{w.blurb}</p>
                   <Link
                     href={`/play/${w.slug}`}
                     className="hud-chip hud-chip--primary mt-4"
@@ -100,7 +100,7 @@ export default async function Home() {
                 {showcase.map((w) => (
                   <li
                     key={w.id}
-                    className="card hover:border-signal/50 p-4 transition-colors"
+                    className="card hover:border-accent/50 p-4 transition-colors"
                   >
                     {w.thumbnailUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -159,13 +159,13 @@ export default async function Home() {
           {BUILT_IN_WORLDS.map((w) => (
             <li
               key={w.slug}
-              className="card hover:border-signal/50 p-4 transition-colors"
+              className="card hover:border-accent/50 p-4 transition-colors"
             >
               <div className="flex items-start justify-between gap-3">
                 <h3 className="text-base font-semibold">{w.name}</h3>
                 <span className="hud-label shrink-0">Built-in</span>
               </div>
-              <p className="text-steel-200 mt-1 text-sm">{w.blurb}</p>
+              <p className="text-dim mt-1 text-sm">{w.blurb}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Link
                   href={`/play/${w.slug}`}
@@ -190,9 +190,9 @@ export default async function Home() {
       </div>
 
       {myWorlds.length === 0 ? (
-        <div className="text-steel-200 rounded-[var(--radius)] border border-dashed border-[var(--border-color)] p-12 text-center text-sm">
+        <div className="text-dim rounded-[var(--radius)] border border-dashed border-[var(--border-color)] p-12 text-center text-sm">
           Nothing here yet. Hit{" "}
-          <span className="text-signal font-semibold">New world</span> and start
+          <span className="text-accent font-semibold">New world</span> and start
           placing blocks — or remix one of the featured worlds above.
         </div>
       ) : (
@@ -202,7 +202,7 @@ export default async function Home() {
             // its bounds.
             <li
               key={w.id}
-              className="card hover:border-signal/50 relative p-4 transition-colors"
+              className="card hover:border-accent/50 relative p-4 transition-colors"
             >
               {w.thumbnailUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -227,7 +227,7 @@ export default async function Home() {
                 {w.published === 1 && (
                   <>
                     <span aria-hidden>·</span>
-                    <span className="text-signal">
+                    <span className="text-accent">
                       Public · {w.playCount.toLocaleString()} plays
                     </span>
                   </>

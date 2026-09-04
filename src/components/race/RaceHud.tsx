@@ -6,6 +6,9 @@ import { useRaceStore, standings, formatLapTime } from "@/stores/race-store";
 import { requestRaceRematch, requestStart } from "@/lib/net/race";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
+import { HudZone, HudZones } from "@/components/hud/HudZones";
+import { SettingsButton } from "@/components/hud/SettingsButton";
+import { BoostMeter, Speedometer } from "./Gauges";
 
 /**
  * The race HUD.
@@ -14,6 +17,13 @@ import { MuteButton } from "@/components/MuteButton";
  * where you are in the order, and — for the four seconds that decide the race —
  * whether the lights have gone out. Everything that is not one of those waits
  * for the results panel.
+ *
+ * Placement is the genre convention, via HudZones: the running order sits
+ * top-left with the session code, the rider's own lap and position sit
+ * top-center where every racer puts them, settings and leave sit top-right,
+ * and the two gauges take the bottom corners — boost on the left, which you
+ * check before a straight, speed on the right, where every racing game has
+ * put it for thirty years.
  */
 export function RaceHud({ code }: { code: string }) {
   // One selector per field rather than destructuring the whole store. A bare
@@ -36,11 +46,11 @@ export function RaceHud({ code }: { code: string }) {
   const me = meIndex >= 0 ? order[meIndex] : null;
 
   return (
-    <>
-      {/* ── Top: identity and running order ── */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 sm:p-3">
+    <HudZones mode="race">
+      {/* ── Top-left: which race this is, and who is winning it ── */}
+      <HudZone at="top-left">
         <div className="hud-panel pointer-events-auto flex items-center gap-2.5 px-3 py-2">
-          <span className="bg-signal h-1.5 w-1.5 shrink-0" aria-hidden />
+          <span className="bg-accent h-1.5 w-1.5 shrink-0" aria-hidden />
           <span className="text-2xs font-medium">Race</span>
           <span className="hud-divider" />
           <span className="num text-2xs tracking-widest">{code}</span>
@@ -51,7 +61,7 @@ export function RaceHud({ code }: { code: string }) {
             <div
               key={r.id}
               className={`flex items-center gap-2 text-2xs ${
-                r.id === selfId ? "text-signal font-semibold" : "text-steel-200"
+                r.id === selfId ? "text-accent font-semibold" : "text-dim"
               }`}
             >
               <span className="num w-3 text-right opacity-70">{i + 1}</span>
@@ -65,115 +75,145 @@ export function RaceHud({ code }: { code: string }) {
             <span className="hud-label">Waiting for riders</span>
           )}
         </div>
-      </div>
+      </HudZone>
 
-      {/* ── Bottom left: the rider's own lap and position ── */}
+      {/* ── Top-center: the rider's own lap and position ──
+          Horizontal rather than the stacked panel this used to be at mid-left:
+          two values read side by side in one glance, and the middle of the
+          screen stays clear for the road. */}
       {me && phase !== "waiting" && (
-        <div className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 sm:left-3">
-          <div className="hud-panel flex flex-col items-center gap-0.5 px-3 py-2">
-            <span className="hud-label">Lap</span>
-            <span className="num text-steel-050 text-lg font-semibold">
-              {Math.min(Math.max(1, me.lap), laps)}
-              <span className="text-steel-200 text-2xs">/{laps}</span>
-            </span>
-            <span className="hud-divider my-1 h-px w-full" />
-            <span className="hud-label">Pos</span>
-            <span className="num text-signal text-lg font-semibold">
-              {meIndex + 1}
-              <span className="text-steel-200 text-2xs">/{order.length}</span>
-            </span>
+        <HudZone at="top-center">
+          <div className="hud-panel flex items-stretch gap-3 px-3 py-1.5">
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="hud-label">Lap</span>
+              <span className="hud-readout text-lg">
+                {Math.min(Math.max(1, me.lap), laps)}
+                <span className="text-dim text-2xs">/{laps}</span>
+              </span>
+            </div>
+            <span className="hud-divider" />
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="hud-label">Pos</span>
+              <span className="hud-readout text-accent text-lg">
+                {meIndex + 1}
+                <span className="text-dim text-2xs">/{order.length}</span>
+              </span>
+            </div>
           </div>
-        </div>
+        </HudZone>
       )}
 
-      {/* ── Chrome ── */}
-      <div className="pointer-events-none absolute right-2 bottom-2 flex items-center gap-1.5 sm:right-3 sm:bottom-3">
+      {/* ── Top-right: settings and the way out, where every game puts them ── */}
+      <HudZone at="top-right">
         <div className="hud-panel pointer-events-auto flex items-center gap-1.5 p-1.5">
-          <MuteButton className="hud-chip hud-chip--icon" />
-          <FullscreenButton className="hud-chip hud-chip--icon" />
+          <MuteButton className="hud-chip hud-chip--icon hud-chip--touch" />
+          <FullscreenButton className="hud-chip hud-chip--icon hud-chip--touch" />
+          <SettingsButton className="hud-chip hud-chip--icon hud-chip--touch" />
           <Link href="/race" className="hud-chip">
             Leave
           </Link>
         </div>
-      </div>
+      </HudZone>
 
-      {/* ── The lights ── */}
-      {phase === "countdown" && <Lights ms={countdownMs} />}
-      {phase === "racing" && <GreenFlash />}
-
-      {/* ── Waiting for someone to race ── */}
-      {phase === "waiting" && connected && (
-        <Centred>
-          <h2 className="text-steel-050 text-base font-semibold">
-            {riders.length < 2 ? "Waiting for riders" : "Ready"}
-          </h2>
-          <p className="text-steel-200 text-xs">
-            Send the code <span className="num text-signal">{code}</span> to
-            whoever you want to race. Up to four on the grid.
-          </p>
-          <button onClick={requestStart} className="hud-chip hud-chip--primary">
-            {riders.length < 2 ? "Ride alone" : "Start the race"}
-          </button>
-        </Centred>
+      {/* ── The gauges. Only once there is a bike to gauge: on the grid they
+             would read zero, and a speedometer that says 0 for a minute is a
+             speedometer nobody looks at again. ── */}
+      {phase !== "waiting" && (
+        <HudZone at="bottom-left">
+          <BoostMeter />
+        </HudZone>
+      )}
+      {phase !== "waiting" && (
+        <HudZone at="bottom-right">
+          <Speedometer />
+        </HudZone>
       )}
 
-      {/* ── Results ── */}
-      {phase === "finished" && (
-        <Centred>
-          <h2 className="text-steel-050 text-base font-semibold">
-            {order[0]?.id === selfId ? "You won" : `${order[0]?.name} wins`}
-          </h2>
-          <ol className="flex w-full flex-col gap-1">
-            {order.map((r, i) => (
-              <li
-                key={r.id}
-                className={`flex items-center gap-2 text-xs ${
-                  r.id === selfId ? "text-signal font-semibold" : "text-steel-200"
-                }`}
-              >
-                <span className="num w-4 text-right opacity-70">{i + 1}</span>
-                <span className="truncate">{r.name}</span>
-                <span className="num ml-auto">
-                  {r.timeMs > 0 ? formatLapTime(r.timeMs) : "—"}
-                </span>
-              </li>
-            ))}
-          </ol>
-          <div className="flex gap-2">
+      {/* ── Center: the things that briefly own the screen ── */}
+      <HudZone at="center">
+        {phase === "countdown" && <Lights ms={countdownMs} />}
+        {phase === "racing" && <GreenFlash />}
+
+        {phase === "waiting" && connected && (
+          <Panel>
+            <h2 className="text-ink text-base font-semibold">
+              {riders.length < 2 ? "Waiting for riders" : "Ready"}
+            </h2>
+            <p className="text-dim text-xs">
+              Send the code <span className="num text-accent">{code}</span> to
+              whoever you want to race. Up to four on the grid.
+            </p>
             <button
-              onClick={requestRaceRematch}
+              onClick={requestStart}
               className="hud-chip hud-chip--primary"
             >
-              Race again
+              {riders.length < 2 ? "Ride alone" : "Start the race"}
             </button>
-            <Link href="/race" className="hud-chip">
-              Leave
-            </Link>
-          </div>
-        </Centred>
-      )}
+          </Panel>
+        )}
 
-      {error && (
-        <Centred>
-          <h2 className="text-steel-050 text-base font-semibold">
-            Cannot join this race
-          </h2>
-          <p className="text-steel-200 text-xs">{error}</p>
-          <Link href="/race" className="hud-chip hud-chip--primary">
-            Back
-          </Link>
-        </Centred>
-      )}
-    </>
+        {phase === "finished" && (
+          <Panel>
+            <h2 className="text-ink text-base font-semibold">
+              {order[0]?.id === selfId ? "You won" : `${order[0]?.name} wins`}
+            </h2>
+            <ol className="flex w-full flex-col gap-1">
+              {order.map((r, i) => (
+                <li
+                  key={r.id}
+                  className={`flex items-center gap-2 text-xs ${
+                    r.id === selfId ? "text-accent font-semibold" : "text-dim"
+                  }`}
+                >
+                  <span className="num w-4 text-right opacity-70">{i + 1}</span>
+                  <span className="truncate">{r.name}</span>
+                  <span className="num ml-auto">
+                    {r.timeMs > 0 ? formatLapTime(r.timeMs) : "—"}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <div className="flex gap-2">
+              <button
+                onClick={requestRaceRematch}
+                className="hud-chip hud-chip--primary"
+              >
+                Race again
+              </button>
+              <Link href="/race" className="hud-chip">
+                Leave
+              </Link>
+            </div>
+          </Panel>
+        )}
+
+        {error && (
+          <Panel>
+            <h2 className="text-ink text-base font-semibold">
+              Cannot join this race
+            </h2>
+            <p className="text-dim text-xs">{error}</p>
+            <Link href="/race" className="hud-chip hud-chip--primary">
+              Back
+            </Link>
+          </Panel>
+        )}
+      </HudZone>
+    </HudZones>
   );
 }
 
-function Centred({ children }: { children: React.ReactNode }) {
+/**
+ * A panel that owns the middle of the screen.
+ *
+ * It no longer positions itself — the center zone does that — so this is only
+ * the panel's own material and width. `max-w-xs` still matters: the zone is
+ * one third of the screen wide on a phone, and a results list needs a floor.
+ */
+function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
-      <div className="hud-panel panel-enter pointer-events-auto flex w-full max-w-xs flex-col items-center gap-3 px-6 py-5 text-center">
-        {children}
-      </div>
+    <div className="hud-panel panel-enter pointer-events-auto flex w-[min(20rem,80vw)] flex-col items-center gap-3 px-6 py-5 text-center">
+      {children}
     </div>
   );
 }
@@ -188,7 +228,7 @@ function Centred({ children }: { children: React.ReactNode }) {
 function Lights({ ms }: { ms: number }) {
   const seconds = Math.ceil(ms / 1000);
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3">
+    <div className="pointer-events-none flex flex-col items-center gap-3">
       <div className="flex gap-3">
         {[3, 2, 1].map((n) => (
           <span
@@ -201,9 +241,7 @@ function Lights({ ms }: { ms: number }) {
           />
         ))}
       </div>
-      <span className="num text-steel-050 text-5xl font-semibold">
-        {seconds > 0 ? seconds : "GO"}
-      </span>
+      <span className="hud-readout text-5xl">{seconds > 0 ? seconds : "GO"}</span>
     </div>
   );
 }
@@ -213,7 +251,7 @@ function GreenFlash() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center"
+      className="pointer-events-none flex items-center justify-center"
       style={{ animation: "raceGo 700ms ease-out forwards" }}
     >
       <span className="text-4xl font-semibold" style={{ color: "#a3e635" }}>

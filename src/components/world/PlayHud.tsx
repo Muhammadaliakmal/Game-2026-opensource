@@ -9,6 +9,8 @@ import { formatTime, useCourse } from "@/components/play/course";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { RemixButton } from "@/components/RemixButton";
+import { HudZone, HudZones } from "@/components/hud/HudZones";
+import { SettingsButton } from "@/components/hud/SettingsButton";
 
 /**
  * The Play HUD.
@@ -22,6 +24,11 @@ import { RemixButton } from "@/components/RemixButton";
  * DOM rather than in-scene UI, and `pointer-events-none` on the container with
  * each control re-enabling itself, so invisible padding can never swallow a
  * click meant for the world.
+ *
+ * Placement is the platformer convention, via HudZones: identity and the run
+ * clock top-left, everything you can press behind one icon top-right, hints
+ * top-center where the eye already is, and the keyboard legend bottom-center.
+ * The mode accent is the parkour acid green.
  */
 export function PlayHud({
   name,
@@ -40,53 +47,76 @@ export function PlayHud({
 }) {
   return (
     <>
+      {/* Outside the grid, and first: a full-screen wash is not a panel, and
+          inside the safe-area insets it would leave an undimmed frame. The
+          HUD carries the same z-10 so it stays legible through the wash —
+          the fade dims the world you fell out of, not the way back in. */}
       <RespawnFade />
-      {canEdit && <EscHint />}
-      <LockOnBadge />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2 sm:p-3">
-        <div className="pointer-events-auto flex min-w-0 items-center gap-2">
-          <div className="hud-panel flex min-w-0 items-center gap-2.5 px-3 py-2">
-            <span className="bg-signal h-1.5 w-1.5 shrink-0" aria-hidden />
-            <span className="truncate text-2xs font-medium">{name}</span>
+      <HudZones mode="parkour" className="z-10">
+        <HudZone at="top-left">
+          {/* Name and clock stay side by side: they are one readout, and
+              stacking them would put the clock a line further from the eye. */}
+          <div className="pointer-events-auto flex min-w-0 items-center gap-2">
+            <div className="hud-panel flex min-w-0 items-center gap-2.5 px-3 py-2">
+              <span className="bg-accent h-1.5 w-1.5 shrink-0" aria-hidden />
+              <span className="truncate text-2xs font-medium">{name}</span>
+            </div>
+            <RunTimer />
           </div>
-          <RunTimer />
-        </div>
+        </HudZone>
 
-        <PlayMenu
-          name={name}
-          canEdit={canEdit}
-          worldId={worldId}
-          isDraft={isDraft}
-          onEdit={onEdit}
-        />
-      </div>
+        {/* Transient hints, stacked in the order they can appear. The zone
+            spaces them; neither has to know the other exists any more. */}
+        <HudZone at="top-center">
+          {canEdit && <EscHint />}
+          <LockOnBadge />
+        </HudZone>
 
-      <CourseComplete canEdit={canEdit} onEdit={onEdit} />
-
-      {/* The keyboard legend is noise once thumb controls are on screen — and
-          it would sit right under the joystick. */}
-      {showKeyboardLegend && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-2 sm:p-3">
-          <div className="hud-panel flex items-center gap-2.5 px-3.5 py-2">
-            {[
-              ["WASD", "move"],
-              ["Click", "aim"],
-              ["Shift", "lock on"],
-              ["Space", "jump"],
-              ["V", "view"],
-              ["R", "respawn"],
-            ].map(([key, action]) => (
-              <span key={key} className="flex items-center gap-1.5">
-                <kbd className="bg-steel-800 text-steel-050 rounded-[var(--radius)] px-1.5 py-0.5 font-mono text-[0.6875rem] ring-1 ring-white/10">
-                  {key}
-                </kbd>
-                <span className="hud-label">{action}</span>
-              </span>
-            ))}
+        <HudZone at="top-right">
+          {/* The gear sits beside the menu rather than inside it: settings is
+              the one row that opens a screen of its own, and a menu that stays
+              open behind a modal reads as two things being open at once. */}
+          <div className="pointer-events-auto flex items-center gap-1.5">
+            <SettingsButton className="hud-chip hud-chip--icon hud-chip--touch" />
+            <PlayMenu
+              name={name}
+              canEdit={canEdit}
+              worldId={worldId}
+              isDraft={isDraft}
+              onEdit={onEdit}
+            />
           </div>
-        </div>
-      )}
+        </HudZone>
+
+        <HudZone at="center">
+          <CourseComplete canEdit={canEdit} onEdit={onEdit} />
+        </HudZone>
+
+        {/* The keyboard legend is noise once thumb controls are on screen — and
+            it would sit right under the joystick. */}
+        {showKeyboardLegend && (
+          <HudZone at="bottom-center">
+            <div className="hud-panel flex items-center gap-2.5 px-3.5 py-2">
+              {[
+                ["WASD", "move"],
+                ["Click", "aim"],
+                ["Shift", "lock on"],
+                ["Space", "jump"],
+                ["V", "view"],
+                ["R", "respawn"],
+              ].map(([key, action]) => (
+                <span key={key} className="flex items-center gap-1.5">
+                  <kbd className="bg-surface text-ink rounded-[var(--radius)] px-1.5 py-0.5 font-mono text-[0.6875rem] ring-1 ring-white/10">
+                    {key}
+                  </kbd>
+                  <span className="hud-label">{action}</span>
+                </span>
+              ))}
+            </div>
+          </HudZone>
+        )}
+      </HudZones>
     </>
   );
 }
@@ -122,7 +152,7 @@ function RunTimer() {
 
   return (
     <div className="hud-panel flex shrink-0 items-center px-3 py-2">
-      <span className="tabular text-2xs font-medium">{formatTime(ms)}</span>
+      <span className="num text-2xs font-medium">{formatTime(ms)}</span>
     </div>
   );
 }
@@ -152,41 +182,39 @@ function CourseComplete({
   const isBest = best !== null && Math.abs(best - finishedMs) < 1;
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6">
-      <div className="hud-panel panel-enter pointer-events-auto flex w-full max-w-xs flex-col items-center gap-4 px-6 py-6 text-center">
-        <div className="flex flex-col items-center gap-1">
-          <span className="hud-label">Course complete</span>
-          <span className="text-signal tabular text-3xl font-semibold">
-            {formatTime(finishedMs)}
-          </span>
-        </div>
+    <div className="hud-panel panel-enter pointer-events-auto flex w-full max-w-xs flex-col items-center gap-4 px-6 py-6 text-center">
+      <div className="flex flex-col items-center gap-1">
+        <span className="hud-label">Course complete</span>
+        <span className="hud-readout text-accent text-3xl font-semibold">
+          {formatTime(finishedMs)}
+        </span>
+      </div>
 
-        {/* A best time only means something once there is a previous one to
-            beat, so the first run says nothing rather than congratulating
-            itself for being the only entry. */}
-        {best !== null && (
-          <span className="hud-label">
-            {isBest ? "New best time" : `Best ${formatTime(best)}`}
-          </span>
-        )}
+      {/* A best time only means something once there is a previous one to
+          beat, so the first run says nothing rather than congratulating
+          itself for being the only entry. */}
+      {best !== null && (
+        <span className="hud-label">
+          {isBest ? "New best time" : `Best ${formatTime(best)}`}
+        </span>
+      )}
 
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <button
-            onClick={requestRespawn}
-            className="hud-chip hud-chip--primary"
-            autoFocus
-          >
-            Run again
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <button
+          onClick={requestRespawn}
+          className="hud-chip hud-chip--primary"
+          autoFocus
+        >
+          Run again
+        </button>
+        {canEdit && (
+          <button onClick={onEdit} className="hud-chip">
+            Edit
           </button>
-          {canEdit && (
-            <button onClick={onEdit} className="hud-chip">
-              Edit
-            </button>
-          )}
-          <Link href="/" className="hud-chip">
-            Exit
-          </Link>
-        </div>
+        )}
+        <Link href="/" className="hud-chip">
+          Exit
+        </Link>
       </div>
     </div>
   );
@@ -384,13 +412,12 @@ function LockOnBadge() {
   if (!lockedOn) return null;
 
   return (
-    // top-28, not top-16: the "Esc to edit" hint owns that row for its first
-    // three seconds, and two overlapping panels read as a rendering fault.
-    <div className="pointer-events-none absolute inset-x-0 top-28 flex justify-center px-3">
-      <div className="hud-panel border-signal/60 text-signal flex items-center gap-2 border px-3 py-1.5 text-2xs font-semibold tracking-widest">
-        <span className="bg-signal h-1.5 w-1.5 animate-pulse rounded-full" aria-hidden />
-        LOCK ON
-      </div>
+    // No coordinates any more: this used to be pinned at top-28 to dodge the
+    // "Esc to edit" hint at top-16, which is exactly the sort of arithmetic
+    // between two components that the top-center zone now does for them.
+    <div className="hud-panel border-accent/60 text-accent flex items-center gap-2 border px-3 py-1.5 text-2xs font-semibold tracking-widest">
+      <span className="bg-accent h-1.5 w-1.5 animate-pulse rounded-full" aria-hidden />
+      LOCK ON
     </div>
   );
 }
@@ -405,13 +432,11 @@ function EscHint() {
 
   return (
     <div
-      className={`pointer-events-none absolute inset-x-0 top-16 flex justify-center px-3 transition-opacity duration-500 ${
+      className={`hud-panel text-dim px-3 py-2 text-2xs transition-opacity duration-500 ${
         show ? "opacity-100" : "opacity-0"
       }`}
     >
-      <div className="hud-panel text-steel-200 px-3 py-2 text-2xs">
-        Esc to edit
-      </div>
+      Esc to edit
     </div>
   );
 }
@@ -443,7 +468,7 @@ function RespawnFade() {
   return (
     <div
       aria-hidden
-      className={`bg-steel-900 pointer-events-none absolute inset-0 z-10 transition-opacity duration-200 ${
+      className={`bg-base pointer-events-none absolute inset-0 z-10 transition-opacity duration-200 ${
         visible ? "opacity-60" : "opacity-0"
       }`}
     />

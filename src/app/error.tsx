@@ -29,7 +29,7 @@ export default function Error({
       <h1 className="text-3xl font-black tracking-tight">
         That did not load
       </h1>
-      <p className="text-steel-200 max-w-sm text-sm">
+      <p className="text-dim max-w-sm text-sm">
         Try again — and if it keeps happening, the problem is on our side, not
         in your world. Nothing you have saved is affected.
       </p>
@@ -42,7 +42,7 @@ export default function Error({
         </Link>
       </div>
       {error.digest && (
-        <p className="text-steel-500 font-mono text-[0.625rem]">
+        <p className="text-edge font-mono text-[0.625rem]">
           reference {error.digest}
         </p>
       )}
