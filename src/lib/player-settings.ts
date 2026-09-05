@@ -16,11 +16,17 @@ import { create } from "zustand";
 /**
  * How the bike is steered by thumb.
  *
- * `assist` is the default because it is the one that works for someone who
- * picked the game up thirty seconds ago: the bike holds a line on its own and
- * the thumb nudges it. The other three are strictly better for someone who has
- * learned the track, which is exactly the wrong order to make a new player
- * discover them in — so they are offered, not imposed.
+ * `tap` is the default: two pads, and the bike goes where the rider points it
+ * and nowhere else.
+ *
+ * `assist` held that place and does not any more. It steers the bike round the
+ * track on its own, and to a rider who never went looking for it that is not a
+ * feature, it is the bike driving itself — which is exactly how it was
+ * reported. A default that has to be explained before it stops looking like a
+ * bug is the wrong default, however good it is for the player it was written
+ * for. It is still here, still worth having on a six-inch screen, and now it
+ * is chosen in Settings, where choosing it is a decision rather than a
+ * discovery.
  */
 export type RaceScheme = "assist" | "stick" | "tilt" | "tap";
 
@@ -30,7 +36,7 @@ export const RACE_SCHEMES: Record<
 > = {
   assist: {
     name: "Assisted",
-    blurb: "Steers itself out of walls. Nudge to aim.",
+    blurb: "The bike steers itself. Nudge it to aim.",
   },
   stick: { name: "Thumbstick", blurb: "A stick on the left, as before." },
   tilt: { name: "Tilt", blurb: "Turn the phone to steer." },
@@ -56,7 +62,19 @@ interface PlayerSettings {
 
 const STORAGE_KEY = "blockworld:settings:v1";
 
+/**
+ * The shape of what is stored, not of the file it is stored in.
+ *
+ * Bumped when a DEFAULT changes in a way that makes an old file lie about what
+ * the player chose — see `sanitise`. The key keeps its own v1 because the
+ * fields have not changed and a rider should not lose their HUD inset over a
+ * different question.
+ */
+const STORAGE_VERSION = 2;
+
 interface Stored {
+  /** Which set of defaults this was written against. See STORAGE_VERSION. */
+  v?: number;
   hudInset?: number;
   raceScheme?: RaceScheme;
   haptics?: boolean;
@@ -64,22 +82,32 @@ interface Stored {
 
 const DEFAULTS = {
   hudInset: 0,
-  raceScheme: "assist" as RaceScheme,
+  raceScheme: "tap" as RaceScheme,
   haptics: true,
 };
 
 /** The one place a stored value is allowed to be wrong. */
 function sanitise(raw: Stored | null) {
   const inset = Number(raw?.hudInset);
+  /*
+   * A v1 `assist` is not evidence of a choice, so it is not honoured.
+   *
+   * The whole object is written whenever any one field changes, and `assist`
+   * was the default — so a v1 file reads `assist` for the rider who picked it
+   * and equally for the rider who only ever nudged the HUD inset. The two are
+   * indistinguishable on disk, and of the two ways to be wrong, leaving a bike
+   * steering itself for somebody who never asked is much the worse. Any other
+   * scheme in a v1 file was typed by hand and is kept.
+   */
+  const unchosen = (raw?.v ?? 1) < 2 && raw?.raceScheme === "assist";
+  const scheme = unchosen ? undefined : raw?.raceScheme;
   return {
     hudInset:
       Number.isFinite(inset) && inset >= 0 && inset <= 64
         ? Math.round(inset)
         : DEFAULTS.hudInset,
     raceScheme:
-      raw?.raceScheme && raw.raceScheme in RACE_SCHEMES
-        ? raw.raceScheme
-        : DEFAULTS.raceScheme,
+      scheme && scheme in RACE_SCHEMES ? scheme : DEFAULTS.raceScheme,
     haptics: typeof raw?.haptics === "boolean" ? raw.haptics : DEFAULTS.haptics,
   };
 }
@@ -104,7 +132,7 @@ function save(s: Stored) {
 export const usePlayerSettings = create<PlayerSettings>((set, get) => {
   const persist = () => {
     const { hudInset, raceScheme, haptics } = get();
-    save({ hudInset, raceScheme, haptics });
+    save({ v: STORAGE_VERSION, hudInset, raceScheme, haptics });
   };
 
   return {

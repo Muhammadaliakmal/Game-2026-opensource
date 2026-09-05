@@ -3,11 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { useRaceStore, standings, formatLapTime } from "@/stores/race-store";
-import {
-  requestGridSize,
-  requestRaceRematch,
-  requestStart,
-} from "@/lib/net/race";
+import { requestRaceRematch, requestStart } from "@/lib/net/race";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { HudZone, HudZones } from "@/components/hud/HudZones";
@@ -25,10 +21,11 @@ import { BoostMeter, Speedometer } from "./Gauges";
  *
  * Placement is the genre convention, via HudZones: the running order sits
  * top-left with the session code, the rider's own lap and position sit
- * top-center where every racer puts them, settings and leave sit top-right,
- * and the two gauges take the bottom corners — boost on the left, which you
- * check before a straight, speed on the right, where every racing game has
- * put it for thirty years.
+ * top-center where every racer puts them, settings sits top-right, and the two
+ * gauges take the bottom corners — boost on the left, which you check before a
+ * straight, speed on the right, where every racing game has put it for thirty
+ * years. The way out is the one departure from the convention — see the
+ * bottom-center zone below.
  */
 export function RaceHud({ code }: { code: string }) {
   // One selector per field rather than destructuring the whole store. A bare
@@ -111,7 +108,7 @@ export function RaceHud({ code }: { code: string }) {
         </HudZone>
       )}
 
-      {/* ── Top-right: settings and the way out, where every game puts them ── */}
+      {/* ── Top-right: the session chrome, where every game puts it ── */}
       <HudZone at="top-right">
         <div className="hud-panel pointer-events-auto flex items-center gap-1.5 p-1.5">
           <MuteButton className="hud-chip hud-chip--icon hud-chip--touch" />
@@ -120,9 +117,6 @@ export function RaceHud({ code }: { code: string }) {
             className="hud-chip hud-chip--icon hud-chip--touch"
             title={`Neon Circuit · ${code}`}
           />
-          <Link href="/race" className="hud-chip">
-            Leave
-          </Link>
         </div>
       </HudZone>
 
@@ -139,6 +133,19 @@ export function RaceHud({ code }: { code: string }) {
           <Speedometer />
         </HudZone>
       )}
+
+      {/* ── Bottom-center: the way out ──
+          It was the last chip in the top-right row, which made leaving the
+          race the neighbour of three icons that only change a setting — and
+          the far corner of a phone held in two hands is the one place neither
+          thumb reaches without regripping. The middle of the bottom edge is
+          reachable and, because the thumb clusters own the corners, is the
+          one strip down there that nothing rests on. ── */}
+      <HudZone at="bottom-center">
+        <Link href="/race" className="hud-chip pointer-events-auto">
+          Leave
+        </Link>
+      </HudZone>
 
       {/* ── Center: the things that briefly own the screen ── */}
       <HudZone at="center">
@@ -186,28 +193,6 @@ export function RaceHud({ code }: { code: string }) {
               whoever you want to race. The lights go on their own once the
               grid is full.
             </p>
-
-            {/* Resizing the grid while it waits. Any rider may do it — there
-                is no host in this game, only people who have the code. */}
-            <div className="flex items-center gap-1.5">
-              <span className="hud-label">Grid</span>
-              {[1, 2, 3, 4].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => requestGridSize(n)}
-                  disabled={n < riders.length}
-                  aria-pressed={n === target}
-                  className={`hud-chip num ${n === target ? "is-active" : ""}`}
-                  title={
-                    n < riders.length
-                      ? "There are already more riders than that"
-                      : `Wait for ${n} rider${n === 1 ? "" : "s"}`
-                  }
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
 
             <button
               onClick={requestStart}
