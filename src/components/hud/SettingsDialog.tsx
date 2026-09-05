@@ -23,6 +23,15 @@ import {
   type RaceScheme,
 } from "@/lib/player-settings";
 import { useCoarsePointer } from "@/lib/use-media-query";
+import { useHudOverlay } from "@/lib/hud-overlay";
+import {
+  CONTROL_NAMES,
+  DEFAULT_PLACEMENT,
+  MAX_SCALE,
+  MIN_SCALE,
+  useControlLayout,
+  type ControlId,
+} from "@/lib/control-layout";
 
 /**
  * Settings: controls, touch, and the safe frame.
@@ -45,7 +54,14 @@ import { useCoarsePointer } from "@/lib/use-media-query";
  * `stopPropagation` and not `preventDefault`, so Tab still moves focus and the
  * dialog stays keyboard-navigable.
  */
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
+export function SettingsDialog({
+  title,
+  onClose,
+}: {
+  /** The world's name or the race's code — see SettingsButton. */
+  title?: string;
+  onClose: () => void;
+}) {
   const coarse = useCoarsePointer();
   const [tab, setTab] = useState<"keyboard" | "touch" | "display">(
     coarse ? "touch" : "keyboard"
@@ -124,7 +140,15 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         className="hud-panel panel-enter flex max-h-full w-[min(94vw,34rem)] flex-col gap-3 p-4"
       >
         <div className="flex items-center gap-2">
-          <h2 className="text-ink text-base font-semibold">Settings</h2>
+          <div className="flex min-w-0 flex-col">
+            <h2 className="text-ink text-base font-semibold">Settings</h2>
+            {/* Where you are. The HUD used to carry this permanently in its
+                top-left corner, which spent screen on a value that cannot
+                change while you play. */}
+            {title && (
+              <span className="hud-label truncate normal-case">{title}</span>
+            )}
+          </div>
           <div className="ml-auto flex gap-1">
             {(
               [
@@ -218,7 +242,14 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {tab === "touch" && <TouchSettings />}
+          {tab === "touch" && (
+            <TouchSettings
+              onArrange={() => {
+                useHudOverlay.getState().setLaying(true);
+                onClose();
+              }}
+            />
+          )}
           {tab === "display" && <DisplaySettings />}
         </div>
       </div>
@@ -308,7 +339,93 @@ function BindSection<A extends string>({
   );
 }
 
-function TouchSettings() {
+/**
+ * The control-layout section.
+ *
+ * ── Why arranging happens outside this dialog ────────────────────────────
+ *
+ * You cannot place a thumb control while looking at a settings panel: the
+ * whole question is whether the button falls under your thumb when you are
+ * holding the phone to play, and a modal covering the screen answers it for a
+ * grip nobody uses. So this section does not contain the editor — it *starts*
+ * it, closing the dialog on the way out so the controls sit over the live
+ * world exactly as they will in play. That is also why the editor's own
+ * overlay is small and cornered rather than centred.
+ *
+ * Sizing stays here rather than going with it. A slider needs a label and a
+ * value to be legible, which is a row of chrome per control, and thirteen of
+ * those over a running game is the panel this was trying to avoid.
+ */
+function ControlLayoutSettings({ onArrange }: { onArrange: () => void }) {
+  const layout = useControlLayout((s) => s.layout);
+  const setScale = useControlLayout((s) => s.setScale);
+  const clear = useControlLayout((s) => s.clear);
+  const resetAll = useControlLayout((s) => s.reset);
+
+  const touched = (Object.keys(layout) as ControlId[]).filter(
+    (id) => layout[id] !== undefined
+  );
+
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <h3 className="hud-label">Layout</h3>
+        {touched.length > 0 && (
+          <button onClick={resetAll} className="hud-chip ml-auto">
+            Reset all
+          </button>
+        )}
+      </div>
+      <p className="text-dim text-2xs">
+        Put the controls where your thumbs actually are. Arranging happens over
+        the game itself — drag any button to move it, and size it here.
+      </p>
+      <button onClick={onArrange} className="hud-chip hud-chip--primary w-fit">
+        Arrange controls
+      </button>
+
+      {touched.length > 0 && (
+        <div className="mt-1 flex flex-col gap-2.5">
+          {touched.map((id) => {
+            const p = layout[id] ?? DEFAULT_PLACEMENT;
+            return (
+              <div key={id} className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-dim min-w-0 flex-1 truncate text-2xs">
+                    {CONTROL_NAMES[id]}
+                  </span>
+                  <span className="num text-2xs text-dim w-10 text-right">
+                    {Math.round(p.scale * 100)}%
+                  </span>
+                  <button
+                    onClick={() => clear(id)}
+                    className="hud-chip hud-chip--icon"
+                    aria-label={`Reset ${CONTROL_NAMES[id]}`}
+                    title="Put this control back"
+                  >
+                    ↺
+                  </button>
+                </div>
+                <input
+                  type="range"
+                  min={MIN_SCALE}
+                  max={MAX_SCALE}
+                  step={0.05}
+                  value={p.scale}
+                  onChange={(e) => setScale(id, Number(e.target.value))}
+                  className="accent-accent min-w-0 flex-1"
+                  aria-label={`${CONTROL_NAMES[id]} size`}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TouchSettings({ onArrange }: { onArrange: () => void }) {
   const scheme = usePlayerSettings((s) => s.raceScheme);
   const setScheme = usePlayerSettings((s) => s.setRaceScheme);
   const haptics = usePlayerSettings((s) => s.haptics);
@@ -316,6 +433,7 @@ function TouchSettings() {
 
   return (
     <div className="flex flex-col gap-4">
+      <ControlLayoutSettings onArrange={onArrange} />
       <section className="flex flex-col gap-2">
         <h3 className="hud-label">Steering</h3>
         <div className="flex flex-col gap-1.5">

@@ -21,8 +21,18 @@ import { ModeCover } from "@/components/modes/ModeCover";
 export default function RaceLobbyPage() {
   const router = useRouter();
   const [code, setCode] = useState("");
+  /**
+   * How many riders the new room should wait for.
+   *
+   * Two is the default because it is the smallest thing that is a race. It is
+   * chosen here rather than inside the room so that the number is settled
+   * before the code is generated — the point of the feature is to send people
+   * a code for a race that is already the right size.
+   */
+  const [riders, setRiders] = useState(2);
 
-  const open = () => router.push(`/race/${makeMatchCode()}`);
+  const open = () =>
+    router.push(`/race/${makeMatchCode()}?riders=${riders}`);
 
   const join = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,13 +84,39 @@ export default function RaceLobbyPage() {
         )}
 
         <section className="card flex flex-col gap-4 p-5">
-          <h2 className="text-ink text-sm font-semibold">Open a grid</h2>
+          {/* "Open a grid" was jargon. A grid is the thing you stand on at the
+              start of a race, and nobody arriving here to play with a friend
+              was looking for one — they were looking for a room to race in. */}
+          <h2 className="text-ink text-sm font-semibold">Create a room to race</h2>
           <p className="text-dim text-xs">
-            You get a code to share. The lights start on their own once a second
-            rider arrives, or you can go out alone for a time trial.
+            You get a code to share. The lights go on their own once the grid is
+            full — so pick how many of you there will be, and nobody has to
+            watch for everyone arriving.
           </p>
+
+          <div className="flex flex-col gap-2">
+            <span className="hud-label">Riders</span>
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: MAX_RIDERS }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setRiders(n)}
+                  aria-pressed={n === riders}
+                  className={`hud-chip num ${n === riders ? "is-active" : ""}`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <p className="text-dim text-2xs">
+              {riders === 1
+                ? "A time trial. The lights go as soon as you arrive."
+                : `The race starts when all ${riders} of you are on the grid. Anyone can start it early.`}
+            </p>
+          </div>
+
           <button onClick={open} className="hud-chip hud-chip--primary w-fit">
-            Open a race
+            Create the room
           </button>
         </section>
 

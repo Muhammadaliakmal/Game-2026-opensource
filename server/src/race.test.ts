@@ -224,3 +224,92 @@ test("the grid sits where lapProgress says it should", () => {
   const u = lapProgress(r.x, r.z);
   assert.ok(u > (SECTORS - 1) / SECTORS, `grid at ${u} should be in the last sector`);
 });
+
+/**
+ * Grid size.
+ *
+ * The behaviour these pin is the one somebody asked for out loud: you say the
+ * race is for four, you send the code to three friends, and the lights do not
+ * go the moment the first of them arrives.
+ */
+
+test("a grid set to four waits for four riders, not two", () => {
+  const race = new Race();
+  race.setTarget(4, 0);
+
+  race.join("a", "A", 0);
+  race.join("b", "B", 0);
+  assert.equal(race.phase, "waiting", "two riders must not start a four-up");
+
+  race.join("c", "C", 0);
+  assert.equal(race.phase, "waiting");
+
+  race.join("d", "D", 0);
+  assert.equal(race.phase, "countdown", "the fourth rider fills the grid");
+});
+
+test("a grid with no size stated still arms at two", () => {
+  // The default has to be the old behaviour, or every room created before this
+  // existed changes meaning.
+  const race = new Race();
+  assert.equal(race.target, RACE.minAutoStart);
+  race.join("a", "A", 0);
+  race.join("b", "B", 0);
+  assert.equal(race.phase, "countdown");
+});
+
+test("shrinking the grid to what has already arrived starts the race", () => {
+  const race = new Race();
+  race.setTarget(4, 0);
+  race.join("a", "A", 0);
+  race.join("b", "B", 0);
+  assert.equal(race.phase, "waiting");
+
+  // Two people gave up waiting for the other two. They should not have to
+  // also find the start button.
+  race.setTarget(2, 0);
+  assert.equal(race.phase, "countdown");
+});
+
+test("a lone rider on a four-up grid can still start alone", () => {
+  // The target must never be a lock: a grid that only ever got one rider has
+  // to remain a time trial somebody can actually run.
+  const race = new Race();
+  race.setTarget(4, 0);
+  race.join("a", "A", 0);
+  assert.equal(race.phase, "waiting");
+  assert.equal(race.arm(0), true);
+  assert.equal(race.phase, "countdown");
+});
+
+test("the grid size cannot be changed once the lights are running", () => {
+  const race = new Race();
+  race.join("a", "A", 0);
+  race.join("b", "B", 0);
+  assert.equal(race.phase, "countdown");
+  assert.equal(race.setTarget(4, 0), false, "a running race has no grid to size");
+  assert.equal(race.target, RACE.minAutoStart);
+});
+
+test("the grid size is clamped to a real grid", () => {
+  const race = new Race();
+  race.setTarget(99, 0);
+  assert.equal(race.target, RACE.maxRiders, "never more than the grid holds");
+  race.setTarget(0, 0);
+  assert.equal(race.target, 1, "a race for nobody is not a race");
+});
+
+test("a rematch waits for the grid it was set to", () => {
+  const race = new Race();
+  race.setTarget(4, 0);
+  race.join("a", "A", 0);
+  race.join("b", "B", 0);
+  race.arm(0);
+  race.tick(RACE.countdownMs);
+  assert.equal(race.phase, "racing");
+
+  race.rematch(0);
+  // Still two riders against a grid of four, so the rematch waits — the same
+  // rule the first race followed, rather than a second special case.
+  assert.equal(race.phase, "waiting");
+});

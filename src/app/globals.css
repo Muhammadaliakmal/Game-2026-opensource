@@ -41,6 +41,32 @@ body {
   overscroll-behavior: none;
 }
 
+/*
+  ── The installed app is a game, not a site ─────────────────────────────
+
+  In a browser tab the header is orientation: it says what this is and offers
+  a way back to the rest of the site. In an installed app it is none of those
+  things — there is no address bar above it to belong to, no other site to
+  return to, and on a phone it was eating 44px off the top of a world that had
+  already been asked to share the screen with a notch. It read as a second
+  title bar stacked on the HUD's own.
+
+  So it goes, but only where both halves are true: `display-mode: standalone`
+  means this is the installed app rather than a tab, and `[data-immersive]`
+  means the page is a world rather than a document. The home page and the
+  gallery keep their header inside the installed app, because those genuinely
+  are documents and losing the nav there would leave no route to sign out.
+
+  Pure CSS on purpose. The header is server-rendered in the root layout, so a
+  JavaScript check would paint it and then remove it — a visible jump on the
+  way into every world.
+*/
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  body:has([data-immersive]) .site-header {
+    display: none;
+  }
+}
+
 body {
   background: var(--color-base);
   color: var(--color-ink);
@@ -406,4 +432,41 @@ input {
 @keyframes hurtFlash {
   0%, 52% { opacity: 1; }
   100% { opacity: 0; }
+}
+
+/*
+  ── The loading screen's blocks ────────────────────────────────────────
+
+  One block of the row in components/hud/GameLoader. Sized off `--unit` (8px,
+  one block of the UI grid) so the loader is built to the same measure as
+  everything else, and coloured from `--color-accent` so it inherits whichever
+  mode opened it — a race loads magenta, a course loads green, with no prop
+  and no branching.
+
+  The resting state is a visible dim block rather than nothing, which is what
+  makes this degrade correctly: the global reduced-motion rule flattens the
+  animation to a stop, and what is left is still a legible row.
+*/
+.loader-block {
+  width: var(--unit);
+  height: calc(var(--unit) * 2);
+  background: rgb(255 255 255 / 0.12);
+  animation: loaderFill 1.1s var(--ease-ui) infinite;
+}
+
+@keyframes loaderFill {
+  /* Lit for a short part of the cycle, so a single bright cell travels the row
+     rather than the whole row pulsing together. */
+  0%,
+  55%,
+  100% {
+    background: rgb(255 255 255 / 0.12);
+    box-shadow: none;
+    transform: scaleY(1);
+  }
+  18% {
+    background: var(--color-accent);
+    box-shadow: var(--glow);
+    transform: scaleY(1.35);
+  }
 }

@@ -49,6 +49,14 @@ export const RaceState = schema(
      * second out is worse than one that ticks.
      */
     countdownMs: t.uint16().default(0),
+    /**
+     * How many riders this grid is waiting for before the lights arm.
+     *
+     * Published rather than left server-side because the waiting screen has to
+     * say "2 of 4" — and because anyone in the room may change it, so every
+     * client needs to see the change rather than only the one who made it.
+     */
+    target: t.uint8().default(2),
   },
   "RaceState"
 );

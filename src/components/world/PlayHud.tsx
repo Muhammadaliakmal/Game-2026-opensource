@@ -17,6 +17,8 @@ import { MuteButton } from "@/components/MuteButton";
 import { RemixButton } from "@/components/RemixButton";
 import { HudZone, HudZones } from "@/components/hud/HudZones";
 import { SettingsButton } from "@/components/hud/SettingsButton";
+import { ControlArranger } from "@/components/hud/ControlArranger";
+import { useHudOverlay } from "@/lib/hud-overlay";
 
 /**
  * The Play HUD.
@@ -59,15 +61,25 @@ export function PlayHud({
           the fade dims the world you fell out of, not the way back in. */}
       <RespawnFade />
 
+      {/* Outside the grid too, and above it: the arrange bar has to sit
+          over the controls it is editing. Renders nothing unless the
+          player asked for it from Settings. */}
+      <ControlArranger />
+
       <HudZones mode="parkour" className="z-10">
         <HudZone at="top-left">
-          {/* Name and clock stay side by side: they are one readout, and
-              stacking them would put the clock a line further from the eye. */}
+          {/*
+            The clock and the checkpoint pips, and no longer the world's name.
+
+            The name was a permanent panel showing a value that never changes
+            while you play it — which is the definition of something that
+            belongs behind a menu rather than on the screen. On a phone it was
+            also the widest thing in the corner, and on the installed app it
+            sat directly under the site header and read as a second title bar.
+            It is in the menu and in Settings now, both of which are places you
+            open when you want to know where you are.
+          */}
           <div className="pointer-events-auto flex min-w-0 items-center gap-2">
-            <div className="hud-panel flex min-w-0 items-center gap-2.5 px-3 py-2">
-              <span className="bg-accent h-1.5 w-1.5 shrink-0" aria-hidden />
-              <span className="truncate text-2xs font-medium">{name}</span>
-            </div>
             <RunTimer />
             <CheckpointPips />
           </div>
@@ -85,7 +97,10 @@ export function PlayHud({
               the one row that opens a screen of its own, and a menu that stays
               open behind a modal reads as two things being open at once. */}
           <div className="pointer-events-auto flex items-center gap-1.5">
-            <SettingsButton className="hud-chip hud-chip--icon hud-chip--touch" />
+            <SettingsButton
+              className="hud-chip hud-chip--icon hud-chip--touch"
+              title={name}
+            />
             <PlayMenu
               name={name}
               canEdit={canEdit}
@@ -427,6 +442,18 @@ function PlayMenu({
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
+  /*
+   * Published so the touch controls can leave the screen while this is open —
+   * see lib/hud-overlay. From an effect rather than the click handler because
+   * four different things close this menu (Escape, an outside press, a
+   * one-shot action, navigating away) and only an effect is guaranteed to see
+   * all of them.
+   */
+  useEffect(() => {
+    useHudOverlay.getState().setMenu(open);
+    return () => useHudOverlay.getState().setMenu(false);
+  }, [open]);
+
   const firstPerson = useViewStore((s) => s.firstPerson);
   const toggleFirstPerson = useViewStore((s) => s.toggleFirstPerson);
   // A run clock only exists on a world with a goal — see WorldDoc.goal.
@@ -507,17 +534,41 @@ function PlayMenu({
 
       {open && (
         /*
-          A disclosure, not a `role="menu"`. A real menu promises arrow-key
-          roving focus, and two of these rows are shared components that take
-          a className and nothing else — so half of them could never carry
-          `role="menuitem"` anyway. Plain buttons in a labelled panel are
-          honest about what they are and Tab already works on them.
+          Centred on the screen, over a scrim, rather than hung under its own
+          trigger in the top-right corner.
+
+          It was a dropdown, and on a phone that put a 208px panel directly on
+          top of the right thumb cluster — the RUN and JUMP buttons showed
+          through it, and a thumb going for "Respawn" landed on JUMP as often
+          as not. Centring it is the same decision SettingsDialog already made
+          for the same reason, and pairing it with the scrim means the menu
+          reads as the interruption it is instead of as a label floating over a
+          game that is still being played.
         */
         <div
-          id="play-menu"
-          aria-label="Game menu"
-          className="hud-panel panel-enter absolute top-full right-0 mt-1.5 flex w-52 flex-col p-1.5"
+          className="pointer-events-auto fixed inset-0 z-30 flex items-center justify-center p-4"
+          style={{ background: "rgb(4 4 8 / 0.66)" }}
+          onPointerDown={(e) => {
+            if (e.target === e.currentTarget) setOpen(false);
+          }}
         >
+        <div
+          id="play-menu"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Game menu"
+          className="hud-panel panel-enter flex w-[min(88vw,17rem)] flex-col p-1.5"
+        >
+          {/* The world's name, at the top of the thing that acts on it. It is
+              also a title for the dialog, which a centred panel needs and a
+              dropdown hanging off a labelled button did not. */}
+          <div className="flex min-w-0 items-center gap-2 px-2.5 pt-1.5 pb-2.5">
+            <span className="bg-accent h-1.5 w-1.5 shrink-0" aria-hidden />
+            <span className="text-ink min-w-0 truncate text-2xs font-semibold">
+              {name}
+            </span>
+          </div>
+          <div className="hud-menu-sep" aria-hidden />
           <button
             onClick={toggleFirstPerson}
             className={`hud-menu-item ${firstPerson ? "is-active" : ""}`}
@@ -589,6 +640,7 @@ function PlayMenu({
           >
             Exit
           </Link>
+        </div>
         </div>
       )}
     </div>

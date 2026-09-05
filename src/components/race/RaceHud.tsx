@@ -3,11 +3,16 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { useRaceStore, standings, formatLapTime } from "@/stores/race-store";
-import { requestRaceRematch, requestStart } from "@/lib/net/race";
+import {
+  requestGridSize,
+  requestRaceRematch,
+  requestStart,
+} from "@/lib/net/race";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { HudZone, HudZones } from "@/components/hud/HudZones";
 import { SettingsButton } from "@/components/hud/SettingsButton";
+import { ControlArranger } from "@/components/hud/ControlArranger";
 import { BoostMeter, Speedometer } from "./Gauges";
 
 /**
@@ -36,6 +41,7 @@ export function RaceHud({ code }: { code: string }) {
   const laps = useRaceStore((s) => s.laps);
   const countdownMs = useRaceStore((s) => s.countdownMs);
   const riders = useRaceStore((s) => s.riders);
+  const target = useRaceStore((s) => s.target);
   const selfId = useRaceStore((s) => s.selfId);
 
   // Sorting four riders is cheap; doing it on every render of a component that
@@ -46,6 +52,8 @@ export function RaceHud({ code }: { code: string }) {
   const me = meIndex >= 0 ? order[meIndex] : null;
 
   return (
+    <>
+    <ControlArranger />
     <HudZones mode="race">
       {/* ── Top-left: which race this is, and who is winning it ── */}
       <HudZone at="top-left">
@@ -108,7 +116,10 @@ export function RaceHud({ code }: { code: string }) {
         <div className="hud-panel pointer-events-auto flex items-center gap-1.5 p-1.5">
           <MuteButton className="hud-chip hud-chip--icon hud-chip--touch" />
           <FullscreenButton className="hud-chip hud-chip--icon hud-chip--touch" />
-          <SettingsButton className="hud-chip hud-chip--icon hud-chip--touch" />
+          <SettingsButton
+            className="hud-chip hud-chip--icon hud-chip--touch"
+            title={`Neon Circuit · ${code}`}
+          />
           <Link href="/race" className="hud-chip">
             Leave
           </Link>
@@ -137,17 +148,72 @@ export function RaceHud({ code }: { code: string }) {
         {phase === "waiting" && connected && (
           <Panel>
             <h2 className="text-ink text-base font-semibold">
-              {riders.length < 2 ? "Waiting for riders" : "Ready"}
+              {riders.length >= target ? "Ready" : "Waiting for riders"}
             </h2>
+
+            {/*
+              The grid as slots rather than as a sentence. "2 of 4" is a fact
+              you read; four boxes with two of them lit is a thing you glance
+              at — and while you are waiting for people to arrive, glancing is
+              all anyone does.
+            */}
+            <div className="flex items-center gap-1.5" aria-hidden>
+              {Array.from({ length: target }, (_, i) => (
+                <span
+                  key={i}
+                  className="h-2.5 w-6"
+                  style={{
+                    background:
+                      i < riders.length
+                        ? "var(--color-accent)"
+                        : "rgb(255 255 255 / 0.12)",
+                    boxShadow:
+                      i < riders.length ? "var(--glow)" : "none",
+                    transition: "background 160ms var(--ease-ui)",
+                  }}
+                />
+              ))}
+              <span className="num text-dim ml-1 text-2xs">
+                {riders.length}/{target}
+              </span>
+            </div>
+            <span className="sr-only">
+              {riders.length} of {target} riders on the grid
+            </span>
+
             <p className="text-dim text-xs">
               Send the code <span className="num text-accent">{code}</span> to
-              whoever you want to race. Up to four on the grid.
+              whoever you want to race. The lights go on their own once the
+              grid is full.
             </p>
+
+            {/* Resizing the grid while it waits. Any rider may do it — there
+                is no host in this game, only people who have the code. */}
+            <div className="flex items-center gap-1.5">
+              <span className="hud-label">Grid</span>
+              {[1, 2, 3, 4].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => requestGridSize(n)}
+                  disabled={n < riders.length}
+                  aria-pressed={n === target}
+                  className={`hud-chip num ${n === target ? "is-active" : ""}`}
+                  title={
+                    n < riders.length
+                      ? "There are already more riders than that"
+                      : `Wait for ${n} rider${n === 1 ? "" : "s"}`
+                  }
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+
             <button
               onClick={requestStart}
               className="hud-chip hud-chip--primary"
             >
-              {riders.length < 2 ? "Ride alone" : "Start the race"}
+              {riders.length < 2 ? "Ride alone" : "Start now"}
             </button>
           </Panel>
         )}
@@ -200,6 +266,7 @@ export function RaceHud({ code }: { code: string }) {
         )}
       </HudZone>
     </HudZones>
+    </>
   );
 }
 

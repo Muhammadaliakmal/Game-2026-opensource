@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { ArenaMount } from "@/components/arena/ArenaMount";
 import { isMatchCode, normalizeMatchCode } from "@/lib/match-code";
+import { IMMERSIVE_VIEWPORT } from "@/lib/immersive";
 
 /**
  * A match by code. `?world=` only matters for whoever opens it — anyone
@@ -22,3 +23,6 @@ export default async function MatchPage({
     <ArenaMount code={normalizeMatchCode(code)} worldId={world ?? "parkour"} />
   );
 }
+
+/** No pinch-zoom, no page pan: this screen is a game. See lib/immersive. */
+export const viewport = IMMERSIVE_VIEWPORT;

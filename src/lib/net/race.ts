@@ -90,7 +90,16 @@ export function setGridListener(fn: GridListener | null) {
  */
 export async function joinRace(
   code: string,
-  onWorld: (doc: WorldDoc) => void
+  onWorld: (doc: WorldDoc) => void,
+  /**
+   * How many riders this grid should wait for, if we are the one opening it.
+   *
+   * Passed to `joinOrCreate`, so it only takes effect when this call actually
+   * creates the room — the server ignores it on a join for exactly that
+   * reason. Somebody arriving at a grid of four does not get to quietly turn
+   * it into a grid of two.
+   */
+  target?: number
 ): Promise<() => void> {
   if (!multiplayerEnabled) {
     useRaceStore.getState().setConnection({
@@ -111,7 +120,7 @@ export async function joinRace(
     const client = new Client(MULTIPLAYER_URL);
     const token = await roomToken();
     if (token) client.auth.token = token;
-    const joined = await client.joinOrCreate("race", { code });
+    const joined = await client.joinOrCreate("race", { code, target });
     room = joined;
     connecting = false;
     store.setConnection({
@@ -148,6 +157,7 @@ export async function joinRace(
         phase: string;
         laps: number;
         countdownMs: number;
+        target: number;
         riders: Map<string, RiderSchema>;
       };
       const riders: RiderView[] = [];
@@ -165,6 +175,7 @@ export async function joinRace(
         phase: (state.phase || "waiting") as RacePhase,
         laps: state.laps || 3,
         countdownMs: state.countdownMs || 0,
+        target: state.target || 2,
         riders,
       });
     };
@@ -257,4 +268,16 @@ export function requestStart() {
 
 export function requestRaceRematch() {
   room?.send("rematch", {});
+}
+
+/**
+ * Change how many riders the grid waits for.
+ *
+ * Open to anyone in the room rather than to a host, because this game has no
+ * host: a race is a code people have, and inventing an owner so that one
+ * person may resize the grid would be a permissions model built for one
+ * control. The server clamps it and refuses it once the lights are running.
+ */
+export function requestGridSize(target: number) {
+  room?.send("target", { target });
 }

@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { HAPTIC, haptic } from "@/lib/player-settings";
+import { useHudOverlay } from "@/lib/hud-overlay";
+import { useControlLayout, type ControlId } from "@/lib/control-layout";
 
 /**
  * The one touch control every on-screen cluster is built from.
@@ -51,6 +53,7 @@ export function TouchButton({
   disabled = false,
   accent = "var(--color-accent)",
   square = false,
+  control,
   className = "",
   style,
   onPress,
@@ -65,6 +68,15 @@ export function TouchButton({
   accent?: string;
   /** Steering pads are wide rectangles, not discs. */
   square?: boolean;
+  /**
+   * Which customisable control this is, if it is one.
+   *
+   * Supplying it opts the button into the player's saved placement (see
+   * lib/control-layout) and makes it draggable while the layout editor is
+   * open. Omitting it leaves the button exactly where its cluster puts it —
+   * which is right for anything that is chrome rather than a control.
+   */
+  control?: ControlId;
   className?: string;
   style?: React.CSSProperties;
   onPress(): void;
@@ -72,7 +84,26 @@ export function TouchButton({
 }) {
   const [held, setHeld] = useState(false);
   const lit = active || held;
-  const px = SIZES[size];
+
+  // The layout editor. Subscribed to unconditionally — hooks cannot be
+  // conditional — but `control` decides whether any of it is used.
+  const laying = useHudOverlay((s) => s.laying);
+  const layout = useControlLayout((s) => s.layout);
+  const placement = (control && layout[control]) || null;
+  const editing = laying && control !== undefined;
+
+  /** Where the drag started, so movement is measured rather than absolute. */
+  const drag = useRef<{ x: number; y: number; dx: number; dy: number } | null>(
+    null
+  );
+
+  // Real width and height rather than a transform scale: a transform would
+  // leave the button's layout box at its old size, so a player who made JUMP
+  // bigger would find it overlapping RUN while the gap between them still
+  // measured 8px. Sizing for real keeps the cluster's spacing honest.
+  const px = Math.round(SIZES[size] * (placement?.scale ?? 1));
+  const offsetX = placement?.dx ?? 0;
+  const offsetY = placement?.dy ?? 0;
 
   // A pointer lost to a cancel — a call arriving, the app backgrounding — must
   // release the control. A throttle stuck on because the phone rang is the
@@ -92,18 +123,51 @@ export function TouchButton({
         if (disabled) return;
         e.preventDefault();
         e.currentTarget.setPointerCapture(e.pointerId);
+
+        // While the layout editor is open a press MOVES the control instead of
+        // firing it. Deliberately not "fires and also moves": a player nudging
+        // JUMP into a comfortable spot must not be jumping the whole time they
+        // do it, and there is no gesture that reads as one and not the other.
+        if (editing && control) {
+          drag.current = {
+            x: e.clientX,
+            y: e.clientY,
+            dx: offsetX,
+            dy: offsetY,
+          };
+          haptic(HAPTIC.tap);
+          return;
+        }
+
         setHeld(true);
         haptic(HAPTIC.tap);
         onPress();
+      }}
+      onPointerMove={(e) => {
+        const start = drag.current;
+        if (!start || !control) return;
+        e.preventDefault();
+        useControlLayout
+          .getState()
+          .place(
+            control,
+            start.dx + (e.clientX - start.x),
+            start.dy + (e.clientY - start.y)
+          );
       }}
       onPointerUp={(e) => {
         if (e.currentTarget.hasPointerCapture(e.pointerId)) {
           e.currentTarget.releasePointerCapture(e.pointerId);
         }
+        if (drag.current) {
+          drag.current = null;
+          return;
+        }
         setHeld(false);
         onRelease?.();
       }}
       onPointerCancel={() => {
+        drag.current = null;
         setHeld(false);
         onRelease?.();
       }}
@@ -138,11 +202,21 @@ export function TouchButton({
         opacity: disabled ? 0.35 : 1,
         transition:
           "transform .1s var(--ease-ui), background .12s var(--ease-ui), box-shadow .12s var(--ease-ui)",
-        transform: held ? "scale(0.93)" : "scale(1)",
+        // The saved offset and the press feedback compose here. Translate
+        // first so the 0.93 press scale still happens about the button's own
+        // centre wherever the player has moved it to.
+        transform: `translate(${offsetX}px, ${offsetY}px) scale(${held ? 0.93 : 1})`,
         border: `2px solid ${accent}`,
         background: lit ? accent : "var(--glass-bg)",
         color: lit ? "var(--color-accent-ink)" : accent,
-        boxShadow: lit ? `0 0 26px -4px ${accent}` : "none",
+        boxShadow: editing
+          ? `0 0 0 2px var(--color-accent), 0 0 22px -2px var(--color-accent)`
+          : lit
+            ? `0 0 26px -4px ${accent}`
+            : "none",
+        // A control being arranged should look grabbable, and must not fight
+        // the drag with a text-selection or scroll gesture.
+        cursor: editing ? "grab" : undefined,
         backdropFilter: "var(--glass-blur)",
         WebkitBackdropFilter: "var(--glass-blur)",
         ...style,
@@ -178,6 +252,20 @@ export function ThumbCluster({
   className?: string;
   style?: React.CSSProperties;
 }) {
+  const blocked = useHudOverlay((s) => s.blocked);
+
+  /*
+   * Unmounted rather than hidden while a modal owns the screen.
+   *
+   * `display: none` would have been cheaper and is the wrong call: a button
+   * held at the moment it is hidden never sees its own pointerup, and a
+   * throttle or a jump latched on behind a settings panel is the worst class
+   * of bug this file can have. Unmounting runs TouchButton's release-on-unmount
+   * cleanup, which exists for exactly this — so the controls come back in a
+   * neutral state rather than mid-press.
+   */
+  if (blocked) return null;
+
   return (
     <div
       className={className}

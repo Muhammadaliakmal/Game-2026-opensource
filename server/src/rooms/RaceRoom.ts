@@ -33,6 +33,16 @@ export const RACE_WORLD = "circuit";
 
 export interface RaceOptions {
   code?: string;
+  /**
+   * How many riders the grid should wait for, 1-4.
+   *
+   * Only the client that CREATES the room is heard — `joinOrCreate` passes the
+   * same options to a join, and letting a late arrival silently resize a grid
+   * that people are already waiting on is not a thing anybody asked for. The
+   * explicit `target` message below is how it is changed after the fact, and
+   * that one is deliberately open to any rider in the room.
+   */
+  target?: number;
 }
 
 export class RaceRoom extends Room<{ state: RaceState }> {
@@ -59,6 +69,8 @@ export class RaceRoom extends Room<{ state: RaceState }> {
     this.race = new Race();
     this.setState(new RaceState());
     this.state.laps = RACE.laps;
+    this.race.setTarget(options?.target ?? RACE.minAutoStart, Date.now());
+    this.state.target = this.race.target;
     this.roomId = code;
 
     this.onMessage("move", (client, message) => {
@@ -92,6 +104,21 @@ export class RaceRoom extends Room<{ state: RaceState }> {
       if (this.race.arm(Date.now())) {
         this.sync();
         this.broadcast("grid", this.gridFor());
+      }
+    });
+
+    // Resizing the grid while it waits. Any rider, not just whoever opened the
+    // room: there is no host concept in this game, and inventing one so that a
+    // race can be resized would be a permissions model built for one button.
+    this.onMessage("target", (client, message) => {
+      if (!this.race.riders.has(client.sessionId)) return;
+      const n = Number((message as { target?: unknown })?.target);
+      if (!Number.isFinite(n)) return;
+      if (this.race.setTarget(n, Date.now())) {
+        this.sync();
+        if (this.race.phase === "countdown") {
+          this.broadcast("grid", this.gridFor());
+        }
       }
     });
 
@@ -201,6 +228,7 @@ export class RaceRoom extends Room<{ state: RaceState }> {
 
   private sync() {
     this.state.phase = this.race.phase;
+    this.state.target = this.race.target;
     for (const id of this.race.riders.keys()) this.syncRider(id);
   }
 }

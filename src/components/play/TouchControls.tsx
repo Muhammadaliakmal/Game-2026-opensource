@@ -8,6 +8,8 @@ import {
   TouchButton,
 } from "@/components/hud/TouchButton";
 import { HAPTIC, haptic } from "@/lib/player-settings";
+import { useHudOverlay } from "@/lib/hud-overlay";
+import { useControlLayout } from "@/lib/control-layout";
 import { touchInput } from "./touch-input";
 import { useMoveMode } from "./move-mode";
 import { requestRespawn } from "./play-actions";
@@ -51,6 +53,12 @@ export function TouchControls({ canFly = false }: { canFly?: boolean }) {
   // A course is a world with a goal; `startedAt` is set the moment one begins.
   const onCourse = useCourse((s) => s.worldId !== null);
 
+  const blocked = useHudOverlay((s) => s.blocked);
+  // The stick's own placement. Subscribed to the whole layout rather than to a
+  // selector so the component re-renders while a drag is in flight.
+  const stick =
+    useControlLayout((s) => s.layout.stick) ?? { dx: 0, dy: 0, scale: 1 };
+
   // Don't leave sprint, a lock-on or flight armed for the next world you open.
   useEffect(() => useMoveMode.getState().reset, []);
 
@@ -74,29 +82,40 @@ export function TouchControls({ canFly = false }: { canFly?: boolean }) {
 
   return (
     <>
+      {/*
+        The stick is ecctrl's own overlay, rendered outside <ThumbCluster> — so
+        the cluster's "hide while a modal is open" rule does not reach it and
+        it has to be gated here. Without this the joystick stayed live under
+        the settings panel and the character walked while its owner was
+        reading. It also takes the saved placement by hand for the same reason:
+        it is not a <TouchButton> and cannot opt in the way the others do.
+      */}
+      {!blocked && (
       <Joystick
-        joystickMaxRadius={44}
+        joystickMaxRadius={44 * stick.scale}
         joystickWrapperStyle={{
           left: "calc(env(safe-area-inset-left, 0px) + var(--hud-inset, 0px) + 12px)",
           bottom:
             "calc(env(safe-area-inset-bottom, 0px) + var(--hud-inset, 0px) + 12px)",
-          width: 168,
-          height: 168,
+          width: 168 * stick.scale,
+          height: 168 * stick.scale,
+          transform: `translate(${stick.dx}px, ${stick.dy}px)`,
         }}
         joystickBaseStyle={{
-          width: 116,
-          height: 116,
+          width: 116 * stick.scale,
+          height: 116 * stick.scale,
           background: "var(--glass-bg)",
           border: "1px solid var(--glass-border)",
           backdropFilter: "var(--glass-blur)",
         }}
         joystickKnobStyle={{
-          width: 62,
-          height: 62,
+          width: 62 * stick.scale,
+          height: 62 * stick.scale,
           background: "var(--color-ink)",
           boxShadow: "0 6px 16px rgba(0,0,0,0.45)",
         }}
       />
+      )}
 
       <ThumbCluster side="right">
         <ThumbStack>
@@ -106,6 +125,7 @@ export function TouchControls({ canFly = false }: { canFly?: boolean }) {
           {onCourse && (
             <TouchButton
               label="RETRY"
+              control="retry"
               size="sm"
               accent="var(--color-dim)"
               onPress={() => {
@@ -117,6 +137,7 @@ export function TouchControls({ canFly = false }: { canFly?: boolean }) {
           {canFly && (
             <TouchButton
               label="FLY"
+              control="fly"
               size="sm"
               mode="latch"
               active={flying}
@@ -136,6 +157,7 @@ export function TouchControls({ canFly = false }: { canFly?: boolean }) {
               creative mode uses. */}
           <TouchButton
             label={flying ? "DOWN" : "RUN"}
+            control="run"
             size="md"
             mode={flying ? "hold" : "latch"}
             active={!flying && running}
@@ -165,6 +187,7 @@ export function TouchControls({ canFly = false }: { canFly?: boolean }) {
               because the same gesture has to work from the keyboard. */}
           <TouchButton
             label={flying ? "UP" : "JUMP"}
+            control="jump"
             size="lg"
             accent="var(--color-accent)"
             onPress={() => {

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Orbitron, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import { RoomAuth } from "@/components/RoomAuth";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 import "./globals.css";
 
 /**
@@ -97,28 +98,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         thin strip. The shell owns the viewport; <main> owns the scrolling.
       */}
       <body className="flex h-dvh flex-col overflow-hidden">
-        <ClerkProvider
-          appearance={{
-            variables: {
-              // Clerk renders in its own tree and cannot read our CSS
-              // variables, so the palette is restated here. These are the
-              // literal values of --color-accent (cyan, the neutral default;
-              // Clerk's modal is not inside any mode), --color-panel,
-              // --color-ink, --color-dim and --color-danger.
-              colorPrimary: "#00fff5",
-              colorBackground: "#16161f",
-              colorForeground: "#eef1ff",
-              colorMutedForeground: "#a3a8c8",
-              colorDanger: "#ff3b30",
-              borderRadius: "3px",
-            },
-          }}
-        >
+        {/* The palette Clerk's own tree renders in. See lib/clerk-appearance
+            for why it is a restatement of tokens.css rather than a reference
+            to it, and for the two seeds whose absence made the primary button
+            and the Google button unreadable. */}
+        <ClerkProvider appearance={clerkAppearance}>
           {/* Renders nothing; it is how a room join gets a Clerk token. */}
           <RoomAuth />
           {/* Also renders nothing. Production only — see the component. */}
           <ServiceWorkerRegistrar />
-          <header className="border-[var(--border-color)] bg-surface flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 sm:px-6">
+          <header className="site-header border-[var(--border-color)] bg-surface flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 sm:px-6">
             <Link href="/" className="group flex items-center gap-2.5">
               {/* A single accent block, rotated to read as a voxel corner —
                   and lit, because in the Neon Drift direction the mark is the

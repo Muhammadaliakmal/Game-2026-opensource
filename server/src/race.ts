@@ -84,8 +84,40 @@ export class Race {
   /** When the first rider finished, so the grace timer can run. */
   firstFinishAt = 0;
 
+  /**
+   * How many riders the grid is waiting for before the lights arm themselves.
+   *
+   * The room used to arm the moment a second rider joined, which is right for
+   * a pick-up race and wrong for the case somebody actually asked for: you
+   * send the code to three friends, the first one arrives, and the race starts
+   * without the other two. Naming the size up front is the fix — a four-rider
+   * grid waits for four.
+   *
+   * Defaults to `minAutoStart`, so a room created without an opinion behaves
+   * exactly as it always did. Anyone in the room may change it while waiting,
+   * and `arm()` is still available to override it — a grid of four that only
+   * ever got two riders must not be a race nobody can start.
+   */
+  target: number = RACE.minAutoStart;
+
   get full() {
     return this.riders.size >= RACE.maxRiders;
+  }
+
+  /**
+   * Set the grid size. Ignored once the lights are running — changing the
+   * number a race is waiting for while it is already under way describes
+   * nothing, and silently re-arming a live race would be worse.
+   */
+  setTarget(n: number, now: number): boolean {
+    if (this.phase !== "waiting") return false;
+    const next = Math.max(1, Math.min(RACE.maxRiders, Math.floor(n)));
+    if (next === this.target) return false;
+    this.target = next;
+    // A grid that has already filled to its new size should go now rather
+    // than wait for a rider who is not coming.
+    if (this.riders.size >= this.target) this.arm(now);
+    return true;
   }
 
   /** Slots are reused, so a rider leaving frees the grid position they had. */
@@ -117,8 +149,9 @@ export class Race {
     };
     this.riders.set(id, rider);
 
-    // A second rider arming the race is the whole reason for a room code.
-    if (this.phase === "waiting" && this.riders.size >= RACE.minAutoStart) {
+    // Filling the grid is what arms the race — see `target`. A room that was
+    // never given a size is still waiting for two, which is the old behaviour.
+    if (this.phase === "waiting" && this.riders.size >= this.target) {
       this.arm(now);
     }
     return rider;
@@ -250,7 +283,7 @@ export class Race {
     this.startedAt = 0;
     this.firstFinishAt = 0;
     for (const r of this.riders.values()) this.resetToGrid(r);
-    if (this.riders.size >= RACE.minAutoStart) this.arm(now);
+    if (this.riders.size >= this.target) this.arm(now);
   }
 
   /**

@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { ImmersiveMarker } from "@/components/ImmersiveMarker";
+import { GameLoader } from "@/components/hud/GameLoader";
 
 /**
  * Browser-only mount for the race canvas — `ssr: false` is only legal inside a
@@ -9,14 +11,21 @@ import dynamic from "next/dynamic";
  */
 const RaceCanvas = dynamic(() => import("./RaceCanvas"), {
   ssr: false,
-  loading: () => (
-    <div className="bg-base flex min-h-0 flex-1 flex-col items-center justify-center gap-4">
-      <span className="border-accent h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
-      <span className="hud-label">Loading race</span>
-    </div>
-  ),
+  loading: () => <GameLoader label="Loading race" />,
 });
 
-export function RaceMount({ code }: { code: string }) {
-  return <RaceCanvas code={code} />;
+export function RaceMount({
+  code,
+  target,
+}: {
+  code: string;
+  /** The grid size the lobby asked for, when this client opens the room. */
+  target?: number;
+}) {
+  return (
+    <>
+      <ImmersiveMarker />
+      <RaceCanvas code={code} target={target} />
+    </>
+  );
 }

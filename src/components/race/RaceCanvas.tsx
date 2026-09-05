@@ -9,6 +9,7 @@ import Link from "next/link";
 import type { PartTuple, PropInstance, WorldDoc } from "@/lib/worlddoc";
 import { useEditorStore } from "@/stores/editor-store";
 import { joinRace, leaveRace } from "@/lib/net/race";
+import { GameLoader } from "@/components/hud/GameLoader";
 import { useRaceStore } from "@/stores/race-store";
 import { playerFocus } from "@/components/play/camera-rig";
 import { InstancedParts } from "@/components/editor/InstancedParts";
@@ -58,7 +59,17 @@ interface Snapshot {
   spawn: [number, number, number];
 }
 
-export default function RaceCanvas({ code }: { code: string }) {
+export default function RaceCanvas({
+  code,
+  target,
+}: {
+  code: string;
+  /**
+   * The grid size the lobby asked for, when this client is the one opening the
+   * room. Ignored by the server on a join — see joinRace.
+   */
+  target?: number;
+}) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [painted, setPainted] = useState(false);
   const touch = useCoarsePointer();
@@ -84,7 +95,7 @@ export default function RaceCanvas({ code }: { code: string }) {
   useEffect(() => {
     let dispose: (() => void) | undefined;
     let cancelled = false;
-    void joinRace(code, onWorld).then((d) => {
+    void joinRace(code, onWorld, target).then((d) => {
       if (cancelled) d();
       else dispose = d;
     });
@@ -93,7 +104,7 @@ export default function RaceCanvas({ code }: { code: string }) {
       dispose?.();
       leaveRace();
     };
-  }, [code, onWorld]);
+  }, [code, onWorld, target]);
 
   const getFocus = useMemo(() => () => playerFocus, []);
 
@@ -240,8 +251,14 @@ export default function RaceCanvas({ code }: { code: string }) {
 
       {(!painted || !snapshot) && (
         <div className="bg-base absolute inset-0 flex flex-col items-center justify-center gap-4">
-          <span className="border-accent h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
-          <span className="hud-label">Joining race {code}</span>
+          <GameLoader
+            label="Entering the circuit"
+            /* Named, because this is the one loading screen where the wait can
+               legitimately be long: a free-tier room server that has gone to
+               sleep takes the better part of a minute to wake, and somebody
+               staring at an unexplained thirty seconds assumes it is broken. */
+            detail={`Room ${code} · waking the grid`}
+          />
           <Link href="/race" className="hud-chip">
             Back
           </Link>

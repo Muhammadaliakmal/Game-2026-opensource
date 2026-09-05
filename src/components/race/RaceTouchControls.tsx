@@ -7,6 +7,8 @@ import {
   ThumbStack,
   TouchButton,
 } from "@/components/hud/TouchButton";
+import { useHudOverlay } from "@/lib/hud-overlay";
+import { useControlLayout } from "@/lib/control-layout";
 import { usePlayerSettings, type RaceScheme } from "@/lib/player-settings";
 import { raceTouch, releaseRaceTouch } from "./race-touch";
 
@@ -74,6 +76,7 @@ export function RaceTouchControls() {
         <ThumbStack>
           <TouchButton
             label="LOOK"
+            control="look"
             size="sm"
             accent="var(--color-dim)"
             onPress={() => {
@@ -85,6 +88,7 @@ export function RaceTouchControls() {
           />
           <TouchButton
             label="BACK"
+            control="back"
             size="sm"
             accent="var(--color-dim)"
             onPress={() => {
@@ -99,6 +103,7 @@ export function RaceTouchControls() {
         <ThumbStack>
           <TouchButton
             label="DRIFT"
+            control="drift"
             size="md"
             accent="var(--color-accent)"
             onPress={() => {
@@ -110,6 +115,7 @@ export function RaceTouchControls() {
           />
           <TouchButton
             label="BRAKE"
+            control="brake"
             size="md"
             accent="var(--color-danger)"
             onPress={() => {
@@ -124,6 +130,7 @@ export function RaceTouchControls() {
         <ThumbStack>
           <TouchButton
             label="BOOST"
+            control="boost"
             size="md"
             accent="#ffffff"
             onPress={() => {
@@ -137,6 +144,7 @@ export function RaceTouchControls() {
               the biggest, lowest and furthest into the corner. */}
           <TouchButton
             label="GO"
+            control="go"
             size="lg"
             accent="var(--color-accent)"
             onPress={() => {
@@ -166,26 +174,39 @@ function StickSteering() {
   // Its Y is ignored there: a bike does not go sideways, and pushing a stick
   // "up" to accelerate while also pushing it left to turn is one thumb doing
   // two jobs badly.
+  const blocked = useHudOverlay((s) => s.blocked);
+  const stick = useControlLayout((s) => s.layout.stick) ?? {
+    dx: 0,
+    dy: 0,
+    scale: 1,
+  };
+
+  // Gated here rather than by <ThumbCluster>, which this is not inside: it is
+  // ecctrl's own fixed overlay. A live steering stick under an open settings
+  // panel is a bike that keeps turning while its rider reads.
+  if (blocked) return null;
+
   return (
     <Joystick
-      joystickMaxRadius={46}
+      joystickMaxRadius={46 * stick.scale}
       joystickWrapperStyle={{
         left: "calc(env(safe-area-inset-left, 0px) + var(--hud-inset, 0px) + 12px)",
         bottom:
           "calc(env(safe-area-inset-bottom, 0px) + var(--hud-inset, 0px) + 12px)",
-        width: 168,
-        height: 168,
+        width: 168 * stick.scale,
+        height: 168 * stick.scale,
+        transform: `translate(${stick.dx}px, ${stick.dy}px)`,
       }}
       joystickBaseStyle={{
-        width: 116,
-        height: 116,
+        width: 116 * stick.scale,
+        height: 116 * stick.scale,
         background: "var(--glass-bg)",
         border: "1px solid var(--glass-border)",
         backdropFilter: "var(--glass-blur)",
       }}
       joystickKnobStyle={{
-        width: 62,
-        height: 62,
+        width: 62 * stick.scale,
+        height: 62 * stick.scale,
         background: "var(--color-ink)",
         boxShadow: "0 6px 16px rgba(0,0,0,0.45)",
       }}
@@ -215,6 +236,7 @@ function PadSteering() {
     <ThumbCluster side="left">
       <TouchButton
         label="◀"
+        control="steer-left"
         size="md"
         square
         accent="var(--color-accent)"
@@ -224,6 +246,7 @@ function PadSteering() {
       />
       <TouchButton
         label="▶"
+        control="steer-right"
         size="md"
         square
         accent="var(--color-accent)"

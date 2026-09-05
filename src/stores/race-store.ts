@@ -31,6 +31,13 @@ interface RaceStoreState {
   laps: number;
   /** Milliseconds left on the start lights, 0 when they are not showing. */
   countdownMs: number;
+  /**
+   * How many riders the grid is waiting for before the lights arm.
+   *
+   * The server's number, not this client's request — anyone in the room may
+   * change it, so the only honest source is the one everybody is reading.
+   */
+  target: number;
   riders: RiderView[];
 
   setConnection(v: {
@@ -43,6 +50,7 @@ interface RaceStoreState {
     phase: RacePhase;
     laps: number;
     countdownMs: number;
+    target: number;
     riders: RiderView[];
   }): void;
   reset(): void;
@@ -56,6 +64,7 @@ const empty = {
   phase: "waiting" as RacePhase,
   laps: 3,
   countdownMs: 0,
+  target: 2,
   riders: [] as RiderView[],
 };
 
@@ -70,8 +79,8 @@ export const useRaceStore = create<RaceStoreState>((set) => ({
       error: error === undefined ? s.error : error,
     })),
 
-  setRace: ({ phase, laps, countdownMs, riders }) =>
-    set({ phase, laps, countdownMs, riders }),
+  setRace: ({ phase, laps, countdownMs, target, riders }) =>
+    set({ phase, laps, countdownMs, target, riders }),
 
   reset: () => set({ ...empty }),
 }));
