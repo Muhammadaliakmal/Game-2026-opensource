@@ -40,6 +40,21 @@ import { usePlayerSettings } from "@/lib/player-settings";
  *    user-adjustable safe frame, which every console racer exposes because
  *    TV overscan and phone bezels are not something we can detect.
  *
+ * 3. It reserves the band the thumb controls stand in, so the two systems
+ *    stop fighting over the bottom corners.
+ *
+ *    They did. The controls are `position: fixed` clusters living outside this
+ *    grid — deliberately, so they sit where a thumb rests regardless of what
+ *    the HUD is doing — which also means they had no way to know the HUD was
+ *    there. The bottom row of this grid IS the bottom corners, so on a phone
+ *    the boost meter sat under the steering pads, the speedometer under the
+ *    throttle, and Leave under whichever cluster reached furthest. A player
+ *    could not read their speed and could not find the way out.
+ *
+ *    `--controls-h` (tokens.css) is how tall that band is at the current
+ *    breakpoint, and it is 0 wherever the controls are not mounted, so a
+ *    desktop HUD keeps its corners. The bottom zones simply sit above it.
+ *
  * Pointer events default to none so the world stays draggable through the
  * gaps between panels; each panel opts back in with `pointer-events-auto`.
  */
@@ -100,6 +115,21 @@ const ZONE_CLASS: Record<Zone, string> = {
   "bottom-right": "col-start-3 row-start-3 items-end",
 };
 
+/**
+ * How much clear space a zone keeps along the bottom edge.
+ *
+ * Only the bottom row needs it — those are the three zones the thumb clusters
+ * reach into. `--zone-reserve` is set by <HudZones> rather than read straight
+ * from `--controls-h` so that a screen with no touch controls at all (the
+ * editor) can zero it without having to know what the controls would have
+ * measured.
+ */
+const ZONE_RESERVE: Partial<Record<Zone, boolean>> = {
+  "bottom-left": true,
+  "bottom-center": true,
+  "bottom-right": true,
+};
+
 /** Bottom zones stack upward; top zones stack downward. */
 const ZONE_STACK: Record<Zone, string> = {
   "top-left": "flex-col",
@@ -132,10 +162,21 @@ export function HudZones({
   mode,
   children,
   className = "",
+  controls = mode !== "build",
 }: {
   mode: HudMode;
   children: ReactNode;
   className?: string;
+  /**
+   * Whether thumb controls are mounted over this HUD, and therefore whether
+   * the bottom zones have to stay clear of them.
+   *
+   * Defaulted from the mode rather than required, because it is true of every
+   * screen that is played and false of the one that is edited: the builder
+   * mounts no clusters, so reserving a band there would push its bottom row
+   * up over nothing. Any screen that disagrees can say so.
+   */
+  controls?: boolean;
 }) {
   const inset = usePlayerSettings((s) => s.hudInset);
 
@@ -155,7 +196,16 @@ export function HudZones({
   return (
     <div
       data-mode={mode}
-      style={{ ...INSETS, "--hud-inset": `${inset}px` } as CSSProperties}
+      style={
+        {
+          ...INSETS,
+          "--hud-inset": `${inset}px`,
+          // Read by the bottom zones below. `--controls-h` is already 0 on a
+          // pointer-fine screen, so this only ever subtracts further — a HUD
+          // with no controls under it reserves nothing on any device.
+          "--zone-reserve": controls ? "var(--controls-h, 0px)" : "0px",
+        } as CSSProperties
+      }
       className={`pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-[auto_1fr_auto] gap-2 p-2 sm:gap-3 sm:p-3 ${className}`}
     >
       {children}
@@ -181,6 +231,14 @@ export function HudZone({
   }
   return (
     <div
+      // Padding rather than a margin or a bottom offset: the zone keeps its
+      // grid cell (so the `auto 1fr auto` rows still measure correctly) and
+      // simply refuses to place content in the strip the thumbs own.
+      style={
+        ZONE_RESERVE[at]
+          ? { paddingBottom: "var(--zone-reserve, 0px)" }
+          : undefined
+      }
       className={`flex gap-2 ${ZONE_CLASS[at]} ${ZONE_STACK[at]} ${className}`}
     >
       {children}

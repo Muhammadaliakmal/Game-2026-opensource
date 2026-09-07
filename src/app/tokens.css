@@ -126,3 +126,128 @@
   --ease-ui: cubic-bezier(0.2, 0, 0, 1);
   --dur-ui: 120ms;
 }
+
+/*
+  ── Touch control geometry ────────────────────────────────────────────────
+
+  Every dimension of the on-screen controls, in one place, at five widths.
+
+  ── Why this is a token block and not a media query in each component ────
+
+  The thumb clusters are `position: fixed` and are therefore the one part of
+  the interface whose pieces cannot see each other: the left cluster does not
+  know the right cluster exists, and neither knows how wide the phone is. That
+  is exactly how they came to overlap. On a 360px screen the shipped race
+  layout asked for 216px of steering pads on the left and 212px of action
+  buttons on the right, plus 32px of inset — 460px of controls on a 360px
+  screen, which is not a layout that can be nudged into place. It has to be
+  budgeted, and a budget has to be written somewhere both halves read from.
+
+  So the sizes live here and the arithmetic is stated below, per breakpoint:
+
+      left  = 2 × --steer-w + --touch-gap
+      right = --touch-sm + --touch-gap + --touch-md + --touch-gap + --touch-lg
+      used  = left + right + 2 × --touch-inset
+
+  ── The floor is not negotiable ──────────────────────────────────────────
+
+  Apple HIG asks 44×44pt, Material 48×48dp, WCAG 2.5.5 AAA 44×44 CSS px. So
+  `--touch-sm` is 48px at EVERY breakpoint and never scales — a control that
+  shrinks below the floor on a small screen fails the audit on exactly the
+  device where thumbs have least room to be accurate. Responsiveness therefore
+  comes out of the sizes that are above the floor (`--touch-md`, `--touch-lg`,
+  the steering pads) and out of the gaps, never out of the floor itself.
+
+  ── `--controls-h` ───────────────────────────────────────────────────────
+
+  The height the controls occupy along the bottom edge, so the HUD can hold
+  its readouts clear of them (see HudZones). It is written once and picks up
+  each breakpoint's own sizes for free: custom properties substitute lazily,
+  so this `calc` is re-resolved wherever it is finally used rather than frozen
+  at the value the variables had here.
+
+  It is 0 by default and only becomes a real number where the controls are
+  actually mounted — the media query below is the CSS twin of
+  `useTouchControls()` in lib/use-media-query, and the two must stay in step.
+*/
+:root {
+  /* The floor. Never smaller, at any width. */
+  --touch-sm: 48px;
+  --touch-md: 64px;
+  /* The primary action of a cluster — throttle, jump. */
+  --touch-lg: 84px;
+  /* Between controls, and between a cluster and the screen edge. */
+  --touch-gap: 8px;
+  --touch-inset: 16px;
+  /* A steering pad is aimed at with the side of a thumb rolling across it,
+     so it is wider than it is tall. This is the width; the height is
+     --touch-md like any other control. */
+  --steer-w: 104px;
+
+  /* Nothing reserved until we know there are controls to reserve for. */
+  --controls-h: 0px;
+}
+
+/* Large mobile. left 150 + right 184 + 24 = 358, so a 390px phone keeps 32px
+   of clear water between the two thumbs and a 480px one keeps 122. */
+@media (max-width: 480px) {
+  :root {
+    --touch-md: 54px;
+    --touch-lg: 70px;
+    --touch-gap: 6px;
+    --touch-inset: 12px;
+    --steer-w: 72px;
+  }
+}
+
+/* Small mobile. left 126 + right 172 + 20 = 318 on a 360px screen. */
+@media (max-width: 380px) {
+  :root {
+    --touch-md: 50px;
+    --touch-lg: 62px;
+    --touch-inset: 10px;
+    --steer-w: 60px;
+  }
+}
+
+/* The narrowest phones still sold (320px). Everything that can reach the
+   floor has reached it: left 113 + right 164 + 16 = 293. */
+@media (max-width: 340px) {
+  :root {
+    --touch-md: 48px;
+    --touch-lg: 58px;
+    --touch-gap: 5px;
+    --touch-inset: 8px;
+    --steer-w: 54px;
+  }
+}
+
+/*
+  Landscape on a phone. Width is suddenly plentiful and HEIGHT is the scarce
+  axis — a 780×360 screen has room for the widest controls and no room at all
+  for a 156px-tall stack of them plus a HUD. So the compact sizes apply on a
+  short screen regardless of how wide it is, which is the case a width-only
+  breakpoint gets exactly backwards.
+*/
+@media (orientation: landscape) and (max-height: 480px) {
+  :root {
+    --touch-md: 54px;
+    --touch-lg: 70px;
+    --touch-gap: 6px;
+    --touch-inset: 12px;
+    --steer-w: 88px;
+  }
+}
+
+/*
+  The CSS twin of `useTouchControls()`. Where that hook mounts the clusters,
+  this reserves the band they stand in. Keep the two queries identical.
+*/
+@media (pointer: coarse), (max-width: 900px) {
+  :root {
+    --controls-h: calc(
+      var(--touch-md) + var(--touch-gap) + var(--touch-lg) +
+        var(--touch-inset) + var(--space-1)
+    );
+  }
+}

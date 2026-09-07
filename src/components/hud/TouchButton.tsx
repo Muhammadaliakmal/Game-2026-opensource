@@ -14,9 +14,15 @@ import { useControlLayout, type ControlId } from "@/lib/control-layout";
  * nothing here is smaller than 48, and the small variant is 48 exactly rather
  * than "48-ish": a control that is one pixel under the floor is a control that
  * fails an audit and, more to the point, a control someone's thumb misses.
- * Spacing is 8px, the same unit the whole interface is built on, because
+ * Spacing is one unit of the same grid the whole interface is built on, because
  * targets that meet the size floor and then overlap are targets you still hit
  * the wrong one of.
+ *
+ * The floor survives the responsive pass unchanged. `--touch-sm` is 48px at
+ * every breakpoint; what gets smaller on a small screen is the sizes ABOVE the
+ * floor and the gaps between them. Shrinking a control below the floor to make
+ * a layout fit trades an overlap bug for an accessibility one on the same
+ * device, which is not a trade.
  *
  * ── Hold versus latch ────────────────────────────────────────────────────
  *
@@ -37,12 +43,30 @@ import { useControlLayout, type ControlId } from "@/lib/control-layout";
 
 export type TouchButtonSize = "sm" | "md" | "lg";
 
-const SIZES: Record<TouchButtonSize, number> = {
-  /** The floor. Never smaller. */
-  sm: 48,
-  md: 64,
+/**
+ * The three sizes, as tokens rather than numbers.
+ *
+ * They used to be the literals 48 / 64 / 84, which is what made the race
+ * controls overlap on a phone: a constant cannot answer "how wide is the
+ * screen", so the left and right clusters both asked for their full desktop
+ * width and collided somewhere in the middle. The values now live in
+ * tokens.css, where they are budgeted against the viewport at five
+ * breakpoints — see the arithmetic in that file's "Touch control geometry"
+ * block.
+ *
+ * CSS rather than a `useMediaQuery` hook on purpose: this is pure geometry
+ * with no behaviour attached, so resizing a window or rotating a phone should
+ * cost a style recalculation and not a React render of every live control.
+ * (The one control that cannot be done this way is ecctrl's joystick, whose
+ * drag radius is a number its own maths needs — hence `useTouchScale` in
+ * lib/use-media-query, which is the same scale expressed for JavaScript.)
+ */
+const SIZE_VAR: Record<TouchButtonSize, string> = {
+  /** The floor. Never smaller, at any breakpoint. */
+  sm: "var(--touch-sm)",
+  md: "var(--touch-md)",
   /** The primary action of a cluster — throttle, jump. */
-  lg: 84,
+  lg: "var(--touch-lg)",
 };
 
 export function TouchButton({
@@ -101,7 +125,12 @@ export function TouchButton({
   // leave the button's layout box at its old size, so a player who made JUMP
   // bigger would find it overlapping RUN while the gap between them still
   // measured 8px. Sizing for real keeps the cluster's spacing honest.
-  const px = Math.round(SIZES[size] * (placement?.scale ?? 1));
+  //
+  // A calc rather than a number, so the player's own multiplier composes with
+  // the breakpoint's size instead of replacing it: the token answers "how big
+  // is a large control on this screen" and the placement answers "how much
+  // bigger than that does this player want it".
+  const px = `calc(${SIZE_VAR[size]} * ${placement?.scale ?? 1})`;
   const offsetX = placement?.dx ?? 0;
   const offsetY = placement?.dy ?? 0;
 
@@ -273,12 +302,29 @@ export function ThumbCluster({
         position: "fixed",
         zIndex: 10,
         bottom:
-          "calc(env(safe-area-inset-bottom, 0px) + var(--hud-inset, 0px) + 16px)",
+          "calc(env(safe-area-inset-bottom, 0px) + var(--hud-inset, 0px) + var(--touch-inset))",
         [side]:
-          `calc(env(safe-area-inset-${side}, 0px) + var(--hud-inset, 0px) + 16px)`,
+          `calc(env(safe-area-inset-${side}, 0px) + var(--hud-inset, 0px) + var(--touch-inset))`,
         display: "flex",
         alignItems: "flex-end",
-        gap: 8,
+        gap: "var(--touch-gap)",
+        /*
+         * The budget, enforced rather than assumed.
+         *
+         * The sizes in tokens.css are chosen so the two clusters fit side by
+         * side at every breakpoint, but that is arithmetic done in a comment,
+         * and a comment does not hold when somebody adds a fourth button to a
+         * cluster. This does: each side is capped at its share of the screen,
+         * so a cluster that outgrows its budget wraps inside its own half
+         * instead of silently sliding under the other thumb.
+         *
+         * The split is 46/54 rather than half and half because the two sides
+         * are not symmetrical — the right carries the throttle, which is the
+         * biggest control in the game and the one nothing may shrink into.
+         */
+        maxWidth: `calc(${side === "left" ? "46vw" : "54vw"} - var(--touch-inset))`,
+        flexWrap: "wrap",
+        justifyContent: side === "left" ? "flex-start" : "flex-end",
         pointerEvents: "none",
         ...style,
       }}
@@ -300,7 +346,9 @@ export function ThumbStack({ children }: { children: React.ReactNode }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 8,
+        // The same token the cluster spaces its columns with, so the grid
+        // between controls stays square as the breakpoint changes it.
+        gap: "var(--touch-gap)",
         pointerEvents: "auto",
       }}
     >

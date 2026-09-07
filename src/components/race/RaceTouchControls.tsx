@@ -10,6 +10,7 @@ import {
 import { useHudOverlay } from "@/lib/hud-overlay";
 import { useControlLayout } from "@/lib/control-layout";
 import { usePlayerSettings, type RaceScheme } from "@/lib/player-settings";
+import { useTouchScale } from "@/lib/use-media-query";
 import { raceTouch, releaseRaceTouch } from "./race-touch";
 
 /**
@@ -180,6 +181,10 @@ function StickSteering() {
     dy: 0,
     scale: 1,
   };
+  // The breakpoint's own scale, composed with the player's. See useTouchScale
+  // for why the joystick is the one control that reads this as a number
+  // instead of taking its size from a CSS token like every button does.
+  const fit = useTouchScale() * stick.scale;
 
   // Gated here rather than by <ThumbCluster>, which this is not inside: it is
   // ecctrl's own fixed overlay. A live steering stick under an open settings
@@ -188,25 +193,25 @@ function StickSteering() {
 
   return (
     <Joystick
-      joystickMaxRadius={46 * stick.scale}
+      joystickMaxRadius={46 * fit}
       joystickWrapperStyle={{
-        left: "calc(env(safe-area-inset-left, 0px) + var(--hud-inset, 0px) + 12px)",
+        left: "calc(env(safe-area-inset-left, 0px) + var(--hud-inset, 0px) + var(--touch-inset))",
         bottom:
-          "calc(env(safe-area-inset-bottom, 0px) + var(--hud-inset, 0px) + 12px)",
-        width: 168 * stick.scale,
-        height: 168 * stick.scale,
+          "calc(env(safe-area-inset-bottom, 0px) + var(--hud-inset, 0px) + var(--touch-inset))",
+        width: 168 * fit,
+        height: 168 * fit,
         transform: `translate(${stick.dx}px, ${stick.dy}px)`,
       }}
       joystickBaseStyle={{
-        width: 116 * stick.scale,
-        height: 116 * stick.scale,
+        width: 116 * fit,
+        height: 116 * fit,
         background: "var(--glass-bg)",
         border: "1px solid var(--glass-border)",
         backdropFilter: "var(--glass-blur)",
       }}
       joystickKnobStyle={{
-        width: 62 * stick.scale,
-        height: 62 * stick.scale,
+        width: 62 * fit,
+        height: 62 * fit,
         background: "var(--color-ink)",
         boxShadow: "0 6px 16px rgba(0,0,0,0.45)",
       }}
@@ -218,9 +223,14 @@ function StickSteering() {
  * Two pads. Held, not tapped — steering is a duration, not an event.
  *
  * Wide rather than round because a steering pad is aimed at with the side of a
- * thumb rolling left and right, not placed on with a fingertip: 104×64 is one
- * thumb-roll each way, and the pair is still under the width of a phone in
- * portrait.
+ * thumb rolling left and right, not placed on with a fingertip: a full-size pad
+ * is one thumb-roll each way.
+ *
+ * The width is `--steer-w` rather than a constant because the pair used to be
+ * 216px of a 360px screen, which left the right hand's six controls 144px to
+ * fit into and is why they overlapped. The token narrows the pads on a small
+ * screen — never below the 48px floor — so both hands fit with clear water
+ * between them. See "Touch control geometry" in tokens.css for the budget.
  */
 function PadSteering() {
   const press = (dir: number) => () => {
@@ -240,7 +250,7 @@ function PadSteering() {
         size="md"
         square
         accent="var(--color-accent)"
-        style={{ width: 104, fontSize: 20, letterSpacing: 0 }}
+        style={{ width: "var(--steer-w)", fontSize: 20, letterSpacing: 0 }}
         onPress={press(-1)}
         onRelease={release(-1)}
       />
@@ -250,7 +260,7 @@ function PadSteering() {
         size="md"
         square
         accent="var(--color-accent)"
-        style={{ width: 104, fontSize: 20, letterSpacing: 0 }}
+        style={{ width: "var(--steer-w)", fontSize: 20, letterSpacing: 0 }}
         onPress={press(1)}
         onRelease={release(1)}
       />

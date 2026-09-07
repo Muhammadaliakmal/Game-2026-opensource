@@ -10,6 +10,7 @@ import {
 import { HAPTIC, haptic } from "@/lib/player-settings";
 import { useHudOverlay } from "@/lib/hud-overlay";
 import { useControlLayout } from "@/lib/control-layout";
+import { useTouchScale } from "@/lib/use-media-query";
 import { touchInput } from "./touch-input";
 import { useMoveMode } from "./move-mode";
 import { requestRespawn } from "./play-actions";
@@ -58,6 +59,9 @@ export function TouchControls({ canFly = false }: { canFly?: boolean }) {
   // selector so the component re-renders while a drag is in flight.
   const stick =
     useControlLayout((s) => s.layout.stick) ?? { dx: 0, dy: 0, scale: 1 };
+  // The breakpoint's scale composed with the player's own. The stick is the
+  // one control whose size cannot come from a CSS token — see useTouchScale.
+  const fit = useTouchScale() * stick.scale;
 
   // Don't leave sprint, a lock-on or flight armed for the next world you open.
   useEffect(() => useMoveMode.getState().reset, []);
@@ -92,25 +96,25 @@ export function TouchControls({ canFly = false }: { canFly?: boolean }) {
       */}
       {!blocked && (
       <Joystick
-        joystickMaxRadius={44 * stick.scale}
+        joystickMaxRadius={44 * fit}
         joystickWrapperStyle={{
-          left: "calc(env(safe-area-inset-left, 0px) + var(--hud-inset, 0px) + 12px)",
+          left: "calc(env(safe-area-inset-left, 0px) + var(--hud-inset, 0px) + var(--touch-inset))",
           bottom:
-            "calc(env(safe-area-inset-bottom, 0px) + var(--hud-inset, 0px) + 12px)",
-          width: 168 * stick.scale,
-          height: 168 * stick.scale,
+            "calc(env(safe-area-inset-bottom, 0px) + var(--hud-inset, 0px) + var(--touch-inset))",
+          width: 168 * fit,
+          height: 168 * fit,
           transform: `translate(${stick.dx}px, ${stick.dy}px)`,
         }}
         joystickBaseStyle={{
-          width: 116 * stick.scale,
-          height: 116 * stick.scale,
+          width: 116 * fit,
+          height: 116 * fit,
           background: "var(--glass-bg)",
           border: "1px solid var(--glass-border)",
           backdropFilter: "var(--glass-blur)",
         }}
         joystickKnobStyle={{
-          width: 62 * stick.scale,
-          height: 62 * stick.scale,
+          width: 62 * fit,
+          height: 62 * fit,
           background: "var(--color-ink)",
           boxShadow: "0 6px 16px rgba(0,0,0,0.45)",
         }}
