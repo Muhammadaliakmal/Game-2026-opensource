@@ -1,14 +1,9 @@
-import {
-  ClerkProvider,
-  Show,
-  SignInButton,
-  SignUpButton,
-  UserButton,
-} from "@clerk/nextjs";
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Orbitron, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import { RoomAuth } from "@/components/RoomAuth";
+import { SiteNav } from "@/components/SiteNav";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import "./globals.css";
@@ -107,74 +102,37 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <RoomAuth />
           {/* Also renders nothing. Production only — see the component. */}
           <ServiceWorkerRegistrar />
-          <header className="site-header border-[var(--border-color)] bg-surface flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 sm:px-6">
-            <Link href="/" className="group flex items-center gap-2.5">
+          {/* `relative` is what the mobile menu panel anchors to: it opens
+              full-width under the header rather than under the 28px button
+              that toggles it. `min-w-0` lets the wordmark truncate instead of
+              pushing the nav off the screen on a very narrow phone. */}
+          <header className="site-header border-[var(--border-color)] bg-surface relative flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2 sm:px-6">
+            <Link href="/" className="group flex min-w-0 items-center gap-2.5">
               {/* A single accent block, rotated to read as a voxel corner —
                   and lit, because in the Neon Drift direction the mark is the
                   one place on the page chrome allowed to glow. */}
               <span
-                className="bg-accent block h-4 w-4 rotate-45 transition-transform group-hover:rotate-[135deg]"
+                className="bg-accent block h-4 w-4 shrink-0 rotate-45 transition-transform group-hover:rotate-[135deg]"
                 style={{ boxShadow: "var(--glow-strong)" }}
               />
-              <span className="text-sm font-semibold">Blockworld</span>
+              <span className="truncate text-sm font-semibold">Blockworld</span>
             </Link>
-            <div className="flex items-center gap-3">
-              {/* An explicit way home, next to the other destinations.
-                  The wordmark on the left has always linked here, but a logo is
-                  something people read rather than something they press — in a
-                  race, on a phone, with the HUD over the canvas, nobody found
-                  it. The icon carries it on the narrowest screens; the label
-                  appears as soon as there is room for it. */}
-              <Link href="/" className="hud-chip" aria-label="Home">
-                <svg
-                  viewBox="0 0 16 16"
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M2 6.8 8 2l6 4.8" />
-                  <path d="M3.6 7.8V13a.8.8 0 0 0 .8.8h7.2a.8.8 0 0 0 .8-.8V7.8" />
-                  <path d="M6.4 13.8V9.6h3.2v4.2" />
-                </svg>
-                <span className="hidden sm:inline">Home</span>
-              </Link>
-              {/* Reachable on a phone too: this used to be `hidden sm:inline-flex`,
-                  which left mobile visitors with no route to the gallery at all. */}
-              <Link href="/browse" className="hud-chip">
-                Browse
-              </Link>
-              {/* Racing is NOT a chip here any more. It was, because it was
-                  otherwise reachable only by typing the URL — but a five-word
-                  link wedged between "Browse" and "Get the app" is not how
-                  anybody finds a game mode, and it competed with the header's
-                  actual job. It is a cover on the home page now, next to
-                  parkour, which is where someone looking for something to play
-                  is already looking. */}
-              {/* Hidden on the narrowest screens: the header wraps behind the
-                  sign-in buttons otherwise. Anyone on a phone who wants this is
-                  being sent a link to it. */}
-              <Link href="/download" className="hud-chip hidden sm:inline-flex">
-                Get the app
-              </Link>
-              <Show when="signed-out">
-                {/* Modal, not a page: UI spec §3.5 — signing in must not take
-                    someone away from the world they are in the middle of
-                    building. */}
-                <SignInButton mode="modal" />
-                <SignUpButton mode="modal" />
-              </Show>
-              <Show when="signed-in">
-                <UserButton />
-              </Show>
-            </div>
+            {/* Two layouts, not one squeezed: see components/SiteNav. */}
+            <SiteNav />
           </header>
           {/* min-h-0 lets this actually shrink inside the flex column; without
-              it a tall child would push the shell past the viewport. */}
-          <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+              it a tall child would push the shell past the viewport.
+
+              `overflow-x-hidden` is not belt-and-braces, it is the fix for a
+              real rule: when one axis of `overflow` is `visible` and the other
+              is not, CSS computes the `visible` one to `auto`. So
+              `overflow-y-auto` alone silently made this horizontally
+              scrollable, and anything a few pixels too wide — the old header
+              row, a long heading — gave the whole site a sideways scrollbar
+              rather than being clipped or wrapped. Stating both axes is what
+              stops that. The causes are fixed too (see SiteNav and the
+              typography below); this is the floor under them. */}
+          <main className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
             {children}
           </main>
         </ClerkProvider>

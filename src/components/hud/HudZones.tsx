@@ -150,6 +150,22 @@ const ZONE_STACK: Record<Zone, string> = {
  * wanting to respect the frame — the touch control clusters, which are
  * `position: fixed` and therefore outside this grid — can read the same value.
  */
+/**
+ * Which modes actually put thumb clusters on the screen.
+ *
+ * Riding mounts <RaceTouchControls>, and being on foot mounts <TouchControls>;
+ * the builder and the arena mount neither. Listing them is not pedantry — a
+ * mode that reserves a band it does not need pushes its own bottom row a
+ * hundred and fifty pixels up over empty screen, which is how the arena's HIT
+ * button would have ended up floating in the middle of a fight.
+ *
+ * This is the React-side twin of the media query that gives `--controls-h` a
+ * value: that one answers "is this a touch screen", this one answers "does
+ * this screen have controls at all", and a band is only reserved when both
+ * are true.
+ */
+const MOUNTS_CONTROLS: ReadonlySet<HudMode> = new Set(["race", "parkour"]);
+
 const INSETS: CSSProperties = {
   paddingTop: "calc(env(safe-area-inset-top, 0px) + var(--hud-inset, 0px))",
   paddingRight: "calc(env(safe-area-inset-right, 0px) + var(--hud-inset, 0px))",
@@ -162,7 +178,7 @@ export function HudZones({
   mode,
   children,
   className = "",
-  controls = mode !== "build",
+  controls = MOUNTS_CONTROLS.has(mode),
 }: {
   mode: HudMode;
   children: ReactNode;
@@ -171,10 +187,9 @@ export function HudZones({
    * Whether thumb controls are mounted over this HUD, and therefore whether
    * the bottom zones have to stay clear of them.
    *
-   * Defaulted from the mode rather than required, because it is true of every
-   * screen that is played and false of the one that is edited: the builder
-   * mounts no clusters, so reserving a band there would push its bottom row
-   * up over nothing. Any screen that disagrees can say so.
+   * Defaulted from the mode rather than required, because the answer is a
+   * property of the screen and not a decision each HUD should get to make
+   * differently. Any screen that genuinely disagrees can still say so.
    */
   controls?: boolean;
 }) {

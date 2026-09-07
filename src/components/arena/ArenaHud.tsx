@@ -95,9 +95,32 @@ export function ArenaHud({ code, onAttack }: { code: string; onAttack: () => voi
           <span className="hud-label">F — swing</span>
         </HudZone>
 
+        {/* The way out, in every phase.
+            It used to exist only inside the "you win / you lose" banner, which
+            was survivable while the site header was on screen behind the HUD
+            and offered a route home. The header now stands down on a game
+            screen (see globals.css), so a match still being fought had no exit
+            at all — you were in it until somebody scored enough knockdowns.
+            Bottom-center, matching the race, because the middle of the bottom
+            edge is reachable by either thumb and is the one strip down here
+            that no control rests on. */}
+        <HudZone at="bottom-center">
+          <Link href="/arena" className="hud-chip pointer-events-auto">
+            Leave
+          </Link>
+        </HudZone>
+
         <HudZone at="bottom-right">
           <button
-            className="hud-chip hud-chip--danger pointer-events-auto h-16 w-16 rounded-full text-sm font-semibold"
+            className="hud-chip hud-chip--danger pointer-events-auto rounded-full text-sm font-semibold"
+            // Sized from the touch token rather than a fixed h-16/w-16, so the
+            // one control in this mode shrinks with every other control in the
+            // app instead of staying 64px on a 320px screen.
+            style={{
+              width: "var(--touch-md)",
+              height: "var(--touch-md)",
+              minWidth: "var(--touch-md)",
+            }}
             onClick={onAttack}
             disabled={phase !== "fighting"}
             aria-label="Swing"

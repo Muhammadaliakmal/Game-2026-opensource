@@ -42,29 +42,33 @@ body {
 }
 
 /*
-  ── The installed app is a game, not a site ─────────────────────────────
+  ── A game screen is a game, not a site ─────────────────────────────────
 
-  In a browser tab the header is orientation: it says what this is and offers
-  a way back to the rest of the site. In an installed app it is none of those
-  things — there is no address bar above it to belong to, no other site to
-  return to, and on a phone it was eating 44px off the top of a world that had
-  already been asked to share the screen with a notch. It read as a second
-  title bar stacked on the HUD's own.
+  On a page of prose the header is orientation: it says what this is and offers
+  a way back to the rest of the site. On a world it is none of those things. It
+  eats 44px off the top of a screen that has already been asked to share itself
+  with a notch, and it puts site chrome and game chrome on screen at the same
+  time — which is what made entering a race feel like a web page loading rather
+  than a game starting. The loading screen was the worst of it: "Entering the
+  circuit" under a row of Sign in / Sign up buttons.
 
-  So it goes, but only where both halves are true: `display-mode: standalone`
-  means this is the installed app rather than a tab, and `[data-immersive]`
-  means the page is a world rather than a document. The home page and the
-  gallery keep their header inside the installed app, because those genuinely
-  are documents and losing the nav there would leave no route to sign out.
+  This used to be gated on `display-mode: standalone` as well, on the reasoning
+  that a browser tab still wants a route back to the site. It does — but the
+  route belongs in the HUD, where a thumb already is, not in a bar above a
+  canvas. Every immersive screen now carries its own exit (Leave in the race
+  and the arena, Exit in a world), so the gate is gone and a game looks like a
+  game wherever it is opened.
+
+  `[data-immersive]` is what marks a page as a world rather than a document —
+  see components/ImmersiveMarker. The home page, the gallery and the builder do
+  not set it and keep their header.
 
   Pure CSS on purpose. The header is server-rendered in the root layout, so a
   JavaScript check would paint it and then remove it — a visible jump on the
   way into every world.
 */
-@media (display-mode: standalone), (display-mode: fullscreen) {
-  body:has([data-immersive]) .site-header {
-    display: none;
-  }
+body:has([data-immersive]) .site-header {
+  display: none;
 }
 
 body {
