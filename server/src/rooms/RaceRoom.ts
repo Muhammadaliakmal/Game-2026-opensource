@@ -4,7 +4,7 @@ import { RACE, Race, gridPose } from "../race.ts";
 import { RaceState, Rider } from "../race-state.ts";
 import { verifyJoin } from "../auth.ts";
 import { getWorldSource } from "../world-source.ts";
-import { GRID_YAW } from "@/lib/race-track";
+import { GRID_YAW, raceTrackSlug } from "@/lib/race-track";
 import type { WorldDoc } from "@/lib/worlddoc";
 
 /**
@@ -15,10 +15,12 @@ import type { WorldDoc } from "@/lib/worlddoc";
  * cannot are the clock (a countdown ending is not something a rules object can
  * notice) and the world.
  *
- * The track is fixed rather than chosen. A lap only means anything on a closed
- * circuit, and the sector scheme in race-track.ts describes exactly one — so
- * offering a world picker here would be offering three worlds where the lap
- * counter silently never advances.
+ * The track is chosen once, when the room is created, from a fixed set
+ * (`RACE_TRACKS` in race-track.ts). Every one of them shares the circuit's XZ
+ * shape, so the sector scheme and the lap counter here are identical whichever
+ * is picked — the difference is elevation, which the lap counter never sees. A
+ * client cannot name an arbitrary world: `raceTrackSlug` maps an unknown id
+ * back to the default.
  */
 
 const moveSchema = z.object({
@@ -27,9 +29,6 @@ const moveSchema = z.object({
   z: z.number().finite(),
   yaw: z.number().finite(),
 });
-
-/** The one world a race can happen on. */
-export const RACE_WORLD = "circuit";
 
 export interface RaceOptions {
   code?: string;
@@ -43,6 +42,13 @@ export interface RaceOptions {
    * that one is deliberately open to any rider in the room.
    */
   target?: number;
+  /**
+   * Which track to run, as a `RACE_TRACKS` id. Heard only on create, exactly
+   * like `target`: someone opening a shared `/race/CODE?track=…` link joins
+   * the room the way its creator built it, whatever the link says. Unknown or
+   * absent falls back to the default rather than refusing the join.
+   */
+  track?: string;
 }
 
 export class RaceRoom extends Room<{ state: RaceState }> {
@@ -60,8 +66,9 @@ export class RaceRoom extends Room<{ state: RaceState }> {
     const code = options?.code;
     if (!code) throw new ServerError(400, "code is required");
 
-    const record = await getWorldSource().load(RACE_WORLD);
-    if (!record) throw new ServerError(404, `world ${RACE_WORLD} not found`);
+    const worldId = raceTrackSlug(options?.track);
+    const record = await getWorldSource().load(worldId);
+    if (!record) throw new ServerError(404, `world ${worldId} not found`);
 
     // The track is scenery a race is run on, never something it edits.
     const doc = record.doc;

@@ -62,6 +62,7 @@ interface Snapshot {
 export default function RaceCanvas({
   code,
   target,
+  track,
 }: {
   code: string;
   /**
@@ -69,6 +70,11 @@ export default function RaceCanvas({
    * room. Ignored by the server on a join — see joinRace.
    */
   target?: number;
+  /**
+   * The track the lobby chose, when this client opens the room. Ignored by the
+   * server on a join — the joiner races whatever the creator built.
+   */
+  track?: string;
 }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [painted, setPainted] = useState(false);
@@ -95,7 +101,7 @@ export default function RaceCanvas({
   useEffect(() => {
     let dispose: (() => void) | undefined;
     let cancelled = false;
-    void joinRace(code, onWorld, target).then((d) => {
+    void joinRace(code, onWorld, target, track).then((d) => {
       if (cancelled) d();
       else dispose = d;
     });
@@ -104,7 +110,7 @@ export default function RaceCanvas({
       dispose?.();
       leaveRace();
     };
-  }, [code, onWorld, target]);
+  }, [code, onWorld, target, track]);
 
   const getFocus = useMemo(() => () => playerFocus, []);
 
@@ -142,9 +148,10 @@ export default function RaceCanvas({
           // of the depth buffer's precision was going to the 20cm in front of
           // the lens where nothing is ever drawn, and the coplanar top faces of
           // 6,340 road blocks are exactly the geometry that shows it as
-          // shimmer. Safe to pin here because the race is always Neon Circuit —
-          // the editor and Play canvases orbit user-built worlds of unknown
-          // size and keep the defaults.
+          // shimmer. Safe to pin here because every race track shares the
+          // circuit's footprint — that same ~260-unit box, plus a few units of
+          // elevation on Vapor Ridge; only the editor and Play canvases orbit
+          // user-built worlds of unknown size and keep the defaults.
           near: CAMERA_NEAR,
           far: CAMERA_FAR,
         }}
@@ -216,9 +223,12 @@ export default function RaceCanvas({
               })}
         />
 
-        {/* The racing surface is a single flat layer at y=0 — see circuit.ts,
-            which is explicit that the track has no elevation change. That is
-            what makes it safe to tell InstancedParts its shadow is wasted. */}
+        {/* groundY names the y=0 layer specifically, not "the ground": on both
+            tracks that layer is the flat start straight and — on Vapor Ridge —
+            the foot of every support column, all of it casting a shadow onto
+            something coplanar or onto the underside of raised track. The raised
+            surfaces themselves are y>0 and keep casting, so the ridge still
+            throws a shadow across the infield. */}
         <InstancedParts groundY={0} />
         {snapshot && <PlacedProps props={snapshot.props} />}
         <RaceRiders />

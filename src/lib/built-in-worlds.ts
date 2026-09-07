@@ -3,6 +3,7 @@ import { parkourWorldDoc } from "./parkour";
 import { islandWorldDoc } from "./island";
 import { cottageWorldDoc } from "./cottage";
 import { circuitWorldDoc } from "./circuit";
+import { vaporRidgeWorldDoc } from "./vapor-ridge";
 import { TIERED_COURSES } from "./courses";
 import type { Tier } from "./course-kit";
 
@@ -62,6 +63,14 @@ export const BUILT_IN_WORLDS: BuiltInWorld[] = [
     name: "Neon Circuit",
     blurb: "A railed loop with nothing to fall off. Hold sprint and go.",
     build: (ownerId) => circuitWorldDoc("circuit", ownerId, "Neon Circuit"),
+  },
+  {
+    slug: "ridge",
+    name: "Vapor Ridge",
+    blurb:
+      "The circuit's shape, up on stilts. A hill on the right, and a crest on " +
+      "the back straight that throws you off the end of it.",
+    build: (ownerId) => vaporRidgeWorldDoc("ridge", ownerId, "Vapor Ridge"),
   },
 ];
 

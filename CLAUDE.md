@@ -149,6 +149,47 @@ the route, and — the one that matters — that the goal is still reachable *fr
 every checkpoint*, because a resume point you cannot continue from is a soft
 lock rather than a mercy.
 
+## Race tracks
+
+**Every race track shares one XZ footprint** — the rounded box in
+`lib/race-track.ts` (`BX`, `BZ`, `CORNER`, `HALF_WIDTH`). That is the load-
+bearing fact: `lapProgress`, `sectorAt`, `START_LINE_Z`, `GRID_SLOTS` and the
+steering assist are all written against it, so the room server counts laps with
+the same code whichever track is running and `race.test.ts` never has to know a
+track exists. A track that changed the footprint would move all of that.
+
+- `RACE_TRACKS` is the registry — id, world slug, name, blurb — and
+  `raceTrackSlug()` is the validation step that stops a client naming an
+  arbitrary world in a room option.
+- The pick is a **create-time** room option, exactly like `target`: the lobby
+  puts `?track=` on the link it opens, the server honours it on create and
+  ignores it on join, so everyone racing a shared code races what its creator
+  built.
+- `circuit.ts` is flat by choice. `vapor-ridge.ts` is the elevated sibling.
+
+### Elevation, on Vapor Ridge
+
+Height is a **per-straight profile keyed on an along-axis coordinate**, never on
+lap angle. Lap angle's iso-lines lean a few degrees inward down a straight (see
+`race-assist.ts`), so driving elevation off it tilts every hill across the road
+and leaves a lateral step down one edge. `regionOf()` splits the loop into the
+four straights and the corners; each straight has its own `s` in cells and its
+own `(s, level)` knot list in `HILLS`.
+
+Three rules the generator holds, and `vapor-ridge.test.ts` pins:
+
+- **Corners and the start straight are flat at level 0.** A ramp is a fixed
+  one-cell 45° climb that only turns in 90° steps, so it cannot follow a curve —
+  and the grid slots and start line carry hard-coded Y from the flat circuit.
+- **A slope changes by at most one level per cell.** Anything steeper is a wall.
+  The one exception is the drop off the crest, written as a knot pair a single
+  cell apart, which `levelAlong` snaps across so no cell sits on the face.
+- **A falling ramp sits at `level + 1`, a rising one at `level`.** A ramp block
+  spans `[y, y+1]`; going down, its high edge has to meet the higher ground
+  *behind* it, so it is one cell above the level it is heading for. Getting this
+  wrong leaves a one-unit step at the top and bottom of every descent, which is
+  what it did first.
+
 ## The sky
 
 Play and Race run **night**: a dark-blue-to-black dome, a starfield, a moon and

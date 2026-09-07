@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { isMatchCode, makeMatchCode, normalizeMatchCode } from "@/lib/match-code";
 import { multiplayerEnabled } from "@/lib/net/room";
-import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
+import { MAX_RIDERS, RACE_LAPS, RACE_TRACKS } from "@/lib/race-track";
 import { ModeCover } from "@/components/modes/ModeCover";
 
 /**
@@ -15,14 +15,19 @@ import { ModeCover } from "@/components/modes/ModeCover";
  * code you were given is the whole access model, and it keeps a race between
  * the people who meant to have one.
  *
- * There is no world picker either. A lap counter needs a closed circuit with
- * known sectors, and exactly one world has them.
+ * The track picker only sets a `?track=` on the link the creator opens — every
+ * track shares the sector scheme, so the joiner races whatever was built and
+ * the lap counter never has to care which one it is.
  */
 export default function RaceLobbyPage() {
   const router = useRouter();
   const [code, setCode] = useState("");
+  const [track, setTrack] = useState(RACE_TRACKS[0].id);
 
-  const open = () => router.push(`/race/${makeMatchCode()}`);
+  const open = () => {
+    const q = track === RACE_TRACKS[0].id ? "" : `?track=${track}`;
+    router.push(`/race/${makeMatchCode()}${q}`);
+  };
 
   const join = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,8 +62,8 @@ export default function RaceLobbyPage() {
               </Link>
               <h1 className="text-display text-ink font-bold">Race</h1>
               <p className="text-dim max-w-md text-sm">
-                Up to {MAX_RIDERS} riders, {RACE_LAPS} laps of Neon Circuit, on
-                bikes. Open a grid and send the link to whoever you want to
+                Up to {MAX_RIDERS} riders, {RACE_LAPS} laps, on bikes. Pick a
+                track, open a grid, and send the link to whoever you want to
                 race.
               </p>
             </div>
@@ -82,6 +87,35 @@ export default function RaceLobbyPage() {
             You get a code to share. The lights start on their own once a second
             rider arrives, or you can go out alone for a time trial.
           </p>
+
+          <fieldset className="flex flex-col gap-2">
+            <legend className="hud-label mb-1">Track</legend>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {RACE_TRACKS.map((t) => {
+                const on = t.id === track;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTrack(t.id)}
+                    aria-pressed={on}
+                    className={`card flex-1 p-3 text-left transition ${
+                      on
+                        ? "border-accent ring-accent/40 ring-1"
+                        : "border-[var(--border-color)] opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    <span className="text-ink block text-sm font-semibold">
+                      {t.name}
+                    </span>
+                    <span className="text-dim mt-0.5 block text-xs">
+                      {t.blurb}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
 
           <button onClick={open} className="hud-chip hud-chip--primary w-fit">
             Create the room

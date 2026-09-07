@@ -137,3 +137,51 @@ export const GRID_YAW = Math.PI / 2;
 
 /** How many can be on the grid at once. */
 export const MAX_RIDERS = GRID_SLOTS.length;
+
+/**
+ * The tracks a race can be run on.
+ *
+ * Every one shares the XZ shape above — the same rounded box, the same corner
+ * radius, the same start line and grid — so `lapProgress`, `sectorAt` and the
+ * steering assist need no per-track knowledge, and the room server counts laps
+ * the same way whichever is chosen. What differs is elevation: `circuit` is
+ * dead flat, `ridge` runs a hill and a crest you leave the ground over. The
+ * generator for each lives beside `circuit.ts`.
+ *
+ * `id` is what a client may name in a room option; `slug` is the built-in
+ * world it resolves to. They are equal today and kept as separate fields so
+ * `raceTrackSlug` is visibly a validation step — a client cannot ask a race
+ * room to load an arbitrary world by putting its name in `track`.
+ */
+export interface RaceTrackInfo {
+  id: string;
+  slug: string;
+  name: string;
+  blurb: string;
+}
+
+export const RACE_TRACKS: readonly RaceTrackInfo[] = [
+  {
+    id: "circuit",
+    slug: "circuit",
+    name: "Neon Circuit",
+    blurb: "Flat and railed on both sides. Nothing to fall off — hold the throttle.",
+  },
+  {
+    id: "ridge",
+    slug: "ridge",
+    name: "Vapor Ridge",
+    blurb: "A climb on the right, then a crest on the back straight that throws you off it.",
+  },
+] as const;
+
+/** The track a room opens on when the option is absent or unrecognised. */
+export const DEFAULT_RACE_TRACK = "circuit";
+
+/** Resolve a client-supplied track id to a built-in world slug, safely. */
+export function raceTrackSlug(id: string | undefined): string {
+  return (
+    RACE_TRACKS.find((t) => t.id === id) ??
+    RACE_TRACKS.find((t) => t.id === DEFAULT_RACE_TRACK)!
+  ).slug;
+}

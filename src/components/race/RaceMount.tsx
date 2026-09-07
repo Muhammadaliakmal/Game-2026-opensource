@@ -17,15 +17,18 @@ const RaceCanvas = dynamic(() => import("./RaceCanvas"), {
 export function RaceMount({
   code,
   target,
+  track,
 }: {
   code: string;
   /** The grid size the lobby asked for, when this client opens the room. */
   target?: number;
+  /** The track the lobby chose, when this client opens the room. */
+  track?: string;
 }) {
   return (
     <>
       <ImmersiveMarker />
-      <RaceCanvas code={code} target={target} />
+      <RaceCanvas code={code} target={target} track={track} />
     </>
   );
 }

@@ -84,9 +84,12 @@ export function setGridListener(fn: GridListener | null) {
 /**
  * Joins (or opens) the race with this code.
  *
- * There is no world parameter, unlike a duel: laps only mean anything on a
- * closed circuit and the sector scheme describes exactly one, so the track is
- * the room's decision and not the joiner's.
+ * `track` and `target` are both create-only, unlike a duel's world: they reach
+ * the server through `joinOrCreate` options, which it honours when this call
+ * creates the room and ignores on a join. So the person who opens a grid picks
+ * the track and its size, and everyone following the shared link races what
+ * they built — the sector scheme is the same for every track, so the lap
+ * counter does not care which one it was.
  */
 export async function joinRace(
   code: string,
@@ -99,7 +102,9 @@ export async function joinRace(
    * reason. Somebody arriving at a grid of four does not get to quietly turn
    * it into a grid of two.
    */
-  target?: number
+  target?: number,
+  /** Which track to build the grid on, if we are the one opening it. */
+  track?: string
 ): Promise<() => void> {
   if (!multiplayerEnabled) {
     useRaceStore.getState().setConnection({
@@ -120,7 +125,7 @@ export async function joinRace(
     const client = new Client(MULTIPLAYER_URL);
     const token = await roomToken();
     if (token) client.auth.token = token;
-    const joined = await client.joinOrCreate("race", { code, target });
+    const joined = await client.joinOrCreate("race", { code, target, track });
     room = joined;
     connecting = false;
     store.setConnection({
