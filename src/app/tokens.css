@@ -237,9 +237,17 @@
   --controls-h: 0px;
 }
 
-/* Large mobile. left 150 + right 184 + 24 = 358, so a 390px phone keeps 32px
-   of clear water between the two thumbs and a 480px one keeps 122. */
-@media (max-width: 480px) {
+/* Large mobile and small tablets. left 150 + right 184 + 24 = 358, so a 390px
+   phone keeps 32px of clear water between the two thumbs and a 600px one keeps
+   242.
+
+   600 and not 480, which is where this first sat: the full-size values come to
+   460px of controls, so at 481 — the first pixel past a 480 breakpoint — the
+   two clusters would have been 21px apart. Not overlapping, but "not
+   overlapping" is not the bar; a gap narrower than a fingertip is a gap you
+   press across. The step belongs where the full-size layout actually has room
+   to breathe. */
+@media (max-width: 600px) {
   :root {
     --touch-md: 54px;
     --touch-lg: 70px;

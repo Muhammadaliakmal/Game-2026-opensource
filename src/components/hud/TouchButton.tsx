@@ -318,11 +318,19 @@ export function ThumbCluster({
          * so a cluster that outgrows its budget wraps inside its own half
          * instead of silently sliding under the other thumb.
          *
-         * The split is 46/54 rather than half and half because the two sides
+         * The split is 44/56 rather than half and half because the two sides
          * are not symmetrical — the right carries the throttle, which is the
-         * biggest control in the game and the one nothing may shrink into.
+         * biggest control in the game and the one nothing may shrink into. It
+         * sums to exactly 100vw, so even both sides at their cap cannot reach
+         * across each other.
+         *
+         * 44/56 and not 46/54, which was the first split: at 320px that left
+         * the right cluster's cap one pixel clear of its own content, so any
+         * future change to a control would have started wrapping it with no
+         * obvious cause. A guard that only just holds is a guard that is about
+         * to stop holding.
          */
-        maxWidth: `calc(${side === "left" ? "46vw" : "54vw"} - var(--touch-inset))`,
+        maxWidth: `calc(${side === "left" ? "44vw" : "56vw"} - var(--touch-inset))`,
         flexWrap: "wrap",
         justifyContent: side === "left" ? "flex-start" : "flex-end",
         pointerEvents: "none",

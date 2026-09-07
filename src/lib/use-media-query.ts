@@ -81,7 +81,7 @@ export function useTouchScale(): number {
   // the render they would save.
   const tight = useMediaQuery("(max-width: 380px)");
   const compact = useMediaQuery(
-    "(max-width: 480px), (orientation: landscape) and (max-height: 480px)"
+    "(max-width: 600px), (orientation: landscape) and (max-height: 480px)"
   );
   if (tight) return 0.72;
   if (compact) return 0.84;
