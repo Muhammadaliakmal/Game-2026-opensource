@@ -88,7 +88,7 @@ export function RaceHud({ code }: { code: string }) {
           screen stays clear for the road. */}
       {me && phase !== "waiting" && (
         <HudZone at="top-center">
-          <div className="hud-panel flex items-stretch gap-3 px-3 py-1.5">
+          <div className="hud-panel hud-panel--readout flex items-stretch gap-3 px-3 py-1.5">
             <div className="flex flex-col items-center gap-0.5">
               <span className="hud-label">Lap</span>
               <span className="hud-readout text-lg">
@@ -108,11 +108,18 @@ export function RaceHud({ code }: { code: string }) {
         </HudZone>
       )}
 
-      {/* ── Top-right: the session chrome, where every game puts it ── */}
+      {/* ── Top-right: the session chrome, where every game puts it ──
+             Three icon buttons is ~108px, and with the session code top-left
+             and lap/position top-centre the row came to within a few pixels of
+             a 360px screen. Sound and fullscreen are pressed twice a session,
+             so on a phone they step back into Settings (see its Display tab)
+             and the corner keeps only the gear. They stay on a wider screen,
+             because the crowding is the whole reason and it does not exist
+             there. ── */}
       <HudZone at="top-right">
         <div className="hud-panel pointer-events-auto flex items-center gap-1.5 p-1.5">
-          <MuteButton className="hud-chip hud-chip--icon hud-chip--touch" />
-          <FullscreenButton className="hud-chip hud-chip--icon hud-chip--touch" />
+          <MuteButton className="hud-chip hud-chip--icon hud-chip--touch hidden sm:inline-flex" />
+          <FullscreenButton className="hud-chip hud-chip--icon hud-chip--touch hidden sm:inline-flex" />
           <SettingsButton
             className="hud-chip hud-chip--icon hud-chip--touch"
             title={`Neon Circuit · ${code}`}
@@ -140,9 +147,19 @@ export function RaceHud({ code }: { code: string }) {
           the far corner of a phone held in two hands is the one place neither
           thumb reaches without regripping. The middle of the bottom edge is
           reachable and, because the thumb clusters own the corners, is the
-          one strip down there that nothing rests on. ── */}
+          one strip down there that nothing rests on.
+
+          That last part was only true on a wide screen. On a phone the
+          clusters spread far enough to meet in the middle and this sat under
+          them — the way out of a race was the one control you could not press.
+          The zone now holds itself above the control band (`--controls-h`, see
+          HudZones), so the strip is real at every width rather than only where
+          there happened to be room. ── */}
       <HudZone at="bottom-center">
-        <Link href="/race" className="hud-chip pointer-events-auto">
+        <Link
+          href="/race"
+          className="hud-chip hud-chip--touch pointer-events-auto"
+        >
           Leave
         </Link>
       </HudZone>

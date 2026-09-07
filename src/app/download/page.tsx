@@ -26,7 +26,7 @@ export default async function DownloadPage() {
   const apk = await apkInfo();
 
   return (
-    <main className="bg-base min-h-dvh px-5 py-10 sm:px-8">
+    <main className="bg-base min-h-dvh px-4 py-6 sm:px-8 sm:py-10">
       <div className="mx-auto flex max-w-2xl flex-col gap-8">
         <header className="flex flex-col gap-2">
           <Link href="/" className="hud-label w-fit">

@@ -81,7 +81,16 @@ body {
 
 /* Headlines carry the character; the UI face stays neutral underneath them.
    Orbitron is wide, so headings get negative tracking to stop them sprawling
-   — the opposite of the HUD labels below, which want the extra air. */
+   — the opposite of the HUD labels below, which want the extra air.
+
+   `overflow-wrap` and the width cap are the floor under the fluid sizes
+   below. Orbitron is a WIDE face, so a heading that fits in Plex can still be
+   a third too long here, and a single long word — a world's name, a course
+   title someone typed — has no break opportunity in it at all. Without these
+   such a word does not wrap, it sticks out of its container and widens the
+   page. `anywhere` rather than `break-word` because only the former also
+   shrinks the element's own min-content width, which is what stops a flex or
+   grid child from refusing to narrow in the first place. */
 h1,
 h2,
 h3 {
@@ -89,17 +98,49 @@ h3 {
     sans-serif;
   font-weight: 700;
   letter-spacing: -0.01em;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
-/* Body copy stays inside a readable measure. */
+/*
+  A page's one headline, sized to the viewport rather than to a breakpoint.
+
+  `text-3xl sm:text-4xl` is 49px below 640 and 61px above it, and 49px of a
+  wide display face is too much for a 360px screen — "Build worlds out of
+  blocks" filled the width and the line under it broke into single words. A
+  step at 640px cannot help, because the problem is at 360.
+
+  So it scales continuously between the two ends of the existing type scale
+  instead: never smaller than --text-xl, never larger than --text-4xl, and 6.5%
+  of the viewport in between. The scale is unchanged — this picks a point on
+  it per screen rather than adding sizes to it.
+*/
+.text-display {
+  font-size: clamp(var(--text-xl), 6.5vw, var(--text-4xl));
+  line-height: 1.08;
+}
+
+/* Body copy stays inside a readable measure. `min()` rather than a bare `ch`
+   cap: 68ch is wider than a phone, and a max-width larger than the container
+   silently does nothing, which left long paragraphs setting the page width on
+   the screens where the measure mattered least. */
 p {
-  max-width: 68ch;
+  max-width: min(68ch, 100%);
 }
 
 /* The 3D canvas owns its gestures: drag-to-look must not be stolen by the
-   browser's scroll/pinch handling on touch devices. */
+   browser's scroll/pinch handling on touch devices.
+
+   `max-width` and `display:block` are the guard around that. A <canvas> is a
+   replaced element with intrinsic pixel dimensions, so it will happily paint
+   wider than the box it was given — R3F sets its style to 100% and resizes it
+   from a ResizeObserver, but there is a frame between a viewport change and
+   that observer firing, and on a phone that frame is a horizontal scrollbar.
+   `block` removes the inline-baseline gap underneath it for free. */
 canvas {
   touch-action: none;
+  display: block;
+  max-width: 100%;
 }
 
 input {
@@ -147,6 +188,38 @@ input {
 @supports not (backdrop-filter: blur(1px)) {
   .hud-panel {
     background: color-mix(in oklab, var(--color-panel) 94%, transparent);
+  }
+}
+
+/*
+  A panel carrying a number you have to read WHILE something else has your
+  attention: speed, lap, position, boost.
+
+  The standard glass is 5.5% white, which is a material chosen to sit lightly
+  over the world — correct for a panel you look at, and not enough for one you
+  glance at. Blockworld's sky moves through a full day cycle, so the same
+  readout that is crisp over a night circuit is white-on-pale at the top of a
+  sunset, and blur does not help: `backdrop-filter` blurs what is behind the
+  panel, it does not darken it, so a bright sky blurs into an evenly bright
+  sky.
+
+  So these panels carry their own ground instead of borrowing one. Dark enough
+  to hold `--color-ink` at any hour, still translucent enough to read as glass
+  and to let the world move behind it. The border comes up with it, because a
+  darker fill on the same faint edge stops looking like a pane and starts
+  looking like a hole.
+
+  It is deliberately NOT the default. Every panel painting its own dark ground
+  is a HUD that covers the game, and most panels — a session code, a menu —
+  are read when you have time to look at them.
+*/
+.hud-panel--readout {
+  background: color-mix(in oklab, var(--color-base) 74%, transparent);
+  border-color: rgb(255 255 255 / 0.16);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .hud-panel--readout {
+    background: color-mix(in oklab, var(--color-base) 96%, transparent);
   }
 }
 

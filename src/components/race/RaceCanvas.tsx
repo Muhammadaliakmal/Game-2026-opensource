@@ -250,7 +250,28 @@ export default function RaceCanvas({
       {snapshot && painted && touch && <RaceTouchControls />}
 
       {(!painted || !snapshot) && (
-        <div className="bg-base absolute inset-0 flex flex-col items-center justify-center gap-4">
+        <div
+          className="bg-base absolute inset-0 flex flex-col items-center justify-center gap-4"
+          /*
+           * The loading screen paints edge to edge — `viewportFit: "cover"`
+           * (lib/immersive) puts it under the notch and under the phone's own
+           * gesture bar. That is right for the world behind it and wrong for
+           * anything you have to press: Back sat within a few pixels of the
+           * Android navigation area, where a tap is as likely to go to the
+           * system as to the page. So the content is held inside the safe area
+           * plus the player's own frame, exactly as the HUD zones are.
+           */
+          style={{
+            paddingTop:
+              "calc(env(safe-area-inset-top, 0px) + var(--hud-inset, 0px) + var(--space-2))",
+            paddingBottom:
+              "calc(env(safe-area-inset-bottom, 0px) + var(--hud-inset, 0px) + var(--space-3))",
+            paddingLeft:
+              "calc(env(safe-area-inset-left, 0px) + var(--space-2))",
+            paddingRight:
+              "calc(env(safe-area-inset-right, 0px) + var(--space-2))",
+          }}
+        >
           <GameLoader
             label="Entering the circuit"
             /* Named, because this is the one loading screen where the wait can
@@ -259,7 +280,14 @@ export default function RaceCanvas({
                staring at an unexplained thirty seconds assumes it is broken. */
             detail={`Room ${code} · waking the grid`}
           />
-          <Link href="/race" className="hud-chip">
+          {/* A full touch target, not a 28px chip: this is the one control on
+              the screen, and it is being pressed by somebody who has decided
+              the wait is not worth it. */}
+          <Link
+            href="/race"
+            className="hud-chip"
+            style={{ minHeight: "var(--touch-sm)", paddingInline: "var(--space-2)" }}
+          >
             Back
           </Link>
         </div>

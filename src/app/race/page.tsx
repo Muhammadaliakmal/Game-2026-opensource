@@ -33,7 +33,7 @@ export default function RaceLobbyPage() {
   return (
     // Rebinds --color-accent to the racing magenta for the whole screen, the
     // same mechanism the in-game HUD uses. See globals.css.
-    <main data-mode="race" className="bg-base min-h-dvh px-5 py-10 sm:px-8">
+    <main data-mode="race" className="bg-base min-h-dvh px-4 py-6 sm:px-8 sm:py-10">
       <div className="mx-auto flex max-w-2xl flex-col gap-8">
         {/* The same cover the home page shows, at full width.
             Arriving here used to mean a heading and two sentences, which made
@@ -55,7 +55,7 @@ export default function RaceLobbyPage() {
               <Link href="/" className="hud-label text-accent w-fit">
                 ← Blockworld
               </Link>
-              <h1 className="text-ink text-3xl leading-tight font-bold">Race</h1>
+              <h1 className="text-display text-ink font-bold">Race</h1>
               <p className="text-dim max-w-md text-sm">
                 Up to {MAX_RIDERS} riders, {RACE_LAPS} laps of Neon Circuit, on
                 bikes. Open a grid and send the link to whoever you want to

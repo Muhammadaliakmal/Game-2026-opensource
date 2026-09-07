@@ -86,7 +86,7 @@ export default function HeroCanvas() {
   }, [parts, placed, router]);
 
   return (
-    <div className="relative h-[55vh] min-h-[20rem] w-full">
+    <div className="relative h-[55dvh] max-h-[34rem] min-h-[min(20rem,55dvh)] w-full">
       <Canvas
         frameloop="demand"
         shadows

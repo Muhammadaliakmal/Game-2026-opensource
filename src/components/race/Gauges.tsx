@@ -92,7 +92,7 @@ export function Speedometer() {
   });
 
   return (
-    <div className="hud-panel flex flex-col items-end gap-1 px-3 py-2">
+    <div className="hud-panel hud-panel--readout flex flex-col items-end gap-1 px-3 py-2">
       <div className="flex items-baseline gap-1.5">
         <span ref={value} className="hud-readout text-2xl">
           0
@@ -146,7 +146,7 @@ export function BoostMeter() {
     <div
       ref={wrap}
       data-state="idle"
-      className="hud-panel group flex flex-col gap-1 px-3 py-2 data-[state=spending]:shadow-[var(--glow-strong)]"
+      className="hud-panel hud-panel--readout group flex flex-col gap-1 px-3 py-2 data-[state=spending]:shadow-[var(--glow-strong)]"
     >
       <div className="flex items-center gap-2">
         <span className="hud-label">Boost</span>

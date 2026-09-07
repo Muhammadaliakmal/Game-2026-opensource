@@ -43,7 +43,7 @@ export function ModeCard({
     <Link
       href={href}
       data-mode={art}
-      className="group border-[var(--border-color)] hover:border-accent/70 focus-visible:border-accent/70 relative flex min-h-[15rem] flex-col justify-end overflow-hidden rounded-[var(--radius)] border transition-colors sm:min-h-[17rem]"
+      className="group border-[var(--border-color)] hover:border-accent/70 focus-visible:border-accent/70 relative flex min-h-[12rem] flex-col justify-end overflow-hidden sm:min-h-[15rem] rounded-[var(--radius)] border transition-colors md:min-h-[17rem]"
     >
       <ModeCover art={art} />
 

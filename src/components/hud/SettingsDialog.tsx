@@ -23,6 +23,8 @@ import {
   type RaceScheme,
 } from "@/lib/player-settings";
 import { useCoarsePointer } from "@/lib/use-media-query";
+import { FullscreenButton } from "@/components/FullscreenButton";
+import { MuteButton } from "@/components/MuteButton";
 import { useHudOverlay } from "@/lib/hud-overlay";
 import {
   CONTROL_NAMES,
@@ -483,6 +485,28 @@ function DisplaySettings() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/*
+        Sound and fullscreen live here now as well as on the HUD.
+
+        They were three icon buttons in the race's top-right corner, next to
+        the gear that opens this dialog. Three 28px icons in a panel is ~108px,
+        and with the session code top-left and lap/position top-centre the top
+        row came to within a few pixels of a 360px screen — the point at which
+        the next thing added to any of them starts a wrap.
+
+        A readout you glance at while riding has to be on the HUD. A toggle you
+        press twice a session does not, so on a phone these two step back into
+        the menu and the corner keeps only the gear. On a wider screen they
+        stay where they were: the crowding is the reason, and it does not exist
+        there. Both components already took a `label` — this is the row form
+        they were built for.
+      */}
+      <section className="flex flex-col gap-2 sm:hidden">
+        <h3 className="hud-label">Screen</h3>
+        <MuteButton className="hud-menu-item" label="Sound" />
+        <FullscreenButton className="hud-menu-item" label="Fullscreen" />
+      </section>
+
       <section className="flex flex-col gap-2">
         <h3 className="hud-label">Safe frame</h3>
         <p className="text-dim text-2xs">

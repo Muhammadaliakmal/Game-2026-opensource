@@ -173,7 +173,7 @@ function RunTimer() {
   const ms = finishedMs ?? elapsed;
 
   return (
-    <div className="hud-panel flex shrink-0 flex-col items-start px-3 py-2">
+    <div className="hud-panel hud-panel--readout flex shrink-0 flex-col items-start px-3 py-2">
       <span className="num text-2xs font-medium">{formatTime(ms)}</span>
       <GhostLine />
     </div>
@@ -225,7 +225,7 @@ function CheckpointPips() {
 
   return (
     <div
-      className="hud-panel flex shrink-0 items-center gap-1 px-3 py-2"
+      className="hud-panel hud-panel--readout flex shrink-0 items-center gap-1 px-3 py-2"
       // One label for the row: a screen reader announcing eight list items
       // called "checkpoint" is worse than silence.
       role="img"

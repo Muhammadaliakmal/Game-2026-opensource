@@ -97,9 +97,9 @@ export default async function Home() {
       <div className="flex w-full flex-1 flex-col">
         <HeroMount />
 
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-12 px-4 py-10 sm:px-6">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-7 sm:gap-12 sm:px-6 sm:py-10">
           <section className="flex flex-col items-start gap-5">
-            <h1 className="max-w-2xl text-3xl leading-[1.1] font-bold sm:text-4xl">
+            <h1 className="text-display max-w-2xl font-bold">
               Build worlds out of blocks, then walk around inside them.
             </h1>
             <p className="text-dim text-sm">
@@ -206,14 +206,14 @@ export default async function Home() {
     .orderBy(desc(worlds.updatedAt));
 
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
       {/* The modes first: they are always here, and they give a brand-new
           account something to do before it has built anything. */}
-      <div className="mb-12">
+      <div className="mb-8 sm:mb-12">
         <Modes />
       </div>
 
-      <section className="mb-12">
+      <section className="mb-8 sm:mb-12">
         <h2 className="mb-4 text-xl font-bold">Worlds to explore</h2>
         <ul className="grid gap-4 sm:grid-cols-2">
           {SANDBOX_WORLDS.map((w) => (

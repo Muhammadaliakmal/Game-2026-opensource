@@ -58,13 +58,13 @@ export default function ParkourPage() {
       // Rebinds --color-accent to the parkour green for the whole screen, the
       // same mechanism the in-game HUD uses. See globals.css.
       data-mode="parkour"
-      className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6"
+      className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-8"
     >
       <header className="mb-8 flex flex-col gap-2">
         <Link href="/" className="hud-label w-fit">
           ← Blockworld
         </Link>
-        <h1 className="text-3xl leading-tight font-bold sm:text-4xl">Parkour</h1>
+        <h1 className="text-display font-bold">Parkour</h1>
         <p className="text-dim max-w-xl text-sm">
           Five courses, Tutorial to Expert. The clock runs from the moment you
           land, checkpoints keep it running through a fall, and every map has an

@@ -43,7 +43,7 @@ export default async function BrowsePage() {
     .limit(60);
 
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="mb-6 text-xl font-bold">Browse worlds</h1>
 
       {/* The ladder first, in difficulty order, because it is the thing to do
