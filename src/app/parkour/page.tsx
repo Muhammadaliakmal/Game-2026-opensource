@@ -10,12 +10,12 @@ import { CourseCard } from "@/components/modes/CourseCard";
  *
  * ── Why this screen exists ───────────────────────────────────────────────
  *
- * The five courses used to be five entries in a flat list of built-in worlds,
+ * The courses used to be entries in a flat list of built-in worlds,
  * indistinguishable from the sandbox ones, each with a `Play` button after it.
  * Nothing said they were a ladder, nothing said which to try first, and the
- * difficulty design — which is the entire point of there being five of them —
- * was invisible. This is one place they live, in the order they are meant to
- * be played, with the thing you are chasing on each card.
+ * difficulty design — which is the entire point of there being a set of them —
+ * was invisible. This is one place they live, grouped by tier and in the order
+ * they are meant to be played, with the thing you are chasing on each card.
  *
  * ── Server-rendered, and static ──────────────────────────────────────────
  *
@@ -33,7 +33,7 @@ import { CourseCard } from "@/components/modes/CourseCard";
 
 export const metadata = {
   title: "Parkour — Blockworld",
-  description: "Five courses, Tutorial to Expert. Beat the clock, take a medal.",
+  description: "Twenty courses, Tutorial to Expert. Beat the clock, take a medal.",
 };
 
 /** The one-line promise each tier makes, in the order they are played. */
@@ -66,9 +66,9 @@ export default function ParkourPage() {
         </Link>
         <h1 className="text-display font-bold">Parkour</h1>
         <p className="text-dim max-w-xl text-sm">
-          Five courses, Tutorial to Expert. The clock runs from the moment you
-          land, checkpoints keep it running through a fall, and every map has an
-          Author time somebody has to beat eventually.
+          {courses.length} courses, Tutorial to Expert. The clock runs from the
+          moment you land, checkpoints keep it running through a fall, and every
+          map has an Author time somebody has to beat eventually.
         </p>
       </header>
 

@@ -48,11 +48,22 @@ const LADDER: Array<{ tier: Tier; doc: WorldDoc }> = [
   })),
 ];
 
-test("the ladder covers every tier exactly once, in order", () => {
-  assert.deepEqual(
-    LADDER.map((c) => c.tier),
-    [...TIERS]
-  );
+test("the ladder covers every tier, grouped and in order", () => {
+  // The set used to be one course per tier and this asserted exactly that.
+  // Now each tier holds several, so the contract is looser: every tier is
+  // present, they appear in `TIERS` order, and a tier's courses are contiguous
+  // — the parkour screen sorts by tier index and a gap would scatter a tier
+  // across the page.
+  const seen = LADDER.map((c) => c.tier);
+  assert.deepEqual([...new Set(seen)], [...TIERS], "every tier, once, in order");
+
+  const firstOf = (t: Tier) => seen.indexOf(t);
+  const lastOf = (t: Tier) => seen.lastIndexOf(t);
+  for (const t of TIERS) {
+    const span = lastOf(t) - firstOf(t) + 1;
+    const count = seen.filter((x) => x === t).length;
+    assert.equal(span, count, `${t}'s courses are not contiguous in the ladder`);
+  }
 });
 
 test("every course can be finished from its spawn", () => {
@@ -159,11 +170,22 @@ test("the tiers differ by how much deck the player lands on", () => {
     return alone;
   };
 
-  const byTier = new Map(LADDER.map((c) => [c.tier, oneBlockLandings(c.doc)]));
-  assert.equal(byTier.get("Tutorial"), 0, "the tutorial must forgive a bad landing");
-  assert.equal(byTier.get("Easy"), 0, "Easy is the same jump, learned properly");
-  assert.ok(
-    byTier.get("Expert")! >= 15,
-    `Expert is meant to be single-block landings, found ${byTier.get("Expert")}`
-  );
+  // Every course in a tier, not just the last one — a Map keyed by tier would
+  // hide a bad Tutorial course behind a good one.
+  for (const { tier, doc } of LADDER) {
+    const alone = oneBlockLandings(doc);
+    if (tier === "Tutorial" || tier === "Easy") {
+      assert.equal(
+        alone,
+        0,
+        `${doc.id} (${tier}) has ${alone} isolated landings — this tier forgives a bad jump`
+      );
+    }
+    if (tier === "Expert") {
+      assert.ok(
+        alone >= 15,
+        `${doc.id} (Expert) has only ${alone} isolated landings — the tier is single-cell`
+      );
+    }
+  }
 });

@@ -1,11 +1,12 @@
+import { canClear, maxGap } from "./jump-arc";
 import type { Checkpoint, PartTuple, Shape, Vec3, WorldDoc } from "./worlddoc";
 
 /**
  * The vocabulary the shipped parkour courses are written in.
  *
  * `lib/parkour.ts` grew its own `put`/`fill`/`outline` closures inside the one
- * function that needed them. That was right for one course. Five courses would
- * mean five copies of the same three closures, and the copies would drift —
+ * function that needed them. That was right for one course. A ladder of twenty
+ * would mean twenty copies of the same closures, and the copies would drift —
  * so they move here once, along with the two invariants every course has to
  * hold and neither of which is obvious at the call site:
  *
@@ -38,8 +39,8 @@ export const GLOW = 3;
  * Palette indices used across the set (see PALETTE in worlddoc.ts).
  *
  * Named so a course reads as a palette choice rather than as `18`, and shared
- * so the five maps look like one game. Per-course identity comes from which of
- * these each map leans on, not from every map inventing its own colours.
+ * so the whole ladder looks like one game. Per-course identity comes from which
+ * of these each map leans on, not from every map inventing its own colours.
  */
 export const HUE = {
   slate: 4,
@@ -193,6 +194,37 @@ export class Course {
   }
 
   /**
+   * `n` pads of one size, each offset from the last by `step`.
+   *
+   * The shape every course in the set is mostly made of: a flight of identical
+   * landings marching in one direction. Written as a loop at each call site it
+   * is three lines of index arithmetic whose only interesting numbers are the
+   * offsets — and the offset is exactly what has to be checked against the arc,
+   * so burying it in `8 + i * 5` is burying the one number that can be wrong.
+   *
+   * `step` is min-corner to min-corner, so with a 3-wide pad a step of 5 leaves
+   * a gap of 2. See the coordinate note at the top of `courses/` for why that
+   * subtraction is the whole design.
+   */
+  run(
+    x: number,
+    y: number,
+    z: number,
+    n: number,
+    step: [number, number, number],
+    w: number,
+    d: number,
+    deck: number,
+    edge: number,
+    finish: number = MATTE
+  ): this {
+    for (let i = 0; i < n; i++) {
+      this.pad(x + step[0] * i, y + step[1] * i, z + step[2] * i, w, d, deck, edge, finish);
+    }
+    return this;
+  }
+
+  /**
    * Steps climbing one cell per tread along +x or +z.
    *
    * Every course needs a way back up that is not a jump, because a course made
@@ -284,4 +316,170 @@ export function courseDoc(
     parts: course.parts(),
     props: [],
   };
+}
+
+/** The four directions a course can travel, as unit steps on the grid. */
+export type Dir = "east" | "west" | "north" | "south";
+
+const STEP: Record<Dir, [number, number]> = {
+  east: [1, 0],
+  west: [-1, 0],
+  north: [0, 1],
+  south: [0, -1],
+};
+
+/** A pad's footprint on the grid, min-corner addressed. */
+export interface Pad {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  d: number;
+}
+
+/**
+ * A cursor that walks a course from pad to pad.
+ *
+ * ── Why this exists ──────────────────────────────────────────────────────
+ *
+ * The four original courses are written as absolute coordinates, and at four
+ * courses that was fine: `c.pad(41, 5, -1, ...)` next to `c.pad(46, 5, -1, ...)`
+ * is a gap of two if you subtract, and you can subtract twenty times without
+ * getting one wrong. Twenty courses is several hundred of those subtractions,
+ * every one of them a place where a jump silently becomes impossible — and the
+ * number the arc actually constrains, the gap, never appears in the source at
+ * all. It has to be recovered by arithmetic on two other numbers, which is
+ * exactly backwards for the one value that can break a level.
+ *
+ * So a hop states the gap and the rise, and the coordinates are derived:
+ *
+ *     t.hop("east", 2, 1)   // two cells of air, one cell up
+ *
+ * ── It refuses to build an impossible course ─────────────────────────────
+ *
+ * `canClear` is checked here, at construction. `courses.test.ts` already
+ * proves the shipped set is finishable, but it proves it about a whole
+ * assembled world — the failure says "the goal cannot be reached", and finding
+ * which of sixty jumps was wrong is on you. Throwing at the hop names the hop.
+ *
+ * The test is still the authority and is not redundant: it walks the real
+ * surfaces, so it catches routes this cursor cannot see — a pad landing on top
+ * of another one, a checkpoint whose next jump only worked from somewhere
+ * else, a headroom conflict where two decks stack too close to stand between.
+ * This catches the arithmetic; that catches the geometry.
+ */
+export class Trail {
+  private pad_: Pad;
+
+  /**
+   * Checkpoints dropped on the current pad that do not yet know which way the
+   * run leaves it. `hop` (or `goal`) resolves them — see `mark`.
+   */
+  private awaiting: Checkpoint[] = [];
+
+  constructor(
+    private readonly course: Course,
+    start: Pad
+  ) {
+    this.pad_ = { ...start };
+  }
+
+  /** The pad the cursor is standing on. */
+  get pad(): Pad {
+    return { ...this.pad_ };
+  }
+
+  /**
+   * The next pad: `gap` empty cells away in `dir`, `rise` cells up.
+   *
+   * `gap` is a count of empty cells, the same unit `canClear` takes and the
+   * same one `course-graph` measures — see the note on `canClear`. Pads keep
+   * their footprint unless `size` says otherwise, because a course that
+   * changes landing size mid-flight is making a difficulty statement and
+   * should have to write it down.
+   */
+  hop(
+    dir: Dir,
+    gap: number,
+    rise: number,
+    deck: number,
+    edge: number,
+    size?: { w?: number; d?: number },
+    finish: number = MATTE
+  ): this {
+    if (!canClear(gap, rise)) {
+      throw new RangeError(
+        `unreachable hop: ${gap} cells of air with a rise of ${rise} is past ` +
+          `the arc (max ${maxGap(rise).toFixed(2)} at that rise) — see jump-arc.ts`
+      );
+    }
+    // A respawn has to look the way the run is *going*, not the way it came in.
+    // Any mark left on the pad we are now leaving learns its facing from this
+    // hop — the first move out of it.
+    this.aim(FACING[dir]);
+    const p = this.pad_;
+    const w = size?.w ?? p.w;
+    const d = size?.d ?? p.d;
+    const [sx, sz] = STEP[dir];
+
+    // Leading edge to leading edge: east and north grow away from the current
+    // pad's far side, west and south grow back from its near side, so the
+    // empty cells between the two footprints number exactly `gap` either way.
+    const x =
+      sx > 0 ? p.x + p.w + gap : sx < 0 ? p.x - gap - w : p.x + Math.round((p.w - w) / 2);
+    const z =
+      sz > 0 ? p.z + p.d + gap : sz < 0 ? p.z - gap - d : p.z + Math.round((p.d - d) / 2);
+
+    this.pad_ = { x, y: p.y + rise, z, w, d };
+    this.course.pad(x, p.y + rise, z, w, d, deck, edge, finish);
+    return this;
+  }
+
+  /**
+   * A checkpoint in the middle of the pad the cursor is on.
+   *
+   * Its facing is deferred by default: the next `hop` points it the way the
+   * run leaves this pad, which is the one direction a resume must not get
+   * wrong. Pass `next` only when this trail is about to be abandoned for a
+   * fresh one — across a staircase, say — so there is no hop coming to infer
+   * it from.
+   */
+  mark(next?: Dir): this {
+    const p = this.pad_;
+    this.course.checkpoint(
+      p.x + Math.floor(p.w / 2),
+      p.y,
+      p.z + Math.floor(p.d / 2),
+      // A placeholder when deferred; `hop`/`goal` overwrites it before the
+      // doc is assembled, and `facing.test.ts` fails loudly if one slips out.
+      next ? FACING[next] : FACING.east
+    );
+    if (!next) {
+      this.awaiting.push(
+        this.course.checkpoints[this.course.checkpoints.length - 1]
+      );
+    }
+    return this;
+  }
+
+  /**
+   * The goal standing on the middle of the current pad. Also aims a trailing
+   * `mark` at the finish, for a course that ends on a checkpoint.
+   */
+  goal(): Vec3 {
+    const p = this.pad_;
+    const gx = p.x + Math.floor(p.w / 2);
+    const gz = p.z + Math.floor(p.d / 2);
+    for (const cp of this.awaiting) {
+      cp.yaw = facing(gx - cp.pos[0], gz - cp.pos[2]);
+    }
+    this.awaiting = [];
+    return goalOver(gx, p.y, gz);
+  }
+
+  /** Give every still-unaimed mark on the current pad a facing. */
+  private aim(yaw: number): void {
+    for (const cp of this.awaiting) cp.yaw = yaw;
+    this.awaiting = [];
+  }
 }

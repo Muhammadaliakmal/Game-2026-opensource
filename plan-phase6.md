@@ -97,16 +97,30 @@ floor; scheme choice persists.
 
 ### 6d — Parkour mode — **done**
 Checkpoints landed as a marker list on `WorldDoc` (see the note there for why
-not a fifth `Shape`), with respawn to position *and* facing. The five maps are
-`parkour.ts` (Tutorial) plus the four in `courses.ts`; `course-kit.ts` is the
-shared geometry vocabulary and `jump-arc.ts` is the reach model they are all
-built against. Restart is its own command — `requestRestart`, bound to T —
+not a fifth `Shape`), with respawn to position *and* facing. `course-kit.ts` is
+the shared geometry vocabulary and `jump-arc.ts` is the reach model every map
+is built against. Restart is its own command — `requestRestart`, bound to T —
 because with the checkpoint rule in place a respawn can no longer give you a
 clean run, and a finished run now restarts on any respawn rather than
 returning you to a checkpoint of an attempt that is over.
+
+**Expanded to a full ladder.** The set is now **twenty courses, four per
+tier**: `parkour.ts` (Neon Run) plus the four originals in `courses.ts`
+(Beacon Climb, Cinder Gap, Vault of Wires, Overclock), plus fifteen more in
+`courses/{tutorial,easy,medium,hard,expert}.ts`. Those fifteen are written
+against a `Trail` cursor added to `course-kit.ts` — a hop states its *gap* and
+*rise* and the coordinates are derived, so the one number the arc constrains is
+the one in the source, and an impossible hop throws at construction. Checkpoint
+facing is deferred: `Trail.mark()` takes no direction and the next hop points
+it the way the run leaves the pad, which is what a respawn has to look down.
+`scripts/course-check.ts` (`npm run courses:check`) is the authoring tool — it
+walks every course, reports what the tests would say, and prints the
+`AUTHOR_MS` table to paste.
+
 **Accept:** met. Dying returns you to the last checkpoint with the clock still
-running; five maps exist at Tutorial..Expert, and `courses.test.ts` proves
-every one of them can be finished and that no checkpoint soft-locks a run.
+running; twenty maps exist across Tutorial..Expert, `courses.test.ts` proves
+every one can be finished and that no checkpoint soft-locks a run, and
+`medals.test.ts` recomputes every Author time from the geometry.
 
 ### 6e — Progression — **done**
 

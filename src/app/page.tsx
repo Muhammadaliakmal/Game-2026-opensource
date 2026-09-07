@@ -40,10 +40,10 @@ import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
  *
  * Racing used to be a chip in the page header, which is the same as not
  * shipping it: a five-word link between "Browse" and "Get the app" does not
- * read as a game mode. And the five parkour courses used to be five entries in
- * a flat list of built-in worlds, so the ladder they form was invisible. One
- * cover each, one screen behind each, and the covers are drawn from the game's
- * own night sky so they show what pressing them gets you.
+ * read as a game mode. And the parkour courses used to be entries in a flat
+ * list of built-in worlds, so the ladder they form was invisible. One cover
+ * each, one screen behind each, and the covers are drawn from the game's own
+ * night sky so they show what pressing them gets you.
  */
 function Modes() {
   return (

@@ -121,11 +121,31 @@ export const MAX_RUN_MS = 60 * 60 * 1000;
  * cache with a test for a cache invalidator.
  */
 export const AUTHOR_MS: Record<string, number> = {
+  // Tutorial
   parkour: 26_701,
+  steps: 37_961,
+  lanterns: 27_944,
+  meadow: 44_737,
+  // Easy
   climb: 27_842,
+  spiral: 47_232,
+  bridges: 45_575,
+  orchard: 33_306,
+  // Medium
   gap: 27_580,
+  ratchet: 36_997,
+  switchyard: 25_701,
+  turnpike: 40_218,
+  // Hard
   vault: 24_678,
+  zipline: 26_443,
+  gauntlet: 32_317,
+  needle: 40_642,
+  // Expert
   overclock: 37_320,
+  filament: 28_638,
+  arclight: 30_532,
+  lattice: 34_684,
 };
 
 /** Every medal time for a map, best first. Null if the map has no Author time. */

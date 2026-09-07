@@ -10,9 +10,19 @@ import {
   type Tier,
 } from "./course-kit";
 import type { Vec3, WorldDoc } from "./worlddoc";
+import { TUTORIAL_COURSES } from "./courses/tutorial";
+import { EASY_COURSES } from "./courses/easy";
+import { MEDIUM_COURSES } from "./courses/medium";
+import { HARD_COURSES } from "./courses/hard";
+import { EXPERT_COURSES } from "./courses/expert";
 
 /**
  * The tiered parkour set — SPEC phase 6d.
+ *
+ * Twenty courses, four to a tier. This file holds the four that predate the
+ * cursor in `course-kit.ts` — Beacon Climb, Cinder Gap, Vault of Wires,
+ * Overclock, written as absolute coordinates — and stitches in the rest from
+ * `courses/{tutorial,easy,medium,hard,expert}.ts`, which are written as hops.
  *
  * ── What makes a course harder ───────────────────────────────────────────
  *
@@ -24,13 +34,13 @@ import type { Vec3, WorldDoc } from "./worlddoc";
  *
  * Three levers do the work instead, and they are turned in this order:
  *
- *  1. **Landing size.** 3x3 pads on the low tiers, 2x2 in Vault, single cells
- *     in Overclock. The jump is the same jump; the room for error is not.
+ *  1. **Landing size.** 3x3 pads on the low tiers, 2x2 on Hard, single cells
+ *     on Expert. The jump is the same jump; the room for error is not.
  *  2. **Turns.** A jump you take by holding one key is free. Every turn is a
  *     decision made at speed, and the harder maps chain them — the difficulty
  *     of Vault's zigzag is entirely that it alternates axis every pad.
  *  3. **Consequence.** How far back the last checkpoint is. Tutorial and Easy
- *     forgive a fall almost completely; Overclock's plunge does not.
+ *     forgive a fall almost completely; the Expert plunges do not.
  *
  * Gap length is used for *rhythm*, not difficulty: the descents open up to
  * three and four cells because falling buys airtime, and a course that never
@@ -345,12 +355,14 @@ function overclock(id: string, ownerId: string, name: string): WorldDoc {
 /**
  * The ladder, in tier order.
  *
- * Tutorial is `lib/parkour.ts` — the course every new world starts from — and
- * it stays there rather than moving here, because it is also the template a
- * blank world is seeded with and that is a different job from being map one of
- * five. It is listed in `built-in-worlds.ts` alongside these.
+ * Neon Run (`lib/parkour.ts`) opens the Tutorial tier — it is the course every
+ * new world starts from — and it stays there rather than moving here, because
+ * it is also the template a blank world is seeded with and that is a different
+ * job from being one rung of the ladder. It is listed in `built-in-worlds.ts`
+ * alongside these, and `TUTORIAL_COURSES` continues its tier.
  */
 export const TIERED_COURSES: CourseEntry[] = [
+  ...TUTORIAL_COURSES,
   {
     slug: "climb",
     name: "Beacon Climb",
@@ -358,6 +370,7 @@ export const TIERED_COURSES: CourseEntry[] = [
     blurb: "Four switchback flights to a lit tower. One jump, learned properly.",
     build: (ownerId) => beaconClimb("climb", ownerId, "Beacon Climb"),
   },
+  ...EASY_COURSES,
   {
     slug: "gap",
     name: "Cinder Gap",
@@ -365,6 +378,7 @@ export const TIERED_COURSES: CourseEntry[] = [
     blurb: "A broken causeway, an S-bend, and a descent that opens up.",
     build: (ownerId) => cinderGap("gap", ownerId, "Cinder Gap"),
   },
+  ...MEDIUM_COURSES,
   {
     slug: "vault",
     name: "Vault of Wires",
@@ -372,6 +386,7 @@ export const TIERED_COURSES: CourseEntry[] = [
     blurb: "One-cell walkways and a zigzag that turns on every pad.",
     build: (ownerId) => vaultOfWires("vault", ownerId, "Vault of Wires"),
   },
+  ...HARD_COURSES,
   {
     slug: "overclock",
     name: "Overclock",
@@ -379,4 +394,5 @@ export const TIERED_COURSES: CourseEntry[] = [
     blurb: "Single-block landings, the whole way. One jump sits on the limit.",
     build: (ownerId) => overclock("overclock", ownerId, "Overclock"),
   },
+  ...EXPERT_COURSES,
 ];

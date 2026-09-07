@@ -30,9 +30,9 @@ function reached(pos: [number, number, number], goal: readonly number[]) {
 test("courses have a goal and sandboxes do not", () => {
   // A goal on the island or the cottage would invent a failure state for
   // worlds whose whole point is not having one. `tier` is what separates the
-  // two now that there are five courses — a world in the ladder is a world
-  // with a finish, and the test says that rather than naming a slug, so
-  // adding a sixth map cannot make this fail for the wrong reason.
+  // two — a world in the ladder is a world with a finish, and the test says
+  // that rather than naming a slug, so adding another map cannot make this
+  // fail for the wrong reason.
   for (const w of BUILT_IN_WORLDS) {
     const doc = w.build("u");
     if (w.tier) {
