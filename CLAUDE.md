@@ -32,6 +32,53 @@ dependency versions without checking in.
   has to do the same — the race's steering pads once did not, and were
   untappable on every phone while the assist quietly drove the bike.
 
+## Responsive layout and the touch controls
+
+Two invariants here span files and will break quietly if only one half is
+edited.
+
+**1. The control budget.** All touch-control geometry lives in `tokens.css`
+("Touch control geometry") and nowhere else. The left and right thumb clusters
+are `position: fixed` and cannot see each other, so the only thing stopping
+them overlapping is that their sizes are budgeted against the viewport at each
+breakpoint:
+
+    left  = 2 × --steer-w + --touch-gap
+    right = --touch-sm + --touch-gap + --touch-md + --touch-gap + --touch-lg
+    used  = left + right + 2 × --touch-inset   →  must stay under the width
+
+- `--touch-sm` is **48px at every breakpoint** and never scales. Apple HIG 44pt
+  / Material 48dp / WCAG 2.5.5 AAA. Shrink the sizes above the floor and the
+  gaps; never the floor.
+- Adding a control to a cluster changes the arithmetic. Re-check the budget, or
+  the `max-width` guard on `<ThumbCluster>` will wrap it instead.
+- `useTouchScale()` in `lib/use-media-query.ts` restates the same scale as a
+  number, because ecctrl's `Joystick` needs its drag radius as maths rather
+  than as a length. **Its breakpoints must match tokens.css.**
+
+**2. The reserved band.** `--controls-h` is how tall the controls stand, and
+`HudZones` keeps its three bottom zones above it, which is what stops the
+speedometer, the boost meter and the way out sitting under a thumb. It is only
+non-zero when both are true:
+
+- the media query `(pointer: coarse), (max-width: 900px)` in `tokens.css` — the
+  CSS twin of `useTouchControls()`, keep them identical; and
+- `MOUNTS_CONTROLS` in `HudZones.tsx` says this mode has controls at all. Race
+  and parkour do. The builder and the arena do **not** — a mode that reserves a
+  band it does not need floats its own bottom row over empty screen.
+
+**Also:** `.text-display` is the fluid headline size, `.hud-panel--readout` is
+the higher-contrast surface for a value read while riding (the sky runs a day
+cycle, so ordinary glass goes white-on-pale at sunset — `backdrop-filter`
+blurs what is behind a panel, it does not darken it), and chrome geometry
+(`--chip-*`, `--icon*`, `--row-*`) is tokenised so the same kind of panel
+cannot drift to three different paddings again.
+
+`body:has([data-immersive]) .site-header` hides the site header on **every**
+game screen now, not just the installed app. That is only safe while every
+immersive screen carries its own exit — the arena had none outside its
+end-of-match banner, and a match still being fought had no way out at all.
+
 ## Which way things face
 
 There is one yaw convention and it is easy to get backwards. The look rig puts

@@ -119,7 +119,7 @@ export function PlayHud({
             it would sit right under the joystick. */}
         {showKeyboardLegend && (
           <HudZone at="bottom-center">
-            <div className="hud-panel flex items-center gap-2.5 px-3.5 py-2">
+            <div className="hud-panel flex items-center gap-2.5 px-3 py-2">
               {[
                 ["WASD", "move"],
                 ["Click", "aim"],

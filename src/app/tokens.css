@@ -125,6 +125,55 @@
 
   --ease-ui: cubic-bezier(0.2, 0, 0, 1);
   --dur-ui: 120ms;
+
+  /* ── Chrome geometry ─────────────────────────────────────────────────
+     The measurements every piece of chrome is built from.
+
+     These were literals scattered across globals.css and a few hundred
+     Tailwind classes, and they had drifted the way literals do: the same kind
+     of HUD panel appeared as `px-3 py-2`, `px-3.5 py-2` and `px-3 py-1.5`,
+     and identical 28px icon buttons held icons at both 14px and 16px. None of
+     it is visible as a bug in any one screen — it is visible as the interface
+     not quite feeling like one product, which is exactly the thing a design
+     system exists to fix.
+
+     Naming them does two things: it makes the drift impossible to reintroduce
+     silently, and it gives the touch layer one place to grow the chrome on a
+     phone. `--chip-py` is the only value that moves with the viewport, and it
+     moves because a 6px vertical pad is comfortable under a cursor and mean
+     under a thumb. */
+
+  /* A chip: the standard small button. */
+  --chip-py: 6px;
+  --chip-px: 12px;
+  /* An icon-only chip. Square, so a toolbar of them lines up on the grid. */
+  --icon-btn: 28px;
+  /* The glyph inside one. One size, so a row of icon buttons reads as a row
+     rather than as several buttons that happen to be adjacent. */
+  --icon: 16px;
+  /* A row in a vertical menu — taller than a chip, because it is aimed at
+     rather than clicked in passing. */
+  --row-py: 9px;
+  --row-px: 10px;
+  /* A readout's name. Below the type scale on purpose: it should be findable,
+     not readable at a glance — the number under it is what the eye is going
+     to. */
+  --label-size: 0.625rem;
+  --label-track: 0.12em;
+}
+
+/*
+  Chrome grows for a thumb. The touch floor is met by an invisible pressable
+  area (`.hud-chip--touch`) rather than by inflating every chip, but the
+  painted box still wants a little more air on a phone — a 28px-tall chip is
+  fine under a cursor and looks like a hairline under a thumb.
+*/
+@media (pointer: coarse) {
+  :root {
+    --chip-py: 8px;
+    --chip-px: 14px;
+    --row-py: 11px;
+  }
 }
 
 /*
