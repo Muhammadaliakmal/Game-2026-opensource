@@ -295,6 +295,33 @@ Read draw calls, triangles, geometries and programs — those are
 device-independent. fps and worst-frame only mean something on the device you
 actually care about.
 
+## Blocks that are never drawn
+
+`lib/occlusion.ts` drops every part sealed in on all six sides before
+`InstancedParts` buckets it. Three things to know before touching it:
+
+- **Only a full cube (shape 0) may hide anything.** A slab is half height and
+  a ramp and a wedge are cut away on the diagonal, so each leaves an opening
+  its neighbour is visible through. *Any* shape may itself be hidden, because
+  each fits inside the cell. Getting that asymmetry backwards puts a hole in a
+  hillside.
+- **It is not a quality setting.** There is no version of the picture where a
+  sealed block is visible, so it is on at every tier and has no field in
+  `quality.ts`. `occlusion.test.ts` proves the claim rather than asserting it:
+  it enumerates every visible face of every built-in world with culling off and
+  on and requires the two sets to be identical.
+- **The index is a padded byte grid, not a hash.** Six neighbours are six fixed
+  offsets in a flat `Uint8Array`, which is why it costs about a millisecond
+  where six Map lookups per part cost five. It is rebuilt on `dirtyTick`, so
+  outside the editor it runs once per world load. Past `MAX_GRID_CELLS` it
+  declines to build one and culls nothing — a world that spread out is all
+  surface anyway.
+
+What it is worth, by world: Island 45% of its parts (1.73M triangles to 0.95M),
+Vapor Ridge 8.7%, Neon Circuit nothing at all — it is flat, and a flat world has
+no interior. That spread is the reason it is a fact about the world rather than
+a knob about the device.
+
 ## Frame rate
 
 Every continuously-animating canvas runs `frameloop="never"` with a

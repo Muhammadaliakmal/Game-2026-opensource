@@ -8,6 +8,7 @@ import { PALETTE, type PartTuple } from "@/lib/worlddoc";
 import { FEEL } from "@/lib/feel";
 import { reducedMotion } from "@/lib/motion";
 import { keyOf } from "@/lib/grid";
+import { occlusionIndex } from "@/lib/occlusion";
 import { punches } from "./punch";
 import { createFinishMaterial, shapeGeometries } from "./shapes";
 import { useRenderQuality } from "@/lib/quality";
@@ -164,8 +165,20 @@ function Bucket({
     for (const [key, started] of punches) {
       const i = indexOf.current.get(key);
       const part = slotOf.current.get(key);
-      // Belongs to a different (shape, finish) bucket — leave it to that one.
-      if (i === undefined || !part) continue;
+      if (i === undefined || !part) {
+        /*
+         * Not ours. Nearly always it belongs to a different (shape, finish)
+         * bucket, which animates it and deletes it. But it can belong to NO
+         * bucket: placing a block can seal a cell — its own, or the last open
+         * face of a neighbour — and enclosure culling then drops that cell
+         * from every mesh. An entry no bucket owns is never deleted, and this
+         * loop runs on every frame `punches` is non-empty, so one buried block
+         * would leave the renderer doing per-frame work forever. Sweep well
+         * past the animation, which an owning bucket beats by a wide margin.
+         */
+        if (now - started > ms * 2) punches.delete(key);
+        continue;
+      }
 
       const t = (now - started) / ms;
       const done = t >= 1;
@@ -252,12 +265,19 @@ export function InstancedParts({
     // the split has to happen at bucket level or not at all. It costs a few
     // extra draw calls — the circuit goes from 4 to 6 — against a budget of
     // 120, which is not where this scene's problem was.
-    const all = [...useEditorStore.getState().parts.values()];
+    const cells = useEditorStore.getState().parts;
     const ground = groundY !== undefined && !quality.groundCastsShadow;
-    const chunked = all.length >= CHUNK_THRESHOLD;
+    const chunked = cells.size >= CHUNK_THRESHOLD;
+    const occluded = occlusionIndex(cells);
 
     const by = new Map<string, PartTuple[]>();
-    for (const p of all) {
+    for (const p of cells.values()) {
+      // Sealed inside a solid mass: no camera pass, no shadow pass, and no
+      // pixel from either. See lib/occlusion.ts — this is the third of the
+      // free wins, after groundCastsShadow and the chunked bounding spheres,
+      // and the only one that scales with how solid the world is rather than
+      // how big. Island loses 45% of its parts here and looks identical.
+      if (occluded.hidden(p[0], p[1], p[2])) continue;
       const isGround = ground && p[1] === groundY;
       // Y is not part of the key: a voxel world is far wider than it is tall,
       // so splitting vertically would multiply buckets without narrowing what

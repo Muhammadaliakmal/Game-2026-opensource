@@ -36,6 +36,20 @@ import { useCoarsePointer } from "./use-media-query";
  *    1.5 to 1.0 is 2.25x less fragment work, and R3F leaves `antialias` on by
  *    default — MSAA on a phone, paid on every one of those fragments.
  *
+ * ── The fourth lever, which is not a tier ────────────────────────────────
+ *
+ * A block sealed inside a solid mass is drawn like any other and paints no
+ * pixels. That is not a quality trade-off — there is no version of the picture
+ * where it is visible — so it is not a field here: `lib/occlusion.ts` culls it
+ * unconditionally, at every tier, the way `groundCastsShadow` is off at every
+ * tier. It is listed with these because it is the same kind of win and it is
+ * the largest one on a solid world: Island is 5,763 parts and 2,594 of them
+ * are interior, so its camera pass falls from 1.73M triangles to 0.95M.
+ *
+ * It pays nothing on a flat world — Neon Circuit has no interior at all — and
+ * that is the point of keeping it separate from the tiers. A tier is a guess
+ * about the machine; this is a fact about the world.
+ *
  * ── Why tiers rather than one mobile branch ──────────────────────────────
  *
  * The old version keyed everything off `(pointer: coarse)`, which is a good
