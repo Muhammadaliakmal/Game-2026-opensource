@@ -6,7 +6,9 @@ import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { useNetStore } from "@/stores/net-store";
 import { peerMap, samplePeer } from "@/lib/net/peers";
-import { CharacterModel, type AvatarMotion } from "./CharacterModel";
+import { Avatar } from "./Avatar";
+import type { AvatarMotion } from "./gait";
+import { DEFAULT_CHARACTER } from "@/lib/characters";
 
 /**
  * Everyone else, in Play mode.
@@ -34,7 +36,7 @@ export function Peers() {
 
 function PeerAvatar({ id }: { id: string }) {
   const group = useRef<THREE.Group>(null);
-  // Mutated in place each frame and handed to CharacterModel, which reads it
+  // Mutated in place each frame and handed to the avatar, which reads it
   // exactly as the local player's EcctrlHandle is read.
   const motion = useRef<AvatarMotion>({
     moveSpeed: 0,
@@ -44,6 +46,11 @@ function PeerAvatar({ id }: { id: string }) {
   // Read once at mount: a peer's display name never changes for the life of
   // their session, so this is state, not a per-frame value.
   const [label] = useState(() => peerMap().get(id)?.name ?? "Builder");
+  // Same reasoning: a peer's character is fixed for the life of their
+  // connection, so it is read once rather than sampled every frame.
+  const [characterId] = useState(
+    () => peerMap().get(id)?.character ?? DEFAULT_CHARACTER
+  );
 
   useFrame(() => {
     const peer = peerMap().get(id);
@@ -72,7 +79,7 @@ function PeerAvatar({ id }: { id: string }) {
 
   return (
     <group ref={group}>
-      <CharacterModel motionRef={motion} hideUpClose={false} />
+      <Avatar characterId={characterId} motionRef={motion} hideUpClose={false} />
       {/* A DOM label rather than 3D text: troika would fetch a font over the
           network on first render, and a name tag is not worth a request that
           can fail. */}

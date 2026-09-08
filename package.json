@@ -13,6 +13,7 @@
     "courses:check": "node --import tsx scripts/course-check.ts",
     "floors:backfill": "node --import tsx scripts/backfill-floors.ts",
     "icons:generate": "node --import tsx scripts/generate-icons.ts",
+    "chars:optimize": "node --import tsx scripts/optimize-characters.ts",
     "props:generate": "node --import tsx scripts/meshy-batch.ts",
     "props:optimize": "node --import tsx scripts/optimize-props.ts",
     "props:upload": "node --import tsx scripts/upload-props.ts"

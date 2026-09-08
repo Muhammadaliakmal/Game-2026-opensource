@@ -7,6 +7,7 @@
  * stores/editor-store.ts) — the *set* of peers is React state, their motion
  * is not.
  */
+import { DEFAULT_CHARACTER } from "@/lib/characters";
 
 export interface PeerSample {
   x: number;
@@ -21,6 +22,14 @@ export interface Peer {
   id: string;
   name: string;
   building: boolean;
+  /**
+   * The character this peer is wearing — a `lib/characters.ts` id.
+   *
+   * Fixed for the life of the connection: it is set on join and the room never
+   * changes it, which is why it sits here beside the name rather than in the
+   * per-frame sample.
+   */
+  character: string;
   /** The two most recent samples: everything on screen is between them. */
   from: PeerSample;
   to: PeerSample;
@@ -44,8 +53,14 @@ const peers = new Map<string, Peer>();
 
 export const peerMap = () => peers;
 
-export function addPeer(id: string, name: string, sample: PeerSample, building = true) {
-  peers.set(id, { id, name, building, from: sample, to: sample });
+export function addPeer(
+  id: string,
+  name: string,
+  sample: PeerSample,
+  building = true,
+  character = DEFAULT_CHARACTER
+) {
+  peers.set(id, { id, name, building, character, from: sample, to: sample });
 }
 
 export function removePeer(id: string) {

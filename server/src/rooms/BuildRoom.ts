@@ -5,6 +5,7 @@ import { WorldSession } from "../world-session.ts";
 import { getWorldSource } from "../world-source.ts";
 import { WorldPersistence } from "../persist.ts";
 import { anonymousRoomsAllowed, verifyJoin, type RoomIdentity } from "../auth.ts";
+import { DEFAULT_CHARACTER, isCharacterId } from "@/lib/characters";
 
 /**
  * One room per world. The room owns the authoritative WorldDoc; clients own
@@ -169,7 +170,7 @@ export class BuildRoom extends Room<{ state: RoomPresence }> {
     });
   }
 
-  onJoin(client: Client) {
+  onJoin(client: Client, options?: { character?: unknown }) {
     // The whole world in one message, then ops from here on. Sending it before
     // the player is added means a joiner never sees an op for a world they do
     // not have yet.
@@ -186,7 +187,18 @@ export class BuildRoom extends Room<{ state: RoomPresence }> {
     const [x, y, z] = this.session.doc.spawn;
     this.state.players.set(
       client.sessionId,
-      new Player({ name: auth?.name ?? "Builder", x, y, z, yaw: 0, building: true })
+      new Player({
+        name: auth?.name ?? "Builder",
+        // Client-chosen, so it is run past the catalog rather than stored as
+        // sent — an unchecked string here is a string that reaches a `useGLTF`
+        // call on every other player's machine.
+        character: isCharacterId(options?.character) ? options.character : DEFAULT_CHARACTER,
+        x,
+        y,
+        z,
+        yaw: 0,
+        building: true,
+      })
     );
   }
 

@@ -14,7 +14,7 @@ import { useCoarsePointer, useTouchControls } from "@/lib/use-media-query";
 import { useJumpFeel } from "./feel/useJumpFeel";
 import { useFootstepAudio } from "./feel/useFootstepAudio";
 import { JumpParticles } from "./feel/JumpParticles";
-import { CharacterModel } from "./CharacterModel";
+import { OwnAvatar } from "./Avatar";
 import { touchInput } from "./touch-input";
 import { useMoveMode } from "./move-mode";
 import { useCourse } from "./course";
@@ -728,7 +728,7 @@ export function Player({
         // direction of travel, which is what makes strafing read as aiming.
         lockForward={false}
       >
-        <CharacterModel handleRef={ref} />
+        <OwnAvatar handleRef={ref} />
       </Ecctrl>
 
       {/* World-space, so it sits outside <Ecctrl>'s transform. */}

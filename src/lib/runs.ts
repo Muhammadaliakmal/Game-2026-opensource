@@ -56,6 +56,16 @@ interface RunsState {
   ghostMs: number | null;
   ghostWho: GhostWho;
 
+  /**
+   * Coins this finish just earned, or null if it earned none.
+   *
+   * Held here rather than in the shop store because it belongs to *this run*:
+   * it is cleared when the next one starts, and the shop's balance is a
+   * separate, longer-lived fact. The panel needs both — what you just got, and
+   * what you now have.
+   */
+  earned: number | null;
+
   /** Load (or reload) the board for a world. */
   load(worldId: string): Promise<void>;
   /** Fetch a replay to race against. */
@@ -78,6 +88,7 @@ export const useRuns = create<RunsState>((set, get) => ({
   loading: false,
   submitting: false,
   error: null,
+  earned: null,
   ghost: null,
   ghostName: null,
   ghostMs: null,
@@ -121,7 +132,7 @@ export const useRuns = create<RunsState>((set, get) => ({
   submit: async (worldId, timeMs, ghost) => {
     set({ submitting: true });
     try {
-      const r = await json<{ improved: boolean }>(
+      const r = await json<{ improved: boolean; earned?: number; coins?: number | null }>(
         `/api/worlds/${encodeURIComponent(worldId)}/runs`,
         {
           method: "POST",
@@ -129,7 +140,13 @@ export const useRuns = create<RunsState>((set, get) => ({
           body: JSON.stringify({ timeMs: Math.round(timeMs), ghost }),
         }
       );
-      set({ submitting: false });
+      set({ submitting: false, earned: r.earned && r.earned > 0 ? r.earned : null });
+      // The balance moved, so anything showing it is now stale. Written
+      // straight in rather than refetched: the server just told us the answer.
+      if (typeof r.coins === "number") {
+        const { useShop } = await import("./shop");
+        useShop.setState({ coins: r.coins });
+      }
       // Only refetch when the standings can have moved. Most runs are slower
       // than the runner's own best, and re-fetching for those would mean a
       // request per attempt on a map somebody is grinding.
@@ -156,5 +173,6 @@ export const useRuns = create<RunsState>((set, get) => ({
       ghost: null,
       ghostName: null,
       ghostMs: null,
+      earned: null,
     }),
 }));

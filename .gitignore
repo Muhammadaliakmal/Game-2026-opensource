@@ -46,3 +46,8 @@ next-env.d.ts
 # props pipeline: raw Meshy downloads are intermediate, not shipped —
 # public/props/ (the optimized output) is what's committed and served.
 /assets/raw-props/
+
+# Same rule for characters: `assets/raw-characters/` holds the raw rig
+# downloads that `npm run chars:optimize` reads, and public/characters/ is the
+# optimized output that actually ships. 948K in, 184K out.
+/assets/raw-characters/

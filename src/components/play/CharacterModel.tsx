@@ -7,15 +7,20 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 import type { RefObject } from "react";
 import type { EcctrlHandle } from "ecctrl";
 import { FEEL } from "@/lib/feel";
+import { Gait, type AvatarMotion } from "./gait";
 import { look } from "./camera-rig";
 
 /**
  * The player avatar: a small voxel courier with a lit visor.
  *
- * Built from primitives rather than a GLB so it costs no asset pipeline (that
- * arrives in Phase 3) and stays fully procedural — every joint is driven from
- * the live EcctrlHandle, so the animation always matches the physics rather
- * than being a clip that drifts out of sync.
+ * Built from primitives rather than a GLB, and still the default: it costs no
+ * download at all, so it is what the game can always draw. The shop's GLB
+ * characters are the alternative, and `CharacterRig` draws those.
+ *
+ * Both are driven from the live EcctrlHandle through the same `Gait`, so the
+ * animation always matches the physics rather than being a clip that drifts
+ * out of sync — and so the two kinds of avatar standing next to each other in
+ * a room move alike.
  *
  * The model is cosmetic only; nothing here touches physics. But it has to be
  * planted on the same ground the collider is standing on, or the character
@@ -50,17 +55,6 @@ const G = {
  */
 const MODEL_FACING = Math.PI;
 
-const SWING = 0.85; // radians at full sprint
-const LEAN = 0.22;
-
-/**
- * How square-on to the facing a step has to be before it is allowed to decide
- * which way the legs cycle. cos(75 deg) — so running forward or backing up
- * flips the stride, while a pure sideways strafe leaves it alone rather than
- * chattering between the two every frame as the dot product crosses zero.
- */
-const STRIDE_COMMIT = 0.25;
-
 /**
  * Drops the model so its soles meet the floor.
  *
@@ -77,16 +71,11 @@ const SOLE_Y = -0.54;
 const GROUND_OFFSET = CONTACT_Y - SOLE_Y;
 
 /**
- * The three numbers the animation actually needs. EcctrlHandle satisfies this
- * structurally, so the local player passes its handle unchanged — and a remote
- * peer, who has no physics at all, can supply the same three derived from
- * interpolated positions (see lib/net/peers.ts).
+ * Re-exported so the avatars, the peers and the net layer keep importing the
+ * motion contract from one place. It is defined in `gait.ts`, next to the code
+ * that consumes it.
  */
-export interface AvatarMotion {
-  moveSpeed: number;
-  isOnGround: boolean;
-  verticalSpeed: number;
-}
+export type { AvatarMotion };
 
 export function CharacterModel({
   handleRef,
@@ -108,25 +97,14 @@ export function CharacterModel({
   const head = useRef<THREE.Group>(null!);
   const visorMat = useRef<THREE.MeshStandardMaterial>(null!);
 
-  // Gait phase and landing-squash amount, kept in a ref so no frame re-renders.
-  // `stride` is +1 running forward and -1 backing up; see the stride block.
-  const anim = useRef({ phase: 0, squash: 0, wasOnGround: true, stride: 1 });
-
-  // Scratch for the stride test, mutated in place each frame like the rest of
-  // this component: it runs at 60Hz and fresh vectors would be pure garbage.
-  const travel = useRef({
-    prev: new THREE.Vector3(),
-    primed: false,
-    here: new THREE.Vector3(),
-    step: new THREE.Vector3(),
-    face: new THREE.Vector3(),
-    quat: new THREE.Quaternion(),
-  });
+  // The walk cycle itself. One per avatar instance, kept in a ref so nothing
+  // here re-renders; see gait.ts for why the angles are its state and not
+  // read back off these groups.
+  const walk = useRef(new Gait());
 
   useFrame((state, dt) => {
     const h = handleRef?.current ?? motionRef?.current;
     if (!h || !root.current) return;
-    const a = anim.current;
     const t = state.clock.elapsedTime;
 
     // Hide once the eye is inside the model. Keyed off the rig's live distance
@@ -137,99 +115,29 @@ export function CharacterModel({
       if (!root.current.visible) return;
     }
 
-    const speed = h.moveSpeed;
-    const gait = Math.min(1, speed / FEEL.runSpeed); // 0..1 blend
+    walk.current.advance(outer.current, h, dt, t);
+    const p = walk.current.pose;
 
-    // ── Landing squash (impact-scaled, so a hop barely registers) ──────────
-    if (h.isOnGround && !a.wasOnGround) {
-      a.squash = Math.min(1, Math.abs(h.verticalSpeed) / FEEL.hardLandVel);
-    }
-    a.wasOnGround = h.isOnGround;
-    a.squash = Math.max(0, a.squash - dt / FEEL.squashRecover);
-
-    const s = a.squash;
     root.current.scale.set(
-      1 + (FEEL.squashScale[0] - 1) * s,
-      1 + (FEEL.squashScale[1] - 1) * s,
-      1 + (FEEL.squashScale[2] - 1) * s
+      1 + (FEEL.squashScale[0] - 1) * p.squash,
+      1 + (FEEL.squashScale[1] - 1) * p.squash,
+      1 + (FEEL.squashScale[2] - 1) * p.squash
     );
-    // Lean into the run — a body that stays bolt upright reads as sliding.
-    root.current.rotation.x = -LEAN * gait;
+    root.current.rotation.x = p.lean;
 
-    // ── Stride direction ───────────────────────────────────────────────────
-    /**
-     * Which way round the legs cycle.
-     *
-     * `moveSpeed` is a magnitude, so on its own it cannot tell running from
-     * backing up — the phase always advanced forwards and the character
-     * moonwalked. That never showed while the body turned to face its own
-     * direction of travel, because then there was no such thing as backwards.
-     * Shift lock-on introduced one: the body holds the camera's heading while
-     * you strafe and reverse around it, and the limbs kept swinging as though
-     * you were running the other way.
-     *
-     * Measured from the avatar's own world transform rather than from a
-     * velocity handed in, because that is the one source both kinds of avatar
-     * have. A peer carries position and yaw and no signed velocity at all (see
-     * lib/net/peers.ts), and this reads correctly for it for free.
-     */
-    const tr = travel.current;
-    outer.current.getWorldPosition(tr.here);
-    if (!tr.primed) {
-      tr.prev.copy(tr.here);
-      tr.primed = true;
-    }
-    tr.step.subVectors(tr.here, tr.prev).setY(0);
-    tr.prev.copy(tr.here);
-
-    const stepLen = tr.step.length();
-    if (stepLen > 1e-4) {
-      // The face is the model's local -Z carried through MODEL_FACING and
-      // whatever the body is doing above it.
-      outer.current.getWorldQuaternion(tr.quat);
-      tr.face.set(0, 0, -1).applyQuaternion(tr.quat).setY(0).normalize();
-      // Normalised, so the test is an angle and not a speed — otherwise it
-      // would behave differently at 30fps and at 144.
-      const along = tr.step.dot(tr.face) / stepLen;
-      if (along > STRIDE_COMMIT) a.stride = 1;
-      else if (along < -STRIDE_COMMIT) a.stride = -1;
-    }
-
-    // ── Gait ───────────────────────────────────────────────────────────────
-    // Phase advances with distance travelled, not time, so the legs can't
-    // cycle while standing still and stride rate matches walk vs run for free.
-    a.phase += speed * dt * 3.4 * a.stride;
-    const swing = Math.sin(a.phase) * SWING * gait;
-
-    if (h.isOnGround) {
-      legL.current.rotation.x = swing;
-      legR.current.rotation.x = -swing;
-      armL.current.rotation.x = -swing * 0.8;
-      armR.current.rotation.x = swing * 0.8;
-      // Bob on the off-beat of the stride, plus a slow idle breath.
-      rig.current.position.y =
-        Math.abs(Math.sin(a.phase)) * 0.035 * gait + Math.sin(t * 1.6) * 0.012;
-    } else {
-      // Airborne: tuck the legs and throw the arms up. Lerped so the pose
-      // eases in rather than snapping the instant the feet leave the ground.
-      const k = 1 - Math.pow(0.001, dt);
-      const rising = h.verticalSpeed > 0;
-      legL.current.rotation.x = THREE.MathUtils.lerp(
-        legL.current.rotation.x, rising ? -0.7 : -0.25, k);
-      legR.current.rotation.x = THREE.MathUtils.lerp(
-        legR.current.rotation.x, rising ? -0.35 : 0.3, k);
-      armL.current.rotation.x = THREE.MathUtils.lerp(armL.current.rotation.x, -2.2, k);
-      armR.current.rotation.x = THREE.MathUtils.lerp(armR.current.rotation.x, -2.0, k);
-      rig.current.position.y = THREE.MathUtils.lerp(rig.current.position.y, 0.04, k);
-    }
+    legL.current.rotation.x = p.legL;
+    legR.current.rotation.x = p.legR;
+    armL.current.rotation.x = p.armL;
+    armR.current.rotation.x = p.armR;
+    rig.current.position.y = p.bob;
 
     // Head counter-rotates slightly against the lean, so it stays level-ish.
-    head.current.rotation.x = LEAN * gait * 0.6;
+    head.current.rotation.x = -p.lean * 0.6;
 
     // Visor pulses faster the harder you're moving — cheap "alive" signal.
     if (visorMat.current) {
       visorMat.current.emissiveIntensity =
-        1.6 + Math.sin(t * (3 + gait * 6)) * 0.35 + gait * 0.6;
+        1.6 + Math.sin(t * (3 + p.gait * 6)) * 0.35 + p.gait * 0.6;
     }
   });
 

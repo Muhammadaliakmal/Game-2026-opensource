@@ -109,3 +109,48 @@ export const runs = pgTable(
 
 export type Run = typeof runs.$inferSelect;
 export type NewRun = typeof runs.$inferInsert;
+
+/**
+ * One row per player: their wallet, what they have bought, and who they are
+ * wearing.
+ *
+ * ── Why a row and not localStorage ───────────────────────────────────────
+ *
+ * The equipped character alone could live in the browser — it is cosmetic, and
+ * losing it would cost nobody anything. The coin balance cannot: a balance is
+ * a thing worth forging, and a number a client keeps is a number a client
+ * writes. So both live here, on the same row, because a purchase has to read
+ * one and write the other in a single statement or it is a race.
+ *
+ * ── Why `user_id` is the primary key and there is no serial id ───────────
+ *
+ * There is exactly one of these per account and it is only ever looked up by
+ * the account. A surrogate key would add a column, an index and a join to
+ * every read for nothing.
+ *
+ * The row is created lazily — most accounts never open the shop — so every
+ * reader has to treat "no row" as the starting state rather than as an error:
+ * zero coins, nothing owned, wearing the default. See `lib/db/players.ts`.
+ */
+export const players = pgTable("players", {
+  userId: text("user_id").primaryKey(), // Clerk user id
+  /**
+   * Earned by finishing courses, never granted by the client. See the award
+   * rule in `POST /api/worlds/:id/runs` — a course pays out at most once per
+   * medal tier, so a board cannot be farmed by shaving a millisecond.
+   */
+  coins: integer("coins").default(0).notNull(),
+  /**
+   * Characters bought. Not a join table: this is a handful of ids per player
+   * drawn from a fixed catalog, and a purchase is one conditional UPDATE
+   * against this array rather than an INSERT that has to be checked first.
+   */
+  owned: text("owned").array().default([]).notNull(),
+  /** The character being worn. Always a catalog id — see lib/characters.ts. */
+  character: text("character").default("courier").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Player = typeof players.$inferSelect;
+export type NewPlayer = typeof players.$inferInsert;

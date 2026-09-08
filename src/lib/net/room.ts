@@ -7,6 +7,7 @@ import type { Op } from "@/lib/ops";
 import { setOpSink, useEditorStore } from "@/stores/editor-store";
 import { useNetStore } from "@/stores/net-store";
 import { addPeer, clearPeers, pushSample, removePeer } from "./peers";
+import { useShop } from "@/lib/shop";
 import { setPresenceSender } from "./presence";
 
 /**
@@ -26,6 +27,7 @@ interface PlayerLike {
   z: number;
   yaw: number;
   building: boolean;
+  character: string;
 }
 
 let room: Room | null = null;
@@ -50,7 +52,12 @@ export async function connectToWorld(worldId: string): Promise<() => void> {
     // visible to everyone else, but not able to edit.
     const token = await roomToken();
     if (token) client.auth.token = token;
-    const joined = await client.joinOrCreate("build", { worldId });
+    // The character rides in the join options rather than in every move
+    // message: it cannot change without a reconnect, so it is said once.
+    const joined = await client.joinOrCreate("build", {
+      worldId,
+      character: useShop.getState().character,
+    });
     room = joined;
     connecting = false;
 
@@ -106,7 +113,8 @@ export async function connectToWorld(worldId: string): Promise<() => void> {
         id,
         player.name,
         { x: player.x, y: player.y, z: player.z, yaw: player.yaw, t: Date.now() },
-        player.building
+        player.building,
+        player.character
       );
       useNetStore.getState().addPeerId(id);
 

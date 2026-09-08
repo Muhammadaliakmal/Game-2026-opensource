@@ -25,6 +25,23 @@ export const Player = schema(
     yaw: t.angle(),
     /** True while this peer is in Build mode, false while playing. */
     building: t.boolean().default(true),
+    /**
+     * Which character this peer is wearing — a `lib/characters.ts` id.
+     *
+     * Session state and not part of the move message: it is chosen in the shop
+     * and then does not change for the life of a connection, so sending it at
+     * 12 Hz alongside the position would be paying for it sixty times a minute
+     * to say the same thing.
+     *
+     * The room checks it is a real catalog id, and deliberately does NOT check
+     * that the player bought it. Ownership lives in the app's database, which
+     * this process has no credentials for, and the cost of being wrong is that
+     * somebody who edited their own client appears to strangers as a character
+     * they did not pay for. That is a cosmetic lie on somebody else's screen,
+     * not a score — and the check that would prevent it is a per-join HTTP
+     * round trip to the app for every player in every room.
+     */
+    character: t.string().default("courier"),
   },
   "Player"
 );

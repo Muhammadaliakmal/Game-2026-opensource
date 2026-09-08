@@ -350,6 +350,7 @@ function CourseComplete({
   const finishedMs = useCourse((s) => s.finishedMs);
   const best = useCourse((s) => s.best);
   const authorMs = useCourse(runAuthorMs);
+  const earned = useRuns((s) => s.earned);
   if (finishedMs === null) return null;
 
   const isBest = best !== null && Math.abs(best - finishedMs) < 1;
@@ -388,6 +389,16 @@ function CourseComplete({
       {chase && (
         <span className="hud-label num">
           {MEDAL_LABELS[chase.medal]} at {formatTime(chase.ms)}
+        </span>
+      )}
+
+      {/* Only when something was actually earned. A course pays for reaching a
+          medal tier the first time and nothing for running it again, so on
+          most attempts this is absent — which is the honest way to show a rule
+          whose whole point is that repetition is worth nothing. */}
+      {earned !== null && (
+        <span className="hud-readout text-accent num text-sm font-semibold">
+          + ⬤ {earned}
         </span>
       )}
 

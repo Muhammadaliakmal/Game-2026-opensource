@@ -30,7 +30,8 @@
  * ── What IS cached ───────────────────────────────────────────────────────
  *
  * Only content-addressed or genuinely immutable assets: Next's fingerprinted
- * build output, the icons, and the prop models. Each of those either has a hash
+ * build output, the icons, and the prop and character models. Each of those
+ * either has a hash
  * in its URL or is a file that would be given a new name if it changed.
  */
 
@@ -44,7 +45,7 @@ const OFFLINE = `blockworld-offline-${VERSION}`;
 const OFFLINE_URL = "/offline.html";
 
 /** Same-origin path prefixes whose contents never change under a given URL. */
-const IMMUTABLE_PREFIXES = ["/_next/static/", "/icons/", "/props/"];
+const IMMUTABLE_PREFIXES = ["/_next/static/", "/icons/", "/props/", "/characters/"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

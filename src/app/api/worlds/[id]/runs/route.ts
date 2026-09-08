@@ -7,11 +7,14 @@ import { runs, worlds } from "@/lib/db/schema";
 import { isBuiltInWorld } from "@/lib/built-in-worlds";
 import { isUuid } from "@/lib/ids";
 import { ghostSchema } from "@/lib/ghost";
+import { coinAward } from "@/lib/coins";
+import { awardCoins } from "@/lib/db/players";
 import {
   MAX_RUN_MS,
   authorMsFor,
   floorMs as shippedFloorMs,
   medalForAuthor,
+  type Medal,
 } from "@/lib/medals";
 
 /**
@@ -190,6 +193,15 @@ export async function POST(req: Request, { params }: Params) {
 
   const medal = medalForAuthor(authorMsFor(id, course.floorMs), timeMs);
 
+  // The best result already held here, read before the upsert overwrites it.
+  // `undefined` and `null` are different answers and both matter: never
+  // finished pays a first-finish, finished-without-a-medal does not. See
+  // `lib/coins.ts` for why the payout is a difference rather than a payment.
+  const [previous] = await db
+    .select({ medal: runs.medal })
+    .from(runs)
+    .where(and(eq(runs.worldId, id), eq(runs.userId, userId)));
+
   const [row] = await db
     .insert(runs)
     .values({
@@ -216,11 +228,25 @@ export async function POST(req: Request, { params }: Params) {
     })
     .returning({ timeMs: runs.timeMs });
 
+  // Coins are only paid when the run actually landed. `row` is undefined for a
+  // slower attempt — which is most attempts — and paying for one would make
+  // the easiest course in the game a vending machine.
+  const earned =
+    row === undefined
+      ? 0
+      : coinAward(
+          previous === undefined ? undefined : (previous.medal as Medal | null),
+          medal
+        );
+  const coins = earned > 0 ? await awardCoins(userId, earned) : null;
+
   return NextResponse.json({
     ok: true,
     improved: row !== undefined,
     best: row?.timeMs ?? null,
     medal,
     authorMs: authorMsFor(id, course.floorMs),
+    earned,
+    coins,
   });
 }

@@ -47,6 +47,7 @@ import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 const LINKS = [
   { href: "/", label: "Home" },
   { href: "/browse", label: "Browse" },
+  { href: "/shop", label: "Characters" },
   { href: "/download", label: "Get the app" },
 ] as const;
 
@@ -129,16 +130,23 @@ export function SiteNav() {
     <div ref={panel} className="flex min-w-0 items-center gap-2 sm:gap-3">
       {/* ── Desktop: the row ── */}
       <div className="hidden items-center gap-3 sm:flex">
-        <Link href="/" className="hud-chip" aria-label="Home">
-          <HomeIcon />
-          <span>Home</span>
-        </Link>
-        <Link href="/browse" className="hud-chip">
-          Browse
-        </Link>
-        <Link href="/download" className="hud-chip">
-          Get the app
-        </Link>
+        {/* Rendered from LINKS, like the menu below it. This row used to be
+            written out by hand beside a comment claiming both came from the
+            list — which is how a fourth destination would have been added to
+            one layout and forgotten in the other, the same way Browse went
+            desktop-only once already. */}
+        {LINKS.map((l) => (
+          <Link
+            key={l.href}
+            href={l.href}
+            className="hud-chip"
+            aria-label={l.href === "/" ? "Home" : undefined}
+            aria-current={pathname === l.href ? "page" : undefined}
+          >
+            {l.href === "/" && <HomeIcon />}
+            <span>{l.label}</span>
+          </Link>
+        ))}
         <Show when="signed-out">
           {/* Modal, not a page: UI spec §3.5 — signing in must not take
               someone away from the world they are in the middle of building.
