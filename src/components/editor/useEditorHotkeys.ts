@@ -61,6 +61,15 @@ export function useEditorHotkeys(onSave?: () => void | Promise<boolean>) {
         case "p":
           s.setTool(s.tool === "prop" ? "place" : "prop");
           return;
+        // X marks the finish. Not F, which `FrameWorld` owns on its own window
+        // listener — binding it here too would frame the world *and* switch
+        // tool on every press, and neither handler would know why.
+        case "x":
+          s.setTool(s.tool === "goal" ? "place" : "goal");
+          return;
+        case "c":
+          s.setTool(s.tool === "checkpoint" ? "place" : "checkpoint");
+          return;
         case "delete":
         case "backspace":
           // Guarded by tool, not just "is something selected" — Backspace is

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { setOpSink, useEditorStore } from "./editor-store";
 import { parseOp, type Op } from "@/lib/ops";
 import { parkourWorldDoc } from "@/lib/parkour";
-import type { WorldDoc } from "@/lib/worlddoc";
+import { MAX_CHECKPOINTS, parseWorldDoc, type WorldDoc } from "@/lib/worlddoc";
 
 function freshDoc(): WorldDoc {
   const doc = parkourWorldDoc("11111111-1111-1111-1111-111111111111", "user_1");
@@ -272,4 +272,130 @@ test("a peer's edit applies but never lands on the local undo stack", () => {
   assert.equal(useEditorStore.getState().parts.has("0,24,0"), true);
   assert.equal(useEditorStore.getState().parts.has("0,23,0"), false);
   assert.equal(useEditorStore.getState().bus.canUndo, false);
+});
+
+// --- course markers -------------------------------------------------------
+
+test("a load/save round trip does not drop the course", () => {
+  // Regression, and the one that gated the whole course-authoring phase.
+  // `toDoc` emitted `goal` verbatim — with a comment explaining that dropping
+  // it "would quietly un-finish every remix of the course" — while
+  // `checkpoints` and `spawnYaw` beside it were dropped in exactly that way.
+  // It was never only a save bug: WorldCanvas builds the Play snapshot from
+  // toDoc, so remixing a shipped course and pressing Play stripped its gates.
+  const doc = freshDoc();
+  assert.ok(doc.checkpoints && doc.checkpoints.length > 0, "fixture has gates");
+  assert.ok(doc.spawnYaw !== undefined, "fixture states a facing");
+
+  useEditorStore.getState().loadDoc(doc);
+  const saved = useEditorStore.getState().toDoc("user_1");
+
+  assert.deepEqual(saved.checkpoints, doc.checkpoints);
+  assert.deepEqual(saved.goal, doc.goal);
+  assert.equal(saved.spawnYaw, doc.spawnYaw);
+});
+
+test("loading a course does not alias the document's own checkpoint array", () => {
+  const doc = freshDoc();
+  const before = doc.checkpoints!.length;
+  useEditorStore.getState().loadDoc(doc);
+  useEditorStore.getState().removeCheckpoint(0);
+  assert.equal(doc.checkpoints!.length, before);
+});
+
+test("placing the finish is undoable, and lands on the cell's floor", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  const had = useEditorStore.getState().goal;
+
+  useEditorStore.getState().setGoal([3, 9, 5]);
+  // Centred in the cell, level with its floor — the top face of the block
+  // below, which is what course-kit's `goalOver` computes for shipped courses.
+  assert.deepEqual(useEditorStore.getState().goal, [3.5, 9, 5.5]);
+
+  useEditorStore.getState().undo();
+  assert.deepEqual(useEditorStore.getState().goal, had);
+});
+
+test("clearing the finish stops the world being a course, and undo brings it back", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  useEditorStore.getState().clearGoal();
+  assert.equal(useEditorStore.getState().goal, undefined);
+  assert.equal(useEditorStore.getState().toDoc("user_1").goal, undefined);
+
+  useEditorStore.getState().undo();
+  assert.notEqual(useEditorStore.getState().goal, undefined);
+});
+
+test("checkpoints append in placement order and each is undoable", () => {
+  const doc = freshDoc();
+  useEditorStore.getState().loadDoc({ ...doc, checkpoints: [] });
+
+  useEditorStore.getState().addCheckpoint([0, 5, 0], 1);
+  useEditorStore.getState().addCheckpoint([9, 5, 0], 2);
+  assert.deepEqual(
+    useEditorStore.getState().checkpoints.map((c) => c.pos[0]),
+    [0.5, 9.5]
+  );
+
+  useEditorStore.getState().undo();
+  assert.equal(useEditorStore.getState().checkpoints.length, 1);
+});
+
+test("removing a middle checkpoint renumbers, and undo restores the order", () => {
+  const doc = freshDoc();
+  useEditorStore.getState().loadDoc({ ...doc, checkpoints: [] });
+  for (const x of [0, 10, 20]) useEditorStore.getState().addCheckpoint([x, 5, 0], 0);
+
+  useEditorStore.getState().removeCheckpoint(1);
+  assert.deepEqual(
+    useEditorStore.getState().checkpoints.map((c) => c.pos[0]),
+    [0.5, 20.5]
+  );
+
+  useEditorStore.getState().undo();
+  assert.deepEqual(
+    useEditorStore.getState().checkpoints.map((c) => c.pos[0]),
+    [0.5, 10.5, 20.5]
+  );
+});
+
+test("the checkpoint cap is enforced by the tool, not left to the save", () => {
+  // An author meeting the cap as a failed save meets it after the work is done.
+  const doc = freshDoc();
+  useEditorStore.getState().loadDoc({ ...doc, checkpoints: [] });
+  for (let i = 0; i < MAX_CHECKPOINTS + 5; i++) {
+    useEditorStore.getState().addCheckpoint([i, 5, 0], 0);
+  }
+  assert.equal(useEditorStore.getState().checkpoints.length, MAX_CHECKPOINTS);
+  // And the document it produces is one the schema accepts.
+  assert.doesNotThrow(() => parseWorldDoc(useEditorStore.getState().toDoc("user_1")));
+});
+
+test("a read-only world refuses course edits too", () => {
+  useEditorStore.getState().loadDoc(freshDoc());
+  useEditorStore.getState().setReadOnly(true);
+  const before = useEditorStore.getState().checkpoints.length;
+
+  useEditorStore.getState().addCheckpoint([0, 5, 0], 0);
+  useEditorStore.getState().setGoal([1, 5, 1]);
+  useEditorStore.getState().clearGoal();
+
+  assert.equal(useEditorStore.getState().checkpoints.length, before);
+  useEditorStore.getState().setReadOnly(false);
+});
+
+test("a course edit is emitted to peers as a serializable op", () => {
+  const seen: Op[] = [];
+  setOpSink((op) => seen.push(op));
+  useEditorStore.getState().loadDoc(freshDoc());
+
+  useEditorStore.getState().addCheckpoint([2, 5, 2], 1.5);
+  useEditorStore.getState().setGoal([6, 5, 6]);
+
+  setOpSink(null);
+  assert.equal(seen.length, 2);
+  // Survives the wire, which is the whole point of the op form.
+  for (const op of seen) assert.doesNotThrow(() => parseOp(JSON.parse(JSON.stringify(op))));
+  assert.equal(seen[0].t, "cp-add");
+  assert.equal(seen[1].t, "goal");
 });

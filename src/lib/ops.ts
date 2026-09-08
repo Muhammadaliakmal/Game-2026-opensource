@@ -1,8 +1,11 @@
 import { z } from "zod";
 import {
+  MAX_CHECKPOINTS,
+  checkpoint,
   partTuple,
   propInstance,
   vec3,
+  type Checkpoint,
   type PartTuple,
   type PropInstance,
   type Vec3,
@@ -38,6 +41,31 @@ export type Op =
   | { t: "erase"; key: string; prev: PartTuple }
   | { t: "replace"; key: string; next: PartTuple; prev: PartTuple }
   | { t: "spawn"; prev: Vec3; next: Vec3 }
+  /**
+   * Moving, setting or clearing the finish.
+   *
+   * `null` rather than `undefined` for "no goal", because these go over a wire
+   * as JSON and `JSON.stringify` deletes an undefined property rather than
+   * encoding it — an op saying "clear the goal" would arrive as an op with no
+   * `next` at all and fail its own schema.
+   */
+  | { t: "goal"; prev: Vec3 | null; next: Vec3 | null }
+  /**
+   * Inserting and removing a resume point, by position in the list.
+   *
+   * Index rather than value, because order is the whole meaning of a
+   * checkpoint — `checkpoints.ts` reads "later in the course" straight off the
+   * array — so an op that removed the matching *value* would let an undo put a
+   * gate back in the wrong place. Carrying `cp` as well is what keeps that
+   * honest: the remove verifies the value at the index before splicing it, and
+   * falls back to a value search if two peers' indices have diverged. Two
+   * people re-ordering one course's gates at the same moment can still end up
+   * with an order neither chose — that is a list, not a grid, and last-write-
+   * wins-per-cell has nothing to say about it. The failure is a wrong order,
+   * never a corrupt document, and one of them can drag it back.
+   */
+  | { t: "cp-add"; index: number; cp: Checkpoint }
+  | { t: "cp-remove"; index: number; cp: Checkpoint }
   | { t: "prop-add"; instance: PropInstance }
   | { t: "prop-remove"; instance: PropInstance }
   | { t: "prop-move"; prev: PropInstance; next: PropInstance }
@@ -46,12 +74,18 @@ export type Op =
 export type LeafOp = Exclude<Op, { t: "composite" }>;
 
 const cellKey = z.string().regex(/^-?\d+,-?\d+,-?\d+$/, 'key must be "x,y,z"');
+const cpIndex = z.number().int().min(0).max(MAX_CHECKPOINTS - 1);
 
 const leafOpSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("place"), key: cellKey, part: partTuple }),
   z.object({ t: z.literal("erase"), key: cellKey, prev: partTuple }),
   z.object({ t: z.literal("replace"), key: cellKey, next: partTuple, prev: partTuple }),
   z.object({ t: z.literal("spawn"), prev: vec3, next: vec3 }),
+  z.object({ t: z.literal("goal"), prev: vec3.nullable(), next: vec3.nullable() }),
+  // Bounded by the document's own cap: an index past it could never address a
+  // checkpoint that is allowed to exist, so it is a malformed message.
+  z.object({ t: z.literal("cp-add"), index: cpIndex, cp: checkpoint }),
+  z.object({ t: z.literal("cp-remove"), index: cpIndex, cp: checkpoint }),
   z.object({ t: z.literal("prop-add"), instance: propInstance }),
   z.object({ t: z.literal("prop-remove"), instance: propInstance }),
   z.object({ t: z.literal("prop-move"), prev: propInstance, next: propInstance }),
@@ -106,16 +140,55 @@ export interface WorldState {
   parts: Map<string, PartTuple>;
   props: PropInstance[];
   spawn: Vec3;
+  /** Undefined for a world that is not a course. See WorldDoc.goal. */
+  goal: Vec3 | undefined;
+  /** Empty for a course with no resume points, which is most worlds. */
+  checkpoints: Checkpoint[];
 }
 
 export function stateFromDoc(doc: WorldDoc): WorldState {
   const parts = new Map<string, PartTuple>();
   for (const p of doc.parts) parts.set(keyOf(p[0], p[1], p[2]), p);
-  return { parts, props: [...doc.props], spawn: doc.spawn };
+  return {
+    parts,
+    props: [...doc.props],
+    spawn: doc.spawn,
+    goal: doc.goal,
+    checkpoints: [...(doc.checkpoints ?? [])],
+  };
 }
 
 export function docFromState(doc: WorldDoc, state: WorldState): WorldDoc {
-  return { ...doc, parts: [...state.parts.values()], props: state.props, spawn: state.spawn };
+  return {
+    ...doc,
+    parts: [...state.parts.values()],
+    props: state.props,
+    spawn: state.spawn,
+    goal: state.goal,
+    // Back to absent rather than an empty array, so a world that is not a
+    // course keeps saying so instead of acquiring an empty course's shape.
+    checkpoints: state.checkpoints.length > 0 ? state.checkpoints : undefined,
+  };
+}
+
+/**
+ * Where a checkpoint op's target actually is.
+ *
+ * The index is the answer whenever the value there still matches, which is
+ * every local edit and every remote one that arrived in order. The value
+ * search is the fallback for the case the index is stale — a peer removed a
+ * gate ahead of this one between the message being sent and applied — where
+ * deleting whatever now sits at that index would remove the wrong gate.
+ */
+function checkpointAtIndex(
+  list: readonly Checkpoint[],
+  index: number,
+  cp: Checkpoint
+): number {
+  const same = (a: Checkpoint) =>
+    a.yaw === cp.yaw && a.pos.every((v, i) => v === cp.pos[i]);
+  if (index < list.length && same(list[index])) return index;
+  return list.findIndex(same);
 }
 
 /** Value equality — the wire hands us structural copies, never the same object. */
@@ -140,6 +213,23 @@ export function applyOp(state: WorldState, op: Op): WorldState {
     case "spawn":
       state.spawn = op.next;
       break;
+    case "goal":
+      state.goal = op.next ?? undefined;
+      break;
+    case "cp-add": {
+      const next = [...state.checkpoints];
+      // Clamped rather than rejected: an append is expressed as "insert at the
+      // current length", and a peer whose list is one shorter than ours would
+      // otherwise drop the gate entirely rather than put it at the end.
+      next.splice(Math.min(op.index, next.length), 0, op.cp);
+      state.checkpoints = next;
+      break;
+    }
+    case "cp-remove": {
+      const at = checkpointAtIndex(state.checkpoints, op.index, op.cp);
+      if (at >= 0) state.checkpoints = state.checkpoints.filter((_, i) => i !== at);
+      break;
+    }
     case "prop-add":
       state.props = [...state.props, op.instance];
       break;
@@ -171,6 +261,12 @@ export function invertOp(op: Op): Op {
       return { t: "replace", key: op.key, next: op.prev, prev: op.next };
     case "spawn":
       return { t: "spawn", prev: op.next, next: op.prev };
+    case "goal":
+      return { t: "goal", prev: op.next, next: op.prev };
+    case "cp-add":
+      return { t: "cp-remove", index: op.index, cp: op.cp };
+    case "cp-remove":
+      return { t: "cp-add", index: op.index, cp: op.cp };
     case "prop-add":
       return { t: "prop-remove", instance: op.instance };
     case "prop-remove":
@@ -190,6 +286,10 @@ export interface OpHost {
   parts(): PartsHost;
   props(): PropsHost;
   setSpawn(v: Vec3): void;
+  setGoal(v: Vec3 | undefined): void;
+  /** Read lazily, like every other host accessor — see the note on PartsHost. */
+  checkpoints(): readonly Checkpoint[];
+  setCheckpoints(v: Checkpoint[]): void;
   markDirty(): void;
 }
 
@@ -223,6 +323,50 @@ export function commandFor(op: Op, host: OpHost): Command {
         },
         undo() {
           host.setSpawn(op.prev);
+          host.markDirty();
+        },
+      };
+    case "goal":
+      return {
+        label: "goal",
+        do() {
+          host.setGoal(op.next ?? undefined);
+          host.markDirty();
+        },
+        undo() {
+          host.setGoal(op.prev ?? undefined);
+          host.markDirty();
+        },
+      };
+    case "cp-add":
+      return {
+        label: "checkpoint-add",
+        do() {
+          const next = [...host.checkpoints()];
+          next.splice(Math.min(op.index, next.length), 0, op.cp);
+          host.setCheckpoints(next);
+          host.markDirty();
+        },
+        undo() {
+          const list = host.checkpoints();
+          const at = checkpointAtIndex(list, op.index, op.cp);
+          if (at >= 0) host.setCheckpoints(list.filter((_, i) => i !== at));
+          host.markDirty();
+        },
+      };
+    case "cp-remove":
+      return {
+        label: "checkpoint-remove",
+        do() {
+          const list = host.checkpoints();
+          const at = checkpointAtIndex(list, op.index, op.cp);
+          if (at >= 0) host.setCheckpoints(list.filter((_, i) => i !== at));
+          host.markDirty();
+        },
+        undo() {
+          const next = [...host.checkpoints()];
+          next.splice(Math.min(op.index, next.length), 0, op.cp);
+          host.setCheckpoints(next);
           host.markDirty();
         },
       };

@@ -7,6 +7,7 @@ import { useEditorStore, type Tool } from "@/stores/editor-store";
 import { PALETTE, FINISHES, type Shape } from "@/lib/worlddoc";
 import { SHAPE_NAMES } from "./shapes";
 import { PropBrowser } from "./PropBrowser";
+import { CoursePanel } from "./CoursePanel";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { useCoarsePointer } from "@/lib/use-media-query";
@@ -43,6 +44,7 @@ const CONTROLS: Array<[string, string]> = [
   ["G / I", "paint / pick"],
   ["S", "move the spawn point"],
   ["P", "place / select props"],
+  ["X / C", "finish / checkpoint"],
   ["Delete", "remove the selected prop"],
   ["1 – 9", "pick a colour"],
   ["Shift + scroll", "walk the palette"],
@@ -106,9 +108,30 @@ const TOOL_ICONS: Record<
     label: "Props",
     key: "P",
   },
+  goal: {
+    // A chequered flag: the one symbol for a finish that needs no label.
+    path: "M6 21V4M6 5h13l-2 4 2 4H6",
+    label: "Finish",
+    key: "X",
+  },
+  checkpoint: {
+    // A flag on a post, deliberately the plainer sibling of the goal's.
+    path: "M6 21V4M6 5h11v6H6M9 14h8",
+    label: "Checkpoint",
+    key: "C",
+  },
 };
 
-const TOOL_ORDER: Tool[] = ["place", "erase", "paint", "pick", "spawn", "prop"];
+const TOOL_ORDER: Tool[] = [
+  "place",
+  "erase",
+  "paint",
+  "pick",
+  "spawn",
+  "prop",
+  "goal",
+  "checkpoint",
+];
 
 /** The keyboard/mouse legend. Shown automatically the first time only. */
 function HelpPanel({ onClose }: { onClose: () => void }) {
@@ -462,10 +485,12 @@ export function Toolbar({
              third of a phone, and bottom-center is unused while building. ── */}
       <HudZone at="bottom-left" className="col-end-3">
         <div className="flex min-w-0 max-w-full flex-col gap-2">
-          {/* Colour and shape don't apply to a placed prop — the prop tool
-              gets its own browser instead of these. */}
+          {/* Colour and shape don't apply to a placed prop or a course
+              marker — each gets its own panel in this slot instead. */}
           {tool === "prop" ? (
             <PropBrowser />
+          ) : tool === "goal" || tool === "checkpoint" ? (
+            <CoursePanel />
           ) : (
             /* Palette: 0-radius swatches, because blocks are not round and a
                pill stops reading as a block. */
@@ -528,8 +553,9 @@ export function Toolbar({
             </div>
 
             {/* Brush: shape, finish, rotation — meaningless for a prop, which
-                is transformed via its own PivotControls handles instead. */}
-            {tool !== "prop" && (
+                is transformed via its own PivotControls handles instead, and
+                for a course marker, which has no material at all. */}
+            {tool !== "prop" && tool !== "goal" && tool !== "checkpoint" && (
               <div className="hud-panel pointer-events-auto flex shrink-0 items-center gap-1 p-1">
                 {SHAPE_NAMES.map((label, i) => (
                   <button

@@ -2,8 +2,9 @@
 
 import * as THREE from "three";
 import { useCallback, useRef } from "react";
-import type { ThreeEvent } from "@react-three/fiber";
-import { useEditorStore } from "@/stores/editor-store";
+import { useThree, type ThreeEvent } from "@react-three/fiber";
+import { useEditorStore, type Tool } from "@/stores/editor-store";
+import { yawTowards } from "@/components/play/camera-rig";
 import { cellFromHit } from "@/lib/grid";
 import { sfxErase, sfxPlace, sfxSpawn } from "@/lib/audio";
 import { punch } from "./punch";
@@ -14,6 +15,39 @@ const HALF = GROUND_SIZE / 2;
 /** Keep builds on the grid and above the floor. */
 function inBounds([x, y, z]: [number, number, number]) {
   return y >= 0 && x >= -HALF && x < HALF && z >= -HALF && z < HALF;
+}
+
+/**
+ * Does this tool act on the empty cell in front of the face, or on the block
+ * itself?
+ *
+ * Outward for anything that puts something new into the world — a block, the
+ * character, a course marker. Inward for the tools that read or change a block
+ * that is already there. Named because three separate places need the same
+ * answer (the edit, the hover cell, and the drag guard below), and they were
+ * already drifting apart when it was two.
+ */
+function outward(tool: Tool) {
+  return (
+    tool === "place" || tool === "spawn" || tool === "goal" || tool === "checkpoint"
+  );
+}
+
+/**
+ * Tools a drag must not repeat.
+ *
+ * Dragging any of these would spam the undo stack with one action per cell
+ * crossed — and for prop, one new instance per pixel moved; for checkpoint, a
+ * course whose sixty-four gates were all laid down in one flick of the wrist.
+ */
+function singleShot(tool: Tool) {
+  return (
+    tool === "spawn" ||
+    tool === "pick" ||
+    tool === "prop" ||
+    tool === "goal" ||
+    tool === "checkpoint"
+  );
 }
 
 /**
@@ -36,6 +70,42 @@ export function Builder({ children }: { children: React.ReactNode }) {
   // Last cell edited in this stroke, so dragging across one cell doesn't
   // re-emit the same edit dozens of times.
   const lastCell = useRef<string | null>(null);
+
+  const camera = useThree((s) => s.camera);
+  const look = useRef(new THREE.Vector3());
+
+  /**
+   * Which way a run resumes from a checkpoint placed at `cell`.
+   *
+   * The author's own view, because that is the one direction they have already
+   * expressed an opinion about: they orbited round to look at the jump they
+   * are marking, and that is the way the runner needs to be looking when they
+   * come back to it. `Trail.mark()` gets the same answer from the next hop,
+   * which the editor cannot use — when you place gate N, gate N+1 does not
+   * exist yet.
+   *
+   * The fallback matters more than it looks. A builder working from straight
+   * overhead — the natural view for laying out a route — has a camera whose
+   * horizontal direction is nearly zero, and `atan2` on that returns a
+   * confident answer built out of rounding error. So below a threshold, use
+   * the direction the course itself travels: from the last marker to this one.
+   */
+  const resumeYaw = useCallback(
+    (cell: [number, number, number]) => {
+      camera.getWorldDirection(look.current);
+      const { x, z } = look.current;
+      if (x * x + z * z > 0.02) return yawTowards(x, z);
+
+      const s = useEditorStore.getState();
+      const from = s.checkpoints.at(-1)?.pos ?? s.spawn;
+      const dx = cell[0] + 0.5 - from[0];
+      const dz = cell[2] + 0.5 - from[2];
+      // A gate placed on the spawn itself has no direction to offer; leave it
+      // at the default rather than inventing one from noise.
+      return dx * dx + dz * dz > 0.02 ? yawTowards(dx, dz) : 0;
+    },
+    [camera]
+  );
 
   const cellFor = useCallback((e: ThreeEvent<PointerEvent>, place: boolean) => {
     const hit = {
@@ -62,11 +132,7 @@ export function Builder({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Build and spawn target the empty cell in front of the face you
-      // clicked (that is where a block, or the character, would go). Erase,
-      // paint and pick target the block you actually clicked on.
-      const outward = s.tool === "place" || s.tool === "spawn";
-      const cell = cellFor(e, outward);
+      const cell = cellFor(e, outward(s.tool));
       if (!inBounds(cell)) return;
 
       const key = `${cell[0]},${cell[1]},${cell[2]}`;
@@ -76,6 +142,15 @@ export function Builder({ children }: { children: React.ReactNode }) {
       if (s.tool === "spawn") {
         s.setSpawn(cell);
         sfxSpawn();
+      } else if (s.tool === "goal") {
+        s.setGoal(cell);
+        sfxSpawn();
+      } else if (s.tool === "checkpoint") {
+        // Read the count back rather than trusting the call: at the cap,
+        // addCheckpoint is a no-op and a confirmation sound would be a lie.
+        const before = s.checkpoints.length;
+        s.addCheckpoint(cell, resumeYaw(cell));
+        if (useEditorStore.getState().checkpoints.length !== before) sfxSpawn();
       } else if (s.tool === "pick") {
         s.pick(cell);
       } else if (s.tool === "paint") {
@@ -93,7 +168,7 @@ export function Builder({ children }: { children: React.ReactNode }) {
         sfxErase();
       }
     },
-    [cellFor]
+    [cellFor, resumeYaw]
   );
 
   const onPointerMove = useCallback(
@@ -102,14 +177,10 @@ export function Builder({ children }: { children: React.ReactNode }) {
       if (strokeId.current !== null && e.pointerId !== strokeId.current) return;
 
       const s = useEditorStore.getState();
-      const cell = cellFor(e, s.tool === "place" || s.tool === "spawn");
+      const cell = cellFor(e, outward(s.tool));
       s.setHoverCell(inBounds(cell) ? cell : null);
 
-      // Spawn, pick and prop are single-shot: dragging any of them would spam
-      // the undo stack (or the brush) with one action per cell crossed —
-      // and for prop, one new instance per pixel moved.
-      const tool = useEditorStore.getState().tool;
-      if (painting.current && tool !== "spawn" && tool !== "pick" && tool !== "prop") {
+      if (painting.current && !singleShot(useEditorStore.getState().tool)) {
         applyAt(e);
       }
     },

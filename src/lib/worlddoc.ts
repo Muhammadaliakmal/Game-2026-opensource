@@ -40,6 +40,17 @@ export interface Checkpoint {
   pos: Vec3;
   yaw: number;
 }
+
+/**
+ * The most resume points one course may have.
+ *
+ * Named rather than written twice, because the schema below is not the only
+ * thing that has to agree with it: the editor refuses to place the sixty-fifth
+ * checkpoint, and `lib/ops.ts` bounds a checkpoint op's index by it so a
+ * crafted message cannot insert past the end. A cap enforced only at save time
+ * is a cap the author meets as a validation error after the work is done.
+ */
+export const MAX_CHECKPOINTS = 64;
 export interface WorldDoc {
   v: 1;
   id: string;
@@ -118,7 +129,7 @@ export const worldDocSchema = z.object({
   // Capped low on purpose: a course with more than this many resume points is
   // not a course, and the cap is what stops a crafted doc filling the play
   // scene with detection zones.
-  checkpoints: z.array(checkpoint).max(64).optional(),
+  checkpoints: z.array(checkpoint).max(MAX_CHECKPOINTS).optional(),
   sky: z.number().int().min(0),
   parts: z.array(partTuple).max(50000),
   props: z.array(propInstance).max(2000),

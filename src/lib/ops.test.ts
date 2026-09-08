@@ -11,7 +11,12 @@ import {
   type OpHost,
   type WorldState,
 } from "./ops";
-import { emptyWorldDoc, type PartTuple, type PropInstance } from "./worlddoc";
+import {
+  emptyWorldDoc,
+  type Checkpoint,
+  type PartTuple,
+  type PropInstance,
+} from "./worlddoc";
 import type { PartsHost, PropsHost } from "./command-bus";
 
 const part = (x: number, y: number, z: number, color = 19): PartTuple => [x, y, z, 0, color, 0, 0];
@@ -22,7 +27,15 @@ const prop = (assetId: string, x = 0): PropInstance => ({
   scale: [1, 1, 1],
 });
 
-const emptyState = (): WorldState => ({ parts: new Map(), props: [], spawn: [0, 1, 0] });
+const cp = (x: number, yaw = 0): Checkpoint => ({ pos: [x, 1, 0], yaw });
+
+const emptyState = (): WorldState => ({
+  parts: new Map(),
+  props: [],
+  spawn: [0, 1, 0],
+  goal: undefined,
+  checkpoints: [],
+});
 
 // --- schema ---------------------------------------------------------------
 
@@ -143,7 +156,14 @@ test("a doc survives a round trip through WorldState", () => {
 
 /** A stand-in for the editor store: the same surface, none of the zustand. */
 function fakeHost() {
-  const state = { parts: new Map<string, PartTuple>(), props: [] as PropInstance[], spawn: [0, 1, 0] as [number, number, number], dirty: 0 };
+  const state = {
+    parts: new Map<string, PartTuple>(),
+    props: [] as PropInstance[],
+    spawn: [0, 1, 0] as [number, number, number],
+    goal: undefined as [number, number, number] | undefined,
+    checkpoints: [] as Checkpoint[],
+    dirty: 0,
+  };
   const host: OpHost = {
     parts: (): PartsHost => ({ parts: state.parts, markDirty: () => state.dirty++ }),
     props: (): PropsHost => ({
@@ -155,6 +175,13 @@ function fakeHost() {
     }),
     setSpawn: (v) => {
       state.spawn = v;
+    },
+    setGoal: (v) => {
+      state.goal = v;
+    },
+    checkpoints: () => state.checkpoints,
+    setCheckpoints: (v) => {
+      state.checkpoints = v;
     },
     markDirty: () => state.dirty++,
   };
@@ -209,4 +236,112 @@ test("a composite op becomes one undoable command", () => {
   assert.equal(state.parts.size, 2);
   cmd.undo();
   assert.equal(state.parts.size, 0);
+});
+
+// --- course markers -------------------------------------------------------
+
+test("parseOp accepts clearing the goal, and rejects an absent next", () => {
+  const op = parseOp({ t: "goal", prev: [1, 2, 3], next: null });
+  assert.equal(op.t, "goal");
+  // The reason `null` is the encoding rather than `undefined`: an op built with
+  // `next: undefined` loses the property to JSON.stringify and arrives as this.
+  assert.throws(() => parseOp({ t: "goal", prev: [1, 2, 3] }));
+});
+
+test("parseOp rejects a checkpoint index past the document's own cap", () => {
+  assert.throws(() => parseOp({ t: "cp-add", index: 64, cp: cp(0) }));
+  assert.doesNotThrow(() => parseOp({ t: "cp-add", index: 63, cp: cp(0) }));
+});
+
+test("a goal op inverts back to the goal it replaced", () => {
+  const state = emptyState();
+  applyOp(state, { t: "goal", prev: null, next: [4, 1, 4] });
+  assert.deepEqual(state.goal, [4, 1, 4]);
+
+  applyOp(state, invertOp({ t: "goal", prev: null, next: [4, 1, 4] }));
+  assert.equal(state.goal, undefined);
+});
+
+test("checkpoints keep the order they were placed in", () => {
+  const state = emptyState();
+  applyOp(state, { t: "cp-add", index: 0, cp: cp(0) });
+  applyOp(state, { t: "cp-add", index: 1, cp: cp(10) });
+  applyOp(state, { t: "cp-add", index: 2, cp: cp(20) });
+
+  assert.deepEqual(
+    state.checkpoints.map((c) => c.pos[0]),
+    [0, 10, 20]
+  );
+});
+
+test("undoing a middle removal puts the gate back where it was", () => {
+  // The reason cp ops carry an index at all. Order is the mechanic: a gate
+  // restored at the end of the list is a course that can be finished without
+  // passing through it.
+  const state = emptyState();
+  for (const [i, x] of [0, 10, 20].entries()) {
+    applyOp(state, { t: "cp-add", index: i, cp: cp(x) });
+  }
+
+  const remove: Op = { t: "cp-remove", index: 1, cp: cp(10) };
+  applyOp(state, remove);
+  assert.deepEqual(
+    state.checkpoints.map((c) => c.pos[0]),
+    [0, 20]
+  );
+
+  applyOp(state, invertOp(remove));
+  assert.deepEqual(
+    state.checkpoints.map((c) => c.pos[0]),
+    [0, 10, 20]
+  );
+});
+
+test("a stale index removes the gate the op names, not whatever sits there now", () => {
+  // A peer removed an earlier gate between this op being sent and applied.
+  const state = emptyState();
+  for (const [i, x] of [0, 10, 20].entries()) {
+    applyOp(state, { t: "cp-add", index: i, cp: cp(x) });
+  }
+  applyOp(state, { t: "cp-remove", index: 0, cp: cp(0) });
+
+  // Index 1 now holds the gate at x=20; the op means the one at x=10.
+  applyOp(state, { t: "cp-remove", index: 1, cp: cp(10) });
+  assert.deepEqual(
+    state.checkpoints.map((c) => c.pos[0]),
+    [20]
+  );
+});
+
+test("a world with no checkpoints saves without the field, not with an empty one", () => {
+  const doc = emptyWorldDoc("w", "u");
+  const back = docFromState(doc, stateFromDoc(doc));
+  assert.equal(back.checkpoints, undefined);
+  assert.equal(back.goal, undefined);
+});
+
+test("a course round-trips its goal and its gates through state and back", () => {
+  const doc = emptyWorldDoc("w", "u");
+  doc.goal = [8, 1, 8];
+  doc.checkpoints = [cp(0), cp(10)];
+
+  const back = docFromState(doc, stateFromDoc(doc));
+  assert.deepEqual(back.goal, doc.goal);
+  assert.deepEqual(back.checkpoints, doc.checkpoints);
+});
+
+test("commandFor makes the course ops undoable against a live host", () => {
+  const { state, host } = fakeHost();
+
+  const addGoal = commandFor({ t: "goal", prev: null, next: [2, 1, 2] }, host);
+  addGoal.do();
+  assert.deepEqual(state.goal, [2, 1, 2]);
+  addGoal.undo();
+  assert.equal(state.goal, undefined);
+
+  const addCp = commandFor({ t: "cp-add", index: 0, cp: cp(5) }, host);
+  addCp.do();
+  assert.equal(state.checkpoints.length, 1);
+  addCp.undo();
+  assert.equal(state.checkpoints.length, 0);
 });

@@ -149,6 +149,37 @@ the route, and — the one that matters — that the goal is still reachable *fr
 every checkpoint*, because a resume point you cannot continue from is a soft
 lock rather than a mercy.
 
+## Authoring a course in the editor
+
+`goal` and `checkpoints` are the two fields that turn a world into a course,
+and the `goal` / `checkpoint` tools (`X` and `C`) are how a player writes them.
+Both go through the command bus as ops — `goal`, `cp-add`, `cp-remove` — so
+undo reaches them and a build room replicates them.
+
+- **`toDoc` is the round trip, and it is silent when it is wrong.** A field the
+  store does not carry is a field `toDoc` cannot emit, and one it cannot emit
+  is one that Save *and Play* delete: `WorldCanvas` builds the play snapshot
+  from `toDoc`, not from the loaded document. That is how `checkpoints` and
+  `spawnYaw` came to be stripped from every remix of a shipped course while
+  `goal`, the field between them, was passed through. Anything added to
+  `WorldDoc` must be added to the store, to `loadDoc` and to `toDoc` together.
+- **Checkpoint ops carry an index, not just a value.** Order is the mechanic —
+  `checkpoints.ts` reads "later in the course" straight off the array — so an
+  undo has to put a gate back where it was, not on the end. They carry the
+  value too, so a peer's stale index removes the gate the op names.
+- **Empty means absent.** A world with no gates saves without the field rather
+  than with `[]`; a sandbox should not have the shape of a course with none.
+- **Marker height is `[x + 0.5, y, z + 0.5]` of the cell above the block**,
+  which is the same thing `Course.checkpoint` and `goalOver` compute in
+  `course-kit.ts` for the shipped courses. The two must agree or a hand-built
+  course's markers sit half a block off from a generated one's.
+- `CourseMarkers` draws them while building and **must not animate** — the
+  editor canvas is `frameloop="demand"`. It shows each gate's index and a stub
+  pointing the way a run resumes, because `yaw` is otherwise invisible until
+  somebody falls.
+- `X`, not `F`, opens the finish tool. `FrameWorld` owns `F` on its own window
+  listener.
+
 ## Race tracks
 
 **Every race track shares one XZ footprint** — the rounded box in

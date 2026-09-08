@@ -32,6 +32,7 @@ import { connectToWorld, multiplayerEnabled, setPresenceMode } from "@/lib/net/r
 import { InstancedParts } from "@/components/editor/InstancedParts";
 import { GhostPreview } from "@/components/editor/GhostPreview";
 import { SpawnMarker } from "@/components/editor/SpawnMarker";
+import { CourseMarkers } from "@/components/editor/CourseMarkers";
 import { Ground } from "@/components/editor/Ground";
 import { Builder } from "@/components/editor/Builder";
 import { Toolbar } from "@/components/editor/Toolbar";
@@ -643,6 +644,11 @@ export default function WorldCanvas({
             </Builder>
             <GhostPreview />
             <SpawnMarker />
+            {/* Outside <Builder>, like the spawn marker: a marker is something
+                you look at while building, never something you can build on,
+                and putting it inside the group would let a click on a beacon
+                place a block behind it. */}
+            <CourseMarkers />
             <FrameWorld />
             <OrbitControls
               makeDefault

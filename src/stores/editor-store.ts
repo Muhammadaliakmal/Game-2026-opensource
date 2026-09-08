@@ -1,5 +1,13 @@
 import { create } from "zustand";
-import type { PartTuple, PropInstance, Shape, WorldDoc, Vec3 } from "@/lib/worlddoc";
+import {
+  MAX_CHECKPOINTS,
+  type Checkpoint,
+  type PartTuple,
+  type PropInstance,
+  type Shape,
+  type WorldDoc,
+  type Vec3,
+} from "@/lib/worlddoc";
 import {
   CommandBus,
   compositeCmd,
@@ -21,13 +29,40 @@ export const setOpSink = (fn: ((op: Op) => void) | null) => {
 };
 
 /**
+ * The world position of a course marker standing on a cell's floor.
+ *
+ * Centred in the cell horizontally and level with its floor — which is the top
+ * face of whatever block is underneath. Shared by the goal and the checkpoints
+ * because a course whose two kinds of marker sat at different heights would
+ * read as a bug in the one place a runner is looking.
+ */
+const markerPos = (cell: [number, number, number]): Vec3 => [
+  cell[0] + 0.5,
+  cell[1],
+  cell[2] + 0.5,
+];
+
+/**
  * Build and erase are the two that mutate geometry. Paint recolours a block
  * without rebuilding it, pick adopts a block's settings as the brush (the
  * eyedropper), spawn moves where Play starts you, and prop places/selects
  * catalog props (SPEC §12 Phase 3) — free-transform, not grid-snapped, so it
  * doesn't share the other tools' cell-based click handling.
+ *
+ * Goal and checkpoint are the two that turn a world into a course. They write
+ * the `goal` and `checkpoints` fields WorldDoc has carried since the parkour
+ * mode shipped and that, until now, only code could set — every course in the
+ * game was generated from TypeScript because these two tools did not exist.
  */
-export type Tool = "place" | "erase" | "paint" | "pick" | "spawn" | "prop";
+export type Tool =
+  | "place"
+  | "erase"
+  | "paint"
+  | "pick"
+  | "spawn"
+  | "prop"
+  | "goal"
+  | "checkpoint";
 
 interface EditorState {
   /**
@@ -42,8 +77,18 @@ interface EditorState {
   worldId: string | null;
   name: string;
   spawn: Vec3;
+  /**
+   * Which way the player faces on arriving at the spawn.
+   *
+   * Held even though no tool writes it, because the editor is a round trip: a
+   * field the store does not carry is a field `toDoc` cannot emit, and one it
+   * cannot emit is one that Save deletes from any world that had it.
+   */
+  spawnYaw: number | undefined;
   /** Undefined for a world that is not a course. See WorldDoc.goal. */
   goal: Vec3 | undefined;
+  /** Ordered resume points. Empty for the worlds that are not courses. */
+  checkpoints: Checkpoint[];
   sky: number;
   props: PropInstance[];
   /** Catalog id of the prop the "prop" tool places next — see PropBrowser. */
@@ -102,6 +147,13 @@ interface EditorState {
   setName(n: string): void;
   setReadOnly(v: boolean): void;
   setSpawn(cell: [number, number, number]): void;
+  /** Put the finish on a cell, making this world a course if it was not one. */
+  setGoal(cell: [number, number, number]): void;
+  /** Remove the finish, and with it the clock, the medals and the board. */
+  clearGoal(): void;
+  /** Append a resume point. `yaw` is the direction a run resumes looking. */
+  addCheckpoint(cell: [number, number, number], yaw: number): void;
+  removeCheckpoint(index: number): void;
   markSaved(): void;
 
   place(cell: [number, number, number]): void;
@@ -159,6 +211,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
     parts: partsHost,
     props: propsHost,
     setSpawn: (spawn) => set({ spawn }),
+    setGoal: (goal) => set({ goal }),
+    checkpoints: () => get().checkpoints,
+    setCheckpoints: (checkpoints) => set({ checkpoints }),
     markDirty: () => get().markDirty(),
   };
 
@@ -197,7 +252,9 @@ export const useEditorStore = create<EditorState>((set, get) => {
   worldId: null,
   name: "Untitled World",
   spawn: [0, 1, 0],
+  spawnYaw: undefined,
   goal: undefined,
+  checkpoints: [],
   sky: 0,
   props: [],
   activePropId: null,
@@ -251,6 +308,66 @@ export const useEditorStore = create<EditorState>((set, get) => {
     if (prev[0] === next[0] && prev[1] === next[1] && prev[2] === next[2]) return;
 
     dispatch({ t: "spawn", prev, next });
+  },
+
+  /**
+   * Where the course is won.
+   *
+   * `cell` is the empty cell above the block that was clicked (Builder arms
+   * these tools "outward", like place and spawn), so its floor — `cell[1]`,
+   * with no offset — is the top face of the deck below it. That is exactly
+   * what `Course.checkpoint` and `goalOver` compute in `course-kit.ts` for the
+   * shipped courses, and the two conventions have to agree or a hand-built
+   * course's markers would sit half a block off from a generated one's.
+   *
+   * Unlike the spawn, this is a Vec3 the player stands ON rather than in, so
+   * there is no capsule offset: `GoalZone` reaches 1.6 units below the point.
+   */
+  setGoal: (cell) => {
+    const s = get();
+    if (s.readOnly) return;
+    const prev = s.goal ?? null;
+    const next = markerPos(cell);
+    if (prev && prev[0] === next[0] && prev[1] === next[1] && prev[2] === next[2]) {
+      return;
+    }
+    dispatch({ t: "goal", prev, next });
+  },
+
+  clearGoal: () => {
+    const s = get();
+    if (s.readOnly || !s.goal) return;
+    dispatch({ t: "goal", prev: s.goal, next: null });
+  },
+
+  /**
+   * Append a resume point.
+   *
+   * Append, not insert: order is placement order. A gate in the wrong place is
+   * deleted and re-placed rather than dragged up a list, which is the cheap
+   * answer and the one `checkpoints.ts` is indifferent to — it reads "later in
+   * the course" straight off the array and lets the author decide what that
+   * means.
+   *
+   * The cap is enforced here rather than left to the schema so an author meets
+   * it as a tool that stops working, not as a failed save.
+   */
+  addCheckpoint: (cell, yaw) => {
+    const s = get();
+    if (s.readOnly || s.checkpoints.length >= MAX_CHECKPOINTS) return;
+    dispatch({
+      t: "cp-add",
+      index: s.checkpoints.length,
+      cp: { pos: markerPos(cell), yaw },
+    });
+  },
+
+  removeCheckpoint: (index) => {
+    const s = get();
+    if (s.readOnly) return;
+    const cp = s.checkpoints[index];
+    if (!cp) return;
+    dispatch({ t: "cp-remove", index, cp });
   },
 
   setHoverCell: (hoverCell) => {
@@ -422,7 +539,11 @@ export const useEditorStore = create<EditorState>((set, get) => {
       worldId: doc.id,
       name: doc.name,
       spawn: doc.spawn,
+      spawnYaw: doc.spawnYaw,
       goal: doc.goal,
+      // Copied, not aliased: the commands splice new arrays and must never
+      // mutate the document they were loaded from.
+      checkpoints: [...(doc.checkpoints ?? [])],
       sky: doc.sky,
       props: doc.props,
       selectedProp: null,
@@ -443,10 +564,22 @@ export const useEditorStore = create<EditorState>((set, get) => {
       name: s.name,
       ownerId,
       spawn: s.spawn,
-      // Verbatim, for the same reason as props below: nothing in the editor
-      // moves the goal yet, and dropping it here would quietly un-finish every
-      // remix of the course.
+      spawnYaw: s.spawnYaw,
       goal: s.goal,
+      /**
+       * Absent rather than empty for a world with no resume points, so a
+       * sandbox does not acquire the shape of a course with none.
+       *
+       * These two lines and `spawnYaw` above were the bug this phase started
+       * with. `goal` was passed through verbatim and carried a comment saying
+       * why — dropping it "would quietly un-finish every remix of the course"
+       * — while `checkpoints` and `spawnYaw` beside it were dropped exactly
+       * that way. It was never only a save bug: WorldCanvas builds the Play
+       * snapshot from `toDoc`, so remixing any shipped course and pressing
+       * Play stripped its gates and its facing, and a fall sent you back to
+       * the start of a course that was supposed to resume.
+       */
+      checkpoints: s.checkpoints.length > 0 ? s.checkpoints : undefined,
       sky: s.sky,
       parts: [...s.parts.values()],
       // Verbatim: nothing in the editor edits props yet, and saving [] here
