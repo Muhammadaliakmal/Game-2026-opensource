@@ -457,6 +457,34 @@ pulls in three.js, and a headless server must not.
 - `cd server && npm run dev` — room server on :2567 (`npm test` for its tests)
 - See `server/.env.example` for everything it reads.
 
+### Measuring a room
+
+Two things about a room can only be measured against a running one, and both
+have a command rather than a procedure.
+
+- `npm run peers:soak` (repo root) puts four real clients in one room over the
+  real protocol and reports the distribution of **inter-arrival gaps** against
+  `INTERP_DELAY`. That is the "no snapping" half of Phase 5's last acceptance
+  row: a peer snaps when its next transform arrives more than 120 ms after the
+  last, because `lib/net/peers.ts` deliberately renders that far in the past so
+  it always has two known samples to walk between. `--url` points it at a
+  deployed server, which is the only run that means anything — the number that
+  matters is the one the host produces, not localhost's.
+  - **Arrivals are quantised to `BuildRoom.patchRate`, so they cannot match
+    `SEND_INTERVAL`.** 83 ms sends on a 50 ms grid arrive as a mix of 50 ms and
+    100 ms gaps, averaging 89 ms — about 20 ms of headroom under the budget,
+    not the 37 ms the two constants suggest. `--send` exists to demonstrate
+    that rather than argue it: 50 ms is clean, 100 ms breaks the budget 13% of
+    the time. If peers look jerky in production, measure this before touching
+    the interpolator.
+  - Bots must move. Colyseus patches only fields that changed, so stationary
+    bots emit nothing and a harness built on them measures an empty room and
+    calls it perfect. `x` doubles as the send clock — see the file.
+- `cd server && npm run token` lists users; `-- --user <id>` mints a **real**
+  Clerk session token via the Backend API. `verifyJoin` cannot tell it from a
+  browser's, so it is how the owner-edits-their-own-world path gets tested
+  without a browser. It creates a real session on a real account: revoke it.
+
 ### Who may do what in a room (5d)
 
 Two separate questions, answered in two different places, and conflating them

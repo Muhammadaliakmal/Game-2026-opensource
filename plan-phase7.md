@@ -331,6 +331,47 @@ pass — `?perf=1` now mounts on every canvas, which is what 6f added it for.
 **Accept:** `plan-phase5.md` §5 has no "not measured" rows left, and 6f's
 frame-budget table has a column taken on hardware.
 
+**In progress.** The measuring instruments exist and the artefacts are
+verified; the deploy itself is waiting on credentials nobody but the account
+holder can enter.
+
+Verified locally (2026-09-08), because these are the parts of a deploy that can
+fail without anyone's password:
+
+- **The room server image builds and boots.** `docker build -f server/Dockerfile
+  .` from the repo root, then the container answers `GET /` with 200 — which is
+  what makes `healthCheckPath: /` in `render.yaml` correct rather than hopeful,
+  and disproves the failure mode the Dockerfile's own comment warns about
+  (dependencies installed at `/app` so `src/lib`'s `@/*` imports can resolve
+  `zod` by walking up; get it wrong and the image builds clean and dies on
+  boot).
+- **Four peers, measured.** `npm run peers:soak` — see §5 of `plan-phase5.md`
+  for the numbers and for the send-interval/patch-rate finding it turned up.
+  It takes a `--url`, so the same command re-run against
+  `wss://blockworld-rooms.onrender.com` is the deployed half of that row.
+- **`next build` is clean**, 285 app tests and 59 server tests pass, `/parkour`
+  is still correctly dynamic.
+
+Still blocked, and on exactly three things:
+
+1. **`vercel login`** — the CLI is installed and logged out. Nobody but the
+   account holder can complete it, and no deploy of the app happens without it.
+2. **A Render Blueprint run**, which is a wizard: it prompts for `APP_URL`,
+   `CLERK_SECRET_KEY` and `MULTIPLAYER_SECRET` because they are `sync: false`.
+   The app then needs the *same* `MULTIPLAYER_SECRET` and
+   `NEXT_PUBLIC_MULTIPLAYER_URL=wss://…` — a build-time var, so setting it
+   means redeploying the app, not just saving it.
+3. **A device.** The tier-3 phone pass and the four-browser frame-rate half of
+   §5 are properties of renderers on hardware. `?perf=1` mounts on every canvas
+   for exactly this.
+
+`server/scripts/room-token.ts` (`cd server && npm run token`) closes the other
+Phase 5 row without a browser: it mints a genuine Clerk session token through
+the Backend API, which `verifyJoin` cannot tell from a browser's, and
+`peers:soak --token` presents it on the join. Written, typechecked, **not
+run** — it reads `CLERK_SECRET_KEY` and creates a real session on a real
+account, so it is the account holder's to run.
+
 ### 7e — Retune `HUMAN`
 
 Only possible after 7d, and only worth doing with real times in the `runs`

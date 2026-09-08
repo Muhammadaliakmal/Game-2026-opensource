@@ -16,7 +16,8 @@
     "chars:optimize": "node --import tsx scripts/optimize-characters.ts",
     "props:generate": "node --import tsx scripts/meshy-batch.ts",
     "props:optimize": "node --import tsx scripts/optimize-props.ts",
-    "props:upload": "node --import tsx scripts/upload-props.ts"
+    "props:upload": "node --import tsx scripts/upload-props.ts",
+    "peers:soak": "node --import tsx scripts/peer-soak.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1123.0",

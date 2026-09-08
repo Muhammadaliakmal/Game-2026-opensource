@@ -112,11 +112,26 @@ server on :2567. What each one actually showed:
 | A malformed op is rejected and never broadcast | Yes, and forged keys and over-cap strokes with it (`world-session.test.ts`). |
 | Everyone disconnects → the world reloads with every edit | Yes. Five placements in a real room became one debounced write into the real `worlds` row. |
 | `NEXT_PUBLIC_MULTIPLAYER_URL` unset → unchanged | Yes. 95/95 app and 52/52 server tests pass with it unset. |
-| 4 peers at 60 fps, no snapping | Not measured. Needs four real clients. |
+| 4 peers at 60 fps, no snapping | **Half measured** (2026-09-08). `npm run peers:soak` puts four real clients in one room over the real protocol, against the production Docker image: p99 inter-arrival 104 ms against the 120 ms interpolation budget, 0.24% of samples over it, one-way presence latency p50 29 ms / p99 53 ms. So **no snapping from the network** at four peers — on a local link. Frame rate is not in that number and cannot be: it is a property of a renderer on a device. |
 
 Two things the checks above do **not** cover, both needing a browser:
 frame-rate under peers, and a genuine Clerk session token mapping to the owner
 (everything here was exercised as a guest, or with `ALLOW_ANONYMOUS_ROOMS=1`).
+
+**What the soak found, and it is not what it was looking for.** The presence
+send interval and the room's patch rate are not multiples of each other —
+`SEND_INTERVAL` is 83 ms, `BuildRoom.patchRate` is 50 ms — so a transform can
+only ever arrive on a 50 ms grid, and 12 Hz sends land as a mix of 50 ms and
+100 ms gaps averaging 89 ms. The comment on `SEND_INTERVAL` ("fast enough that
+120 ms of interpolation always has a segment to walk") is therefore true with
+about **20 ms of headroom**, not the 37 ms its arithmetic implies. The harness
+can demonstrate the mechanism rather than assert it: `--send 50`, aligned to
+the grid, gives p99 102 ms and **zero** samples over budget; `--send 100`, two
+grid steps and so maximally exposed to timer jitter, breaks the budget 13% of
+the time. Nothing needs changing for a local link. Whether 20 ms survives a
+real WAN hop to Render is exactly what re-running this against the deployed
+URL will say, and it is the first thing to check if peers look jerky in
+production.
 
 ## 6. Known gotchas
 
