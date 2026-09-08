@@ -1,3 +1,5 @@
+import { audioBus } from "@/lib/audio";
+
 /**
  * The arcade's sound, which is a few oscillators and no files.
  *
@@ -8,41 +10,32 @@
  * story, to produce a noise a dozen lines of WebAudio make exactly. It also
  * makes pitch a parameter, which is what the rising coin streak needs.
  *
- * ── The context is created on the first sound, never at import ───────────
+ * ── One graph, one mute ─────────────────────────────────────────────────
  *
- * Browsers refuse to start an AudioContext without a user gesture and log a
- * warning when you try, so one made at module scope is a warning on every page
- * that imports the arcade — including players who never open a cabinet.
+ * This used to build its own AudioContext with its own `muted` flag, and
+ * nothing ever set that flag: the site's mute button silenced the world and
+ * left the cabinets beeping. Everything now hangs off the app's master gain
+ * (`lib/audio.ts`), which is where the mute and the volume live, and which the
+ * music hangs off too. The context is still created on first use rather than
+ * at import — browsers refuse to start one without a gesture and warn when you
+ * try, so one made at module scope is a warning on every page that touches the
+ * arcade, including for players who never open a cabinet.
+ *
+ * The gains below are stated at their old values times three, because they
+ * used to run straight into `destination` and now pass through a master sitting
+ * at 0.35. Same loudness, one fader.
  */
 
 type Voice = { freq: number; to?: number; dur: number; type: OscillatorType; gain: number };
 
 const VOICES: Record<string, Voice> = {
-  jump: { freq: 420, to: 640, dur: 0.09, type: "square", gain: 0.05 },
-  land: { freq: 180, to: 120, dur: 0.07, type: "triangle", gain: 0.04 },
-  coin: { freq: 880, to: 1320, dur: 0.08, type: "square", gain: 0.05 },
-  place: { freq: 300, to: 300, dur: 0.05, type: "square", gain: 0.05 },
-  perfect: { freq: 990, to: 1480, dur: 0.12, type: "square", gain: 0.06 },
-  die: { freq: 220, to: 60, dur: 0.35, type: "sawtooth", gain: 0.07 },
+  jump: { freq: 420, to: 640, dur: 0.09, type: "square", gain: 0.15 },
+  land: { freq: 180, to: 120, dur: 0.07, type: "triangle", gain: 0.12 },
+  coin: { freq: 880, to: 1320, dur: 0.08, type: "square", gain: 0.15 },
+  place: { freq: 300, to: 300, dur: 0.05, type: "square", gain: 0.15 },
+  perfect: { freq: 990, to: 1480, dur: 0.12, type: "square", gain: 0.18 },
+  die: { freq: 220, to: 60, dur: 0.35, type: "sawtooth", gain: 0.21 },
 };
-
-let ctx: AudioContext | null = null;
-let muted = false;
-
-function context(): AudioContext | null {
-  if (muted) return null;
-  if (ctx) return ctx;
-  try {
-    const Ctor =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-    ctx = Ctor ? new Ctor() : null;
-  } catch {
-    ctx = null;
-  }
-  return ctx;
-}
 
 /**
  * Play one named sound. `semitones` shifts it, for streaks that climb.
@@ -53,8 +46,9 @@ function context(): AudioContext | null {
  */
 export function sfx(name: string, semitones = 0): void {
   const v = VOICES[name];
-  const ac = context();
-  if (!v || !ac) return;
+  const bus = audioBus();
+  if (!v || !bus) return;
+  const ac = bus.ctx;
   if (ac.state === "suspended") void ac.resume();
 
   const shift = Math.pow(2, semitones / 12);
@@ -72,7 +66,7 @@ export function sfx(name: string, semitones = 0): void {
   gain.gain.setValueAtTime(v.gain, t);
   gain.gain.exponentialRampToValueAtTime(0.0001, t + v.dur);
 
-  osc.connect(gain).connect(ac.destination);
+  osc.connect(gain).connect(bus.master);
   osc.start(t);
   osc.stop(t + v.dur + 0.02);
   osc.onended = () => {
@@ -80,14 +74,3 @@ export function sfx(name: string, semitones = 0): void {
     gain.disconnect();
   };
 }
-
-/** Silence the arcade. Also releases the context, so a muted tab costs nothing. */
-export function setMuted(next: boolean): void {
-  muted = next;
-  if (next && ctx) {
-    void ctx.close().catch(() => {});
-    ctx = null;
-  }
-}
-
-export const isMuted = () => muted;

@@ -23,6 +23,16 @@ export interface ArcadeEntry {
   title: string;
   tagline: string;
   controlsHint: string;
+  /**
+   * Tempo of this cabinet's music, in BPM. Optional — `music.ts` has a default.
+   *
+   * A cabinet is allowed its own tempo and nothing else about the track,
+   * because tempo is the one musical parameter a game genuinely has an opinion
+   * about: a game you play in bursts wants a different pulse from one you play
+   * in a held breath. Anything more than this belongs in the music, not spread
+   * across the registry.
+   */
+  bpm?: number;
   /** Hidden from the cabinet list. For the host's own test game. */
   dev?: boolean;
   load: () => Promise<{ default: GameModule }>;
@@ -34,6 +44,9 @@ export const ARCADE: ArcadeEntry[] = [
     title: "Chunk Runner",
     tagline: "Don't stop. Don't blink.",
     controlsHint: "SPACE / TAP to jump · hold to glide",
+    // An endless runner is played in a forward lean, so it gets the quicker
+    // pulse of the two.
+    bpm: 148,
     load: () => import("./games/chunk-runner"),
   },
   {
@@ -41,6 +54,9 @@ export const ARCADE: ArcadeEntry[] = [
     title: "Tower Stack",
     tagline: "Perfect or nothing.",
     controlsHint: "SPACE / TAP to drop",
+    // Stacking is a game of waiting for one moment, and a track that hurries
+    // the player into pressing is a track that costs them the perfect.
+    bpm: 132,
     load: () => import("./games/tower-stack"),
   },
   {

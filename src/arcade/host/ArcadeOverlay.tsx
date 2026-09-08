@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { MuteButton } from "@/components/MuteButton";
 import { GameHost } from "./GameHost";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
@@ -90,6 +91,13 @@ export default function ArcadeOverlay() {
           {bestScore > 0 && (
             <span className="hud-label num">best {bestScore}</span>
           )}
+          {/* The cabinets have music now, and this screen covers the site
+              header — which is where the only other mute button lives. A
+              looping track with no visible way to stop it is worse than no
+              track, so the control goes where the sound is. It is the app's
+              own MuteButton, so it silences the whole game and agrees with
+              every other copy of itself. */}
+          <MuteButton className="hud-chip hud-chip--icon" />
           <button type="button" className="hud-chip" onClick={close}>
             Quit
           </button>

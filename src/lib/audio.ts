@@ -98,6 +98,22 @@ export function primeAudio() {
   resume();
 }
 
+/**
+ * The shared graph, for sound that this file does not itself make.
+ *
+ * Everything hanging off `master` is muted by the one mute button and mixed at
+ * the one volume, which is the entire argument for handing the bus out rather
+ * than letting a caller build its own context. The arcade did build its own —
+ * a second AudioContext with a second `muted` flag that nothing ever set — so
+ * the mute button silenced the world and left the cabinets playing.
+ *
+ * Returns null before a context can exist (server render, or a browser with no
+ * WebAudio). Callers must treat that as "no sound", never as an error.
+ */
+export function audioBus() {
+  return audio();
+}
+
 /** A percussive burst of filtered noise — footsteps, landings, block placement. */
 export function noiseHit(dur: number, cutoff: number, gain: number) {
   const a = audio();

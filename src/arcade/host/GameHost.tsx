@@ -6,6 +6,7 @@ import { resizeCanvas } from "./canvas";
 import { attachInput, type InputHost } from "./input";
 import { mulberry32 } from "./rng";
 import { sfx } from "./audio";
+import { startMusic, stopMusic } from "./music";
 import type { ArcadeGame, GameServices } from "./types";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
@@ -126,7 +127,7 @@ export function GameHost({ className }: { className?: string }) {
         if (over) return; // A game that ends twice must only be paid once.
         over = true;
         score = final;
-        loop.stop();
+        stopRun();
         // The screen goes up on the score, which is known now. The payout is
         // a request, and a death screen that waited for the network to draw
         // would make every death feel like a stutter.
@@ -155,6 +156,25 @@ export function GameHost({ className }: { className?: string }) {
       }
     );
 
+    /**
+     * The track plays exactly when the loop runs, and that is the whole rule.
+     * Paused, tabbed away, dead, or torn down all stop it, because all four
+     * already stop the loop. Keying it off the game's status instead would be
+     * four places to remember, and the one that gets forgotten is always the
+     * tab switch — which leaves music playing in a tab nobody is looking at.
+     *
+     * `startMusic` ignores a second call, so pairing it with every `start` is
+     * free on a resume.
+     */
+    const startRun = () => {
+      loop.start();
+      startMusic(seed, entry.bpm);
+    };
+    const stopRun = () => {
+      loop.stop();
+      stopMusic();
+    };
+
     // ── Size ──────────────────────────────────────────────────────────────
     // Only when the pixel dimensions actually moved: setting them clears the
     // canvas, so an observer that fired on every layout would strobe.
@@ -172,10 +192,10 @@ export function GameHost({ className }: { className?: string }) {
     // anyway; stopping outright means it never has to.
     const onVisibility = () => {
       if (document.hidden) {
-        loop.stop();
+        stopRun();
         input?.clear();
       } else if (!over && useArcade.getState().status === "playing") {
-        loop.start();
+        startRun();
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -186,8 +206,8 @@ export function GameHost({ className }: { className?: string }) {
     // would do.
     const unsubscribe = useArcade.subscribe((s, prev) => {
       if (s.status === prev.status) return;
-      if (s.status === "playing" && !over && !document.hidden) loop.start();
-      else loop.stop();
+      if (s.status === "playing" && !over && !document.hidden) startRun();
+      else stopRun();
       if (s.status !== "playing") input?.clear();
     });
 
@@ -212,7 +232,7 @@ export function GameHost({ className }: { className?: string }) {
         }
         game = created;
         useArcade.getState().setStatus("playing");
-        loop.start();
+        startRun();
       } catch {
         if (!cancelled) {
           useArcade.getState().fail("That cabinet would not start.");
@@ -225,7 +245,7 @@ export function GameHost({ className }: { className?: string }) {
       unsubscribe();
       document.removeEventListener("visibilitychange", onVisibility);
       observer.disconnect();
-      loop.stop();
+      stopRun();
       input?.detach();
       game?.destroy();
       game = null;
