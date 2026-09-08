@@ -223,6 +223,54 @@ undo reaches them and a build room replicates them.
 - `X`, not `F`, opens the finish tool. `FrameWorld` owns `F` on its own window
   listener.
 
+## The bike, and who is sitting on it
+
+The race bike is an imported GLB (`public/bikes/scifi.glb`), not the procedural
+one any more — but the procedural one is still there and still matters.
+
+- `npm run bike:import` rebuilds the GLB from `assets/raw-bikes/BIke_Low.fbx`
+  (gitignored, same rule as raw props and characters). It collapses **87 meshes
+  and 19 Maya materials into 5 draw calls and 5 named materials**, decimates
+  69,835 triangles to 20k, and normalises the model to `BikeModel`'s own
+  convention: length along +Z, origin at axle height, tyres 0.43 below it.
+  Those three facts are what make it a straight swap for the procedural bike
+  and what keep the rider on the seat.
+- **`body` and `accent` are load-bearing material names.** They are the two a
+  rider's colour lands on (`paintFor` / `glowFor`); rename them in the importer
+  and every bike on the grid comes out the same colour.
+- `npm run bike:preview` rasterises the GLB to `docs/bike-preview.png` on the
+  CPU — three orthographic views with a floor line. It exists because one
+  question about an imported model cannot be answered any other way without a
+  browser: **which end is the front.** `FRONT_IS_PLUS_X` in the importer is the
+  one constant that flips it, and the glass canopy at z +0.68 plus the widest
+  upper body (the handlebars) at z +0.4 are what say it is currently right.
+- `VoxelBike` is the Suspense fallback, exactly as the courier is for `Avatar`.
+  Both are built to `SADDLE` and `BARS`, so a GLB arriving mid-race does not
+  move its rider.
+
+### Riders
+
+`Rider` is a chooser, the same shape as `Avatar`: the shop character you bought
+if you bought one (`RiderRig`), the voxel courier otherwise (`VoxelRider`).
+Rivals get theirs from `peer.character`, which is already on the wire.
+
+- **The seated pose is `SEATED` in `play/character-rig.ts`, and it is checked
+  rather than eyeballed.** `character-rig.test.ts` runs forward kinematics over
+  each shipped GLB and asserts the hands arrive forward of the hips, the knees
+  ahead of them and the feet below the knees. Joint angles are not readable by
+  inspection; where the hands end up is.
+- **`FACE_SIGN` applies to the walk and NOT to the ride.** The gait is authored
+  in the courier's -Z-forward space and the GLBs face +Z, so the walk negates.
+  The bike also faces +Z, so the riding pose is authored in the model's own
+  space and negates nothing.
+- **A tuck must not take the hands off the bars.** The shoulders are children of
+  the chest, so folding the torso carries the arms with it; `poseSeated`
+  subtracts the fold back out at the shoulder and adds it at the elbow. What is
+  left is 45 mm of hand travel against 94 mm at the head, which is a hand
+  sliding on the grip. The test holds that ratio.
+- Lean and tuck constants live in `race/ride.ts` because there are two kinds of
+  rider drawn by different code, for the same reason `gait.ts` exists.
+
 ## Race tracks
 
 **Every race track shares one XZ footprint** — the rounded box in

@@ -1,9 +1,12 @@
 "use client";
 
 import * as THREE from "three";
-import { useRef } from "react";
+import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { DEFAULT_CHARACTER, characterFor } from "@/lib/characters";
+import { LEAN, LEAN_RATE, TUCK, TUCK_SPEED } from "./ride";
+import { RiderRig } from "./RiderRig";
 
 /**
  * The rider sitting on the bike.
@@ -66,11 +69,6 @@ const M = {
   }),
 };
 
-/** How far the rider leans into a corner, in radians at full lock. */
-const LEAN = 0.38;
-/** How quickly the lean catches up. Lower is floatier. */
-const LEAN_RATE = 0.12;
-
 /**
  * The rest pose, now that two of these are animated rather than baked into the
  * JSX: the torso tipped forward over the tank, and the helmet tipped back out
@@ -79,16 +77,6 @@ const LEAN_RATE = 0.12;
 const TORSO_PITCH = 0.42;
 const HELMET_PITCH = -0.3;
 
-/**
- * The speed at which the tuck is full, in world units per second.
- *
- * Owned here rather than read off Bike's MAX_SPEED on purpose: a rival's speed
- * arrives as a measured one (see RaceRiders), so this has to be a number about
- * riding rather than a number about the local bike's tuning.
- */
-const TUCK_SPEED = 16;
-/** How far the rider folds down over the tank at speed, radians. */
-const TUCK = 0.16;
 /** How much of that the helmet takes back, so the eyes stay up the road. */
 const HEAD_LIFT = 0.7;
 /** How far the helmet turns to look through a corner, radians at full lock. */
@@ -96,7 +84,7 @@ const HEAD_TURN = 0.3;
 /** Vertical travel from the road surface at speed, in units. */
 const BUMP = 0.008;
 
-export function Rider({
+export function VoxelRider({
   /** Matches the bike so a rider is told apart at a glance, same as the bike. */
   color = "#22d3ee",
   /**
@@ -248,5 +236,39 @@ export function Rider({
         ))}
       </group>
     </group>
+  );
+}
+
+/**
+ * Whoever this player is riding as.
+ *
+ * The one place that decides between the two kinds of rider, so neither
+ * `Bike` nor `RaceRiders` has to know there are two — the same shape `Avatar`
+ * has for the on-foot case, and for the same reasons.
+ *
+ * The fallback is the voxel courier and that is not an accident: a GLB is a
+ * download, and suspending on it with nothing underneath would leave a
+ * riderless bike going round the track for as long as that took. Both are
+ * fitted to `SADDLE`, so a character popping in mid-race does not move.
+ */
+export function Rider({
+  color = "#22d3ee",
+  characterId = DEFAULT_CHARACTER,
+  steerRef,
+  speedRef,
+}: {
+  color?: string;
+  /** A `lib/characters.ts` id. The courier has no GLB and is drawn directly. */
+  characterId?: string;
+  steerRef?: React.RefObject<number>;
+  speedRef?: React.RefObject<number>;
+}) {
+  const voxel = <VoxelRider color={color} steerRef={steerRef} speedRef={speedRef} />;
+  if (!characterFor(characterId).url) return voxel;
+
+  return (
+    <Suspense fallback={voxel}>
+      <RiderRig characterId={characterId} steerRef={steerRef} speedRef={speedRef} />
+    </Suspense>
   );
 }

@@ -26,6 +26,7 @@ import { assistSteer } from "@/lib/race-assist";
 import { reducedMotion } from "@/lib/motion";
 import { requestHitStop } from "@/lib/hit-stop";
 import { FEEL } from "@/lib/feel";
+import { useShop } from "@/lib/shop";
 
 /**
  * The player's bike.
@@ -237,6 +238,16 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
   const phase = useRaceStore((s) => s.phase);
 
   const color = selfId ? bikeColor(selfId) : "#22d3ee";
+  /**
+   * Who the player is riding as.
+   *
+   * Straight from the shop store, which hydrates synchronously from its cache —
+   * so the rider is right on the first frame rather than changing costume once
+   * a fetch lands. `OwnAvatar` reads it the same way for the on-foot case; a
+   * character bought in the shop should be the one on the bike too, and this is
+   * the whole of what that takes.
+   */
+  const character = useShop((s) => s.character);
 
   /**
    * The server forms the grid, so it also places the bike. A teleport is a
@@ -684,7 +695,12 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     >
       <CuboidCollider args={[0.25, HALF_HEIGHT, 0.85]} />
       <BikeModel color={color} />
-      <Rider color={color} steerRef={steer} speedRef={speed} />
+      <Rider
+        color={color}
+        characterId={character}
+        steerRef={steer}
+        speedRef={speed}
+      />
     </RigidBody>
   );
 }

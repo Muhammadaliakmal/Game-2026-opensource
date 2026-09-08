@@ -6,6 +6,7 @@ import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import { useNetStore } from "@/stores/net-store";
 import { peerMap, samplePeer } from "@/lib/net/peers";
+import { DEFAULT_CHARACTER } from "@/lib/characters";
 import { BikeModel, bikeColor } from "./BikeModel";
 import { Rider } from "./Rider";
 
@@ -41,6 +42,14 @@ function RivalBike({ id }: { id: string }) {
   const [label] = useState(() => peerMap().get(id)?.name ?? "Rider");
   const [color] = useState(() => bikeColor(id));
   /**
+   * A rival's character, read once: it is fixed for the life of a connection
+   * and rides in the join options rather than in every move message — the same
+   * reason `Peers` reads it once for the on-foot case.
+   */
+  const [characterId] = useState(
+    () => peerMap().get(id)?.character ?? DEFAULT_CHARACTER
+  );
+  /**
    * A rival's speed, and unlike their steering this one is not invented: it
    * falls out of the interpolated positions that are already on the wire (see
    * `samplePeer`), in the same units the local bike reports. So a rival tucks
@@ -71,7 +80,7 @@ function RivalBike({ id }: { id: string }) {
           are and which way they point — so they do not lean off a number
           invented on this machine. Speed is a different case: it is measured
           from the positions that ARE on the wire, so the tuck is real. */}
-      <Rider color={color} speedRef={speed} />
+      <Rider color={color} characterId={characterId} speedRef={speed} />
       {/* A DOM label rather than 3D text, for the same reason Peers gives:
           troika would fetch a font over the network on first render. */}
       <Html center position={[0, 1.5, 0]} distanceFactor={14} zIndexRange={[10, 0]}>

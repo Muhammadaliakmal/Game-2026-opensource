@@ -10,6 +10,13 @@ import type { EcctrlHandle } from "ecctrl";
 import { FEEL } from "@/lib/feel";
 import { characterFor } from "@/lib/characters";
 import { Gait, type AvatarMotion } from "./gait";
+import {
+  ARM_DROP,
+  ELBOW_BEND,
+  FACE_SIGN,
+  jointsOf,
+  poseJoint,
+} from "./character-rig";
 import { look } from "./camera-rig";
 
 /**
@@ -38,109 +45,6 @@ import { look } from "./camera-rig";
  * fixed drop first (`ARM_DROP`) and the gait swings what is left. The legs
  * already hang downward at rest and need no such thing.
  */
-
-/**
- * How far the shoulders come down from the T, in radians.
- *
- * A shade under 90°, so the arms hang close to the body with a little daylight
- * at the elbow rather than clipping through the ribs.
- */
-const ARM_DROP = 1.32;
-
-/** A little permanent bend, so the elbows are not locked straight. */
-const ELBOW_BEND = 0.22;
-
-/**
- * These models face the opposite way from the courier, and every gait angle is
- * stated in the courier's space (see `GaitPose`). So each one is negated here.
- *
- * Measured, not assumed: in all three GLBs `toes.l` sits at z +0.096 against
- * `foot.l` at -0.019, and `upperleg.l` — the character's LEFT leg — is at
- * x +0.171. Toes forward on +Z and left on +X is a model facing **+Z**. The
- * courier is built facing -Z and turned around by `MODEL_FACING`, and its limb
- * rotations happen inside that turn, so its angles are -Z-forward angles.
- *
- * Handing those straight to a +Z model — which is what this did — mirrors the
- * whole pose. On the legs and arms that is invisible, because a swing cycle
- * mirrored is just the other foot leading. On everything that is not
- * symmetric it is not invisible at all: the lean tipped these characters
- * BACKWARDS as they ran, which is the moonwalk, and the airborne pose threw
- * the legs out behind instead of tucking them.
- */
-const FACE_SIGN = -1;
-
-/**
- * The bones the gait touches. Every other bone keeps its rest pose.
- *
- * Deliberately the four limb roots, the chest and the head: the skin carries
- * everything below them. Driving the whole chain by hand would be a second,
- * worse inverse-kinematics solver living in a file about walking.
- */
-const BONES = {
-  chest: "chest",
-  head: "head",
-  armL: "upperarm.l",
-  armR: "upperarm.r",
-  elbowL: "lowerarm.l",
-  elbowR: "lowerarm.r",
-  legL: "upperleg.l",
-  legR: "upperleg.r",
-  kneeL: "lowerleg.l",
-  kneeR: "lowerleg.r",
-} as const;
-
-type BoneKey = keyof typeof BONES;
-
-/**
- * A bone, its rest pose, and the model's own axes expressed in the bone's
- * PARENT space.
- *
- * Rotating a bone about a fixed model axis means pre-multiplying its rest
- * quaternion by a rotation stated in the parent's frame — which is why the
- * axes are captured against the parent rather than against the bone itself.
- * Captured once, while the clone is still detached from the scene, so "model
- * space" really is the model's and not whatever the avatar's parent group
- * happens to be doing at the time.
- */
-interface Joint {
-  bone: THREE.Object3D;
-  rest: THREE.Quaternion;
-  axisX: THREE.Vector3;
-  axisZ: THREE.Vector3;
-}
-
-function jointsOf(root: THREE.Object3D): Partial<Record<BoneKey, Joint>> {
-  root.updateMatrixWorld(true);
-  const byName = new Map<string, THREE.Object3D>();
-  root.traverse((o) => byName.set(o.name, o));
-
-  const out: Partial<Record<BoneKey, Joint>> = {};
-  const inv = new THREE.Quaternion();
-  for (const [key, name] of Object.entries(BONES) as [BoneKey, string][]) {
-    const bone = byName.get(name);
-    if (!bone || !bone.parent) continue;
-    bone.parent.getWorldQuaternion(inv).invert();
-    out[key] = {
-      bone,
-      rest: bone.quaternion.clone(),
-      axisX: new THREE.Vector3(1, 0, 0).applyQuaternion(inv).normalize(),
-      axisZ: new THREE.Vector3(0, 0, 1).applyQuaternion(inv).normalize(),
-    };
-  }
-  return out;
-}
-
-/** Scratch, reused every frame by every joint. */
-const qa = new THREE.Quaternion();
-
-/** Rotate a joint about the model's X, then its Z, on top of its rest pose. */
-function pose(j: Joint | undefined, swing: number, twist = 0) {
-  if (!j) return;
-  j.bone.quaternion
-    .setFromAxisAngle(j.axisX, swing)
-    .multiply(qa.setFromAxisAngle(j.axisZ, twist))
-    .multiply(j.rest);
-}
 
 /**
  * The models are authored with the feet at the origin, so the character is
@@ -222,23 +126,23 @@ export function CharacterRig({
 
     // Legs hang at rest, so the swing is the whole story. Arms come down out
     // of the T first, mirrored, and swing on top of that.
-    pose(joints.legL, FACE_SIGN * p.legL);
-    pose(joints.legR, FACE_SIGN * p.legR);
-    pose(joints.armL, FACE_SIGN * p.armL, -ARM_DROP);
-    pose(joints.armR, FACE_SIGN * p.armR, ARM_DROP);
+    poseJoint(joints.legL, FACE_SIGN * p.legL);
+    poseJoint(joints.legR, FACE_SIGN * p.legR);
+    poseJoint(joints.armL, FACE_SIGN * p.armL, -ARM_DROP);
+    poseJoint(joints.armR, FACE_SIGN * p.armR, ARM_DROP);
     // A flex has no sign of its own, so the anatomy supplies it: the shin
     // folds backwards and the forearm forwards, which are opposite rotations
     // about the same axis before FACE_SIGN turns them into this model's space.
     // `lowerleg.*` was in the rig all along and had never been driven, which is
     // why these characters ran on stilts.
-    pose(joints.kneeL, FACE_SIGN * -p.kneeL);
-    pose(joints.kneeR, FACE_SIGN * -p.kneeR);
-    pose(joints.elbowL, FACE_SIGN * p.elbowL, -ELBOW_BEND);
-    pose(joints.elbowR, FACE_SIGN * p.elbowR, ELBOW_BEND);
+    poseJoint(joints.kneeL, FACE_SIGN * -p.kneeL);
+    poseJoint(joints.kneeR, FACE_SIGN * -p.kneeR);
+    poseJoint(joints.elbowL, FACE_SIGN * p.elbowL, -ELBOW_BEND);
+    poseJoint(joints.elbowR, FACE_SIGN * p.elbowR, ELBOW_BEND);
     // The head counter-rotates against the lean so it stays level-ish, and the
     // chest takes a little of it so the tip is not all at the hips.
-    pose(joints.head, FACE_SIGN * -p.lean * 0.6);
-    pose(joints.chest, FACE_SIGN * -p.lean * 0.25);
+    poseJoint(joints.head, FACE_SIGN * -p.lean * 0.6);
+    poseJoint(joints.chest, FACE_SIGN * -p.lean * 0.25);
   });
 
   return (

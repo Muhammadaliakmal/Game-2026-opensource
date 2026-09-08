@@ -1,7 +1,30 @@
 "use client";
 
 import * as THREE from "three";
+import { Suspense, useMemo } from "react";
+import { useGLTF } from "@react-three/drei";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+
+/** The imported sci-fi bike. See `scripts/import-bike.ts` for how it is made. */
+const BIKE_URL = "/bikes/scifi.glb";
+
+/**
+ * Where a rider meets the bike, in body space.
+ *
+ * Measured off the imported model rather than guessed — `npm run bike:preview`
+ * prints the top-surface profile, and the saddle is the dip in it: the top line
+ * falls from 0.54 at the tail to 0.35 at z -0.35 and climbs again to 0.55 over
+ * the tank. The bars are the widest part of the upper body, which the same
+ * probe puts at z +0.4.
+ *
+ * They live here, next to both bikes, because `Rider.tsx` has to be fitted to
+ * whichever one is drawn and the procedural fallback is built to the same two
+ * numbers (its own saddle sits at 0.22 against the import's 0.23 — a centimetre
+ * apart, which is under the thickness of the seat). A rider posed against one
+ * bike and drawn on the other sits in the engine.
+ */
+export const SADDLE = { y: 0.23, z: -0.35 } as const;
+export const BARS = { y: 0.23, z: 0.4 } as const;
 
 /**
  * The bike, as geometry only.
@@ -102,7 +125,7 @@ function glowFor(color: string, emissive: number): THREE.MeshStandardMaterial {
   return m;
 }
 
-export function BikeModel({
+export function VoxelBike({
   /** Body colour, so four riders on a grid are told apart at a glance. */
   color = "#22d3ee",
   /** Dims the rider's own bike is never wanted; peers use the default. */
@@ -182,3 +205,75 @@ export function bikeColor(id: string): string {
   for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) | 0;
   return BIKE_COLORS[Math.abs(h) % BIKE_COLORS.length]!;
 }
+
+/**
+ * The imported sci-fi bike.
+ *
+ * ── What the GLB does and does not carry ─────────────────────────────────
+ *
+ * Five meshes, five materials, 20k triangles — see `scripts/import-bike.ts`
+ * for how 87 meshes and 19 Maya materials became that. Two of the five are
+ * named `body` and `accent`, and those are the ones a rider's colour lands on;
+ * `dark`, `tyre` and `glass` are the same on every bike and stay shared.
+ *
+ * ── Why the scene is cloned but the materials are not ────────────────────
+ *
+ * An Object3D can only be in one place in a scene graph, so caching a tinted
+ * scene by colour would mean two riders in the same colour fighting over one
+ * object and the second one reparenting it out of the first. Every bike gets
+ * its own clone; `clone()` shares geometry, which is the expensive half. The
+ * materials come from the module-level cache above, which is the other half —
+ * see the note on `tinted`.
+ */
+function ScifiBike({ color, emissive }: { color: string; emissive: number }) {
+  const { scene } = useGLTF(BIKE_URL);
+  const paint = paintFor(color);
+  const glow = glowFor(color, emissive);
+
+  const model = useMemo(() => {
+    const clone = scene.clone(true);
+    clone.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      const name = (mesh.material as THREE.Material).name;
+      // Only the two named slots are replaced. Everything else keeps the
+      // material the import gave it, shared across every bike on the grid.
+      if (name === "body") mesh.material = paint;
+      else if (name === "accent") mesh.material = glow;
+    });
+    return clone;
+  }, [scene, paint, glow]);
+
+  // Same drop as the procedural bike: the model's origin is at axle height and
+  // the body's is not. Both are normalised to that, which is what lets this be
+  // a straight swap — see AXLE_TO_GROUND in scripts/import-bike.ts.
+  return <primitive object={model} position={[0, -0.12, 0]} />;
+}
+
+/**
+ * Whichever bike this player is riding.
+ *
+ * The GLB is a download, and a download can be slow, refused, or served from a
+ * cache that is not warm. Suspending on it with nothing underneath would put a
+ * rider on an invisible bike for as long as that took — so the procedural one
+ * stands in, exactly the way `Avatar` falls back to the voxel courier. The two
+ * are built to the same anchors, so a bike that pops in mid-race does not move
+ * its rider.
+ */
+export function BikeModel({
+  color = "#22d3ee",
+  emissive = 1.8,
+}: {
+  color?: string;
+  emissive?: number;
+}) {
+  return (
+    <Suspense fallback={<VoxelBike color={color} emissive={emissive} />}>
+      <ScifiBike color={color} emissive={emissive} />
+    </Suspense>
+  );
+}
+
+useGLTF.preload(BIKE_URL);

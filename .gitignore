@@ -51,3 +51,8 @@ next-env.d.ts
 # downloads that `npm run chars:optimize` reads, and public/characters/ is the
 # optimized output that actually ships. 948K in, 184K out.
 /assets/raw-characters/
+
+# And for the bike: assets/raw-bikes/ holds the FBX export (and the archive it
+# came in) that `npm run bike:import` reads; public/bikes/ is the 20k-triangle,
+# five-material GLB it produces, and that is what ships.
+/assets/raw-bikes/
