@@ -37,6 +37,13 @@ export const ARCADE: ArcadeEntry[] = [
     load: () => import("./games/chunk-runner"),
   },
   {
+    id: "tower-stack",
+    title: "Tower Stack",
+    tagline: "Perfect or nothing.",
+    controlsHint: "SPACE / TAP to drop",
+    load: () => import("./games/tower-stack"),
+  },
+  {
     id: "stub",
     title: "Test Pattern",
     tagline: "A square, at exactly 200 pixels a second.",

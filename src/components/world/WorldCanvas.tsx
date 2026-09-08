@@ -63,7 +63,9 @@ import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
 import { FootKeyboard } from "@/components/play/FootKeyboard";
 import { useRenderQuality } from "@/lib/quality";
+import { SANDBOX_WORLDS } from "@/lib/built-in-worlds";
 import { useArcade } from "@/arcade/store";
+import { ArcadeCabinets } from "@/components/arcade/ArcadeCabinets";
 
 /**
  * Build and Play, on one canvas.
@@ -242,6 +244,9 @@ export default function WorldCanvas({
   // A boolean rather than the cabinet's id: this component re-renders on it,
   // and it must not do so again every time the player restarts a run.
   const arcadeOpen = useArcade((s) => s.activeGame !== null);
+  // A built-in world with nothing to complete: ours to furnish, and exactly
+  // where somebody is standing around with nothing to do.
+  const arcadeWorld = SANDBOX_WORLDS.some((w) => w.slug === worldId);
 
   const isDraft = worldId === DRAFT_ID;
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -636,6 +641,13 @@ export default function WorldCanvas({
             avatar that moves between frames nobody asked for would either
             stutter or force the editor to render continuously. */}
         {playing && <Peers />}
+        {/* The arcade, in built-in sandboxes only. Not in a world somebody
+            built — four glowing boxes dropped into their creation would be
+            defacing it — and not on a course, where they would be furniture
+            on a timed route. See ArcadeCabinets. */}
+        {playing && snapshot && arcadeWorld && (
+          <ArcadeCabinets spawn={snapshot.spawn} />
+        )}
         {/* Only for a world that is a course. Outside <Physics> because the
             finish is a trigger volume we test ourselves, not a collider —
             giving it a real sensor would mean a rigid body that the character

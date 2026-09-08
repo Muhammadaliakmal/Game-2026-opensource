@@ -47,6 +47,7 @@ import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 const LINKS = [
   { href: "/", label: "Home" },
   { href: "/browse", label: "Browse" },
+  { href: "/arcade", label: "Arcade" },
   { href: "/shop", label: "Characters" },
   { href: "/download", label: "Get the app" },
 ] as const;
