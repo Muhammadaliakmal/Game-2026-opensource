@@ -63,6 +63,7 @@ import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
 import { FootKeyboard } from "@/components/play/FootKeyboard";
 import { useRenderQuality } from "@/lib/quality";
+import { useArcade } from "@/arcade/store";
 
 /**
  * Build and Play, on one canvas.
@@ -121,6 +122,17 @@ function toSnapshot(doc: WorldDoc): Snapshot {
 // bundle; the DEV gate keeps it from ever rendering in a production build.
 const DEV = process.env.NODE_ENV !== "production";
 const FeelTuner = dynamic(() => import("@/components/play/feel/FeelTuner"), {
+  ssr: false,
+});
+
+/**
+ * The arcade, loaded only once somebody opens a cabinet.
+ *
+ * Dynamic for the same reason `FeelTuner` is, and it matters more here: the
+ * overlay pulls in the host, and the host pulls in whichever game was asked
+ * for. A player who never walks up to a cabinet downloads none of it.
+ */
+const ArcadeOverlay = dynamic(() => import("@/arcade/host/ArcadeOverlay"), {
   ssr: false,
 });
 
@@ -227,6 +239,9 @@ export default function WorldCanvas({
   const { isSignedIn } = useAuth();
   const touch = useTouchControls();
   const quality = useRenderQuality();
+  // A boolean rather than the cabinet's id: this component re-renders on it,
+  // and it must not do so again every time the player restarts a run.
+  const arcadeOpen = useArcade((s) => s.activeGame !== null);
 
   const isDraft = worldId === DRAFT_ID;
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -786,6 +801,12 @@ export default function WorldCanvas({
           <span className="hud-label">Loading world</span>
         </div>
       )}
+
+      {/* Above every other layer and outside the <Canvas>, because it is a DOM
+          overlay rather than something in the scene — see ArcadeOverlay for
+          why it is not rendered onto the cabinet's own screen. It renders
+          nothing at all until a cabinet is opened. */}
+      {arcadeOpen && <ArcadeOverlay />}
 
       {DEV && playing && <FeelTuner />}
     </div>

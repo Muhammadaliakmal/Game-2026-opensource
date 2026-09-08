@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import { createFrameGate } from "@/lib/frame-cap";
 import { takeHitStop } from "@/lib/hit-stop";
+import { useArcade } from "@/arcade/store";
 
 /**
  * Caps the render loop at a frame rate, and drives it.
@@ -46,11 +47,29 @@ import { takeHitStop } from "@/lib/hit-stop";
  * accumulator below, in seconds, clamped — which is also strictly better than
  * `"always"` gives, because `"always"` passes an unclamped `getDelta()` and a
  * tab returning from sleep arrives as one enormous step.
+ *
+ * ── This is also the arcade's pause bridge ───────────────────────────────
+ *
+ * Only one render loop may run at a time: a 2D minigame and a voxel world both
+ * drawing on one thread is the surest way to lose both frame budgets. The
+ * arcade spec suggests flipping the canvas to `frameloop="never"` while a game
+ * is open, which is not available here — `"never"` is already what Play uses,
+ * and the note above about two writers for one setting says why adding a
+ * second one would be a bad trade.
+ *
+ * The equivalent is better anyway. In `"never"` mode *this* is the only thing
+ * that can render, so an open cabinet drops the whole rAF loop rather than
+ * merely refusing to draw inside it: no gate arithmetic, no `advance`, no
+ * `useFrame` in the tree, and no physics step — Rapier steps inside a
+ * `useFrame` too. The world resumes on exactly the frame the overlay closes.
  */
 export function FrameLimiter({ fps = 60 }: { fps?: number }) {
   const advance = useThree((s) => s.advance);
   const invalidate = useThree((s) => s.invalidate);
   const frameloop = useThree((s) => s.frameloop);
+  // A boolean, not the id: the world does not care which cabinet is open, and
+  // selecting the id would tear this effect down and rebuild it on a restart.
+  const arcadeOpen = useArcade((s) => s.activeGame !== null);
 
   useEffect(() => {
     // The `frameloop` prop on <Canvas> owns the mode; this only drives it.
@@ -67,6 +86,9 @@ export function FrameLimiter({ fps = 60 }: { fps?: number }) {
       );
     }
     if (frameloop !== "never") return;
+    // The bridge. Returning before a single frame is scheduled is what makes
+    // "only one loop at a time" a fact rather than an intention.
+    if (arcadeOpen) return;
 
     // Which ticks get through, and the seconds to advance with, are decided by
     // lib/frame-cap.ts — a pure function so the cadence can actually be
@@ -95,7 +117,7 @@ export function FrameLimiter({ fps = 60 }: { fps?: number }) {
       // is free; a frozen editor is not.
       queueMicrotask(() => invalidate());
     };
-  }, [advance, invalidate, frameloop, fps]);
+  }, [advance, invalidate, frameloop, fps, arcadeOpen]);
 
   return null;
 }
