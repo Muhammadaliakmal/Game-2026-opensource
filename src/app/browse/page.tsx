@@ -1,8 +1,13 @@
 import Link from "next/link";
-import { desc, eq, sql } from "drizzle-orm";
+import { Suspense } from "react";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { worlds } from "@/lib/db/schema";
 import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
+import {
+  CommunityCourses,
+  CommunityCoursesFallback,
+} from "@/components/modes/CommunityCourses";
 
 /**
  * The public gallery.
@@ -17,6 +22,14 @@ import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
  * downscaled capture of the builder's own canvas taken on save (see
  * lib/canvas-thumbnail.ts), so a world with no thumbnail yet is simply one
  * that hasn't been saved since this shipped.
+ *
+ * ── Two lists of player worlds, not one ──────────────────────────────────
+ *
+ * A published world that can be finished is a different offer from a
+ * published world to walk around in, and the page says so rather than sorting
+ * them together. The split is `floor_ms` — see `lib/db/courses.ts` — and it is
+ * a partition: the courses section takes those worlds and the general list
+ * below excludes them, so nothing is listed twice.
  */
 export const dynamic = "force-dynamic";
 
@@ -38,7 +51,11 @@ export default async function BrowsePage() {
         .mapWith(Number),
     })
     .from(worlds)
-    .where(eq(worlds.published, 1))
+    // Courses are excluded here because they have their own section above,
+    // and a world that appears in both makes this list look like a second
+    // helping of the same thing rather than the rest of what people built.
+    // "Can be finished" is the more specific claim, so it wins the world.
+    .where(and(eq(worlds.published, 1), isNull(worlds.floorMs)))
     .orderBy(desc(worlds.playCount), desc(worlds.updatedAt))
     .limit(60);
 
@@ -94,11 +111,23 @@ export default async function BrowsePage() {
         ))}
       </ul>
 
+      {/* Above the general list, because it is the one people can *do*
+          something with: a published sandbox is a place to look at, a
+          published course is a clock to beat. Streamed in its own boundary so
+          the ladder and the sandboxes — both of which come from code — are on
+          screen before the query for this one has landed. */}
+      <h2 className="mb-4 text-base font-semibold">Player-made courses</h2>
+      <div className="mb-10">
+        <Suspense fallback={<CommunityCoursesFallback />}>
+          <CommunityCourses limit={12} />
+        </Suspense>
+      </div>
+
       <h2 className="mb-4 text-base font-semibold">Published by players</h2>
 
       {published.length === 0 ? (
         <div className="text-dim rounded-[var(--radius)] border border-dashed border-[var(--border-color)] p-12 text-center text-sm">
-          Nothing published yet. Build something and publish it from your
+          Nothing else published yet. Build something and publish it from your
           world&apos;s ⋮ menu.
         </div>
       ) : (

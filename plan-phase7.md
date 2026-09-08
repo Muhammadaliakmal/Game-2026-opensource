@@ -251,7 +251,7 @@ solver, the columns, the guard and the ladder are all reachable by tests; that
 the medal on the finish panel is the one the player expected is 7d's kind of
 question.
 
-### 7c — Finding them
+### 7c — Finding them — **done**
 
 A published world with a goal is a course, and nothing surfaces that. The
 cheapest honest version is a section on `/browse` and a Community group on
@@ -271,8 +271,54 @@ refused to be finished. `worlds_course_idx` is a partial index on
 an index scan over courses rather than a filter over every world anybody has
 ever saved. Nothing queries it yet; that is the rest of 7c.
 
+**What landed.** `lib/db/courses.ts` holds the one query — published, floor not
+null, newest first — and `components/modes/CommunityCourses.tsx` is the one
+card, used by both pages. Two of them rather than markup in each page, because
+the ladder above it on `/parkour` is the standing proof of what the other way
+costs: the parkour courses sat in a flat list on `/browse` for a phase, and
+nothing about them said they were a ladder.
+
+Three calls worth recording.
+
+**Newest first, not most played.** `worlds_course_idx` is partial on
+`(published, updated_at)`, so this ordering is an index scan and any other is a
+sort of everything it matched. That is the cheap reason. The real one is that
+play count reads as zero on every course until somebody finds it, which is the
+exact problem the list exists to solve — sorting by it would rank courses by
+how well they were already doing at the thing the page is supposed to do for
+them.
+
+**`/browse` partitions rather than duplicates.** The general list now excludes
+courses (`floor_ms is null`) instead of listing them a second time under a
+weaker heading. A published sandbox is a place to walk around and a published
+course is a clock to beat; those are different offers, and "can be finished" is
+the more specific claim, so it takes the world.
+
+**`/parkour` stopped being a function of the repo, and says so.** Its doc
+comment claimed no fetch, no client component and no loading state; a live list
+breaks that, so the comment changed with the code rather than after it. The
+route is `force-dynamic` — a cached copy of a list whose whole job is to show
+what somebody published five minutes ago is worse than not having it — and the
+section sits in its own `<Suspense>` boundary, so the twenty shipped courses
+are in the static shell and paint before the query resolves. A slow database
+delays the new section and nothing else.
+
 **Accept:** publish a course, find it without its URL, play it as a stranger,
 land on its board, and race the author's ghost.
+
+**Met, in part, and the part is worth naming.** Against the dev database with
+one of its two courses temporarily published: both pages render the card, the
+Gold target derived from the course's own floor, and the empty state when
+there is nothing to list — and `/browse` links the course exactly once, which
+is the partition above holding rather than being asserted. The row was set back
+to unpublished; nothing in the database was left changed.
+
+What that does not cover is the second half of the acceptance — **played as a
+stranger, landing on its board, racing the author's ghost.** That needs two
+accounts and a browser, which is 7d's kind of question, and it is the same gap
+7a and 7b each closed with the same sentence. 229 app tests and 59 server tests
+pass, `tsc` is clean on both sides, `eslint` is clean, and `next build`
+succeeds with `/parkour` correctly reported as dynamic.
 
 ### 7d — Ship it, and measure it on a real device
 

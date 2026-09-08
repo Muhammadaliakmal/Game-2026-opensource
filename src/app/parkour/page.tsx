@@ -1,5 +1,10 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { PARKOUR_COURSES } from "@/lib/built-in-worlds";
+import {
+  CommunityCourses,
+  CommunityCoursesFallback,
+} from "@/components/modes/CommunityCourses";
 import { TIERS, type Tier } from "@/lib/course-kit";
 import { MEDALS, MEDAL_LABELS, medalTimes } from "@/lib/medals";
 import { formatTime } from "@/components/play/course";
@@ -17,12 +22,19 @@ import { CourseCard } from "@/components/modes/CourseCard";
  * was invisible. This is one place they live, grouped by tier and in the order
  * they are meant to be played, with the thing you are chasing on each card.
  *
- * ── Server-rendered, and static ──────────────────────────────────────────
+ * ── Server-rendered; the ladder is still a function of the repo ──────────
  *
- * Everything here comes from code: the courses are generated, the tiers are a
- * constant, and the medal times are computed from the geometry at build time
- * (see `AUTHOR_MS`). So there is no data fetch, no client component and no
- * loading state — the page is a function of the repo.
+ * The ladder comes entirely from code: the courses are generated, the tiers
+ * are a constant, and the medal times are computed from the geometry at build
+ * time (see `AUTHOR_MS`). Nothing above the Community section touches a
+ * database or a client component.
+ *
+ * The Community section does, which is why the route is now
+ * `force-dynamic` — a cached copy of a list whose whole job is to show what
+ * somebody published five minutes ago would be worse than not having it. It
+ * sits in its own `<Suspense>` boundary so the twenty shipped courses are in
+ * the static shell and paint before that query resolves; a slow database
+ * delays the new section and nothing else.
  *
  * Personal bests are deliberately NOT here. They live in `localStorage` per
  * world (`play/course.ts`), so rendering them would mean a client component
@@ -30,6 +42,8 @@ import { CourseCard } from "@/components/modes/CourseCard";
  * moment they finish a run. The board on the completion panel is where a time
  * belongs.
  */
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Parkour — Blockworld",
@@ -95,6 +109,22 @@ export default function ParkourPage() {
           );
         })}
       </ul>
+
+      {/* Below the ladder, deliberately. The twenty above are the designed
+          difficulty curve and are what a first visit should start with; this
+          is where you go once you have run out of them. */}
+      <section className="mt-10">
+        <h2 className="mb-1 text-base font-semibold">Made by players</h2>
+        <p className="text-dim mb-4 max-w-xl text-sm">
+          Published worlds with a finish somebody can actually reach. They are
+          timed, medalled and ranked on the same terms as the ladder — the
+          Author time comes off the course&apos;s own geometry, not off a number
+          its builder typed.
+        </p>
+        <Suspense fallback={<CommunityCoursesFallback />}>
+          <CommunityCourses limit={12} />
+        </Suspense>
+      </section>
 
       {/* The ladder itself, said once. Repeating four medal times on every
           card would be four times the ink for a rule that is the same on
