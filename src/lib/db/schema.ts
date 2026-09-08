@@ -8,6 +8,7 @@ import {
   index,
   primaryKey,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { WorldDoc } from "@/lib/worlddoc";
 import type { GhostTrack } from "@/lib/ghost";
 
@@ -19,11 +20,36 @@ export const worlds = pgTable("worlds", {
   thumbnailUrl: text("thumbnail_url"),
   published: integer("published").default(0).notNull(),
   playCount: integer("play_count").default(0).notNull(),
+  /**
+   * The solver's route through this world, in ms, or null if it is not a course.
+   *
+   * Server-derived and never read off the incoming document — see
+   * `lib/course-floor.ts` for why a floor the client writes is not a floor.
+   * Every path that writes `doc` has to write this beside it, or a course
+   * keeps the medals of the geometry it used to have.
+   *
+   * It is also the definition of "course" the app queries by: a world with a
+   * floor has a reachable goal, which is exactly what makes it finishable.
+   */
+  floorMs: integer("floor_ms"),
+  /**
+   * The fingerprint of the geometry `floor_ms` was solved from.
+   *
+   * A match means the two-second Dijkstra can be skipped, which is what makes
+   * a five-second multiplayer autosave affordable. See `courseKey`.
+   */
+  floorKey: text("floor_key"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => ({
   ownerIdx: index("owner_idx").on(t.ownerId),
   pubIdx: index("pub_idx").on(t.published),
+  // Published worlds that can be finished, newest first — the community
+  // course list. Partial, because most worlds are not courses and there is no
+  // reason for the ones that aren't to be in it.
+  courseIdx: index("worlds_course_idx")
+    .on(t.published, t.updatedAt)
+    .where(sql`${t.floorMs} is not null`),
 }));
 
 export type World = typeof worlds.$inferSelect;

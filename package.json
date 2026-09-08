@@ -11,6 +11,7 @@
     "sky:preview": "node --import tsx scripts/render-sky.ts",
     "light:check": "node --import tsx scripts/light-check.mts",
     "courses:check": "node --import tsx scripts/course-check.ts",
+    "floors:backfill": "node --import tsx scripts/backfill-floors.ts",
     "icons:generate": "node --import tsx scripts/generate-icons.ts",
     "props:generate": "node --import tsx scripts/meshy-batch.ts",
     "props:optimize": "node --import tsx scripts/optimize-props.ts",

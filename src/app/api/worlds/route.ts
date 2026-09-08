@@ -6,6 +6,7 @@ import { parseWorldDoc } from "@/lib/worlddoc";
 import { parkourWorldDoc } from "@/lib/parkour";
 import { buildBuiltInDoc, getBuiltInWorld } from "@/lib/built-in-worlds";
 import { isUuid } from "@/lib/ids";
+import { courseFloorFor, type CourseFloor } from "@/lib/course-floor";
 import { desc, eq, sql } from "drizzle-orm";
 
 // GET /api/worlds — list the signed-in user's worlds.
@@ -58,6 +59,11 @@ export async function POST(req: Request) {
 
   let seed;
   let sourceName: string | undefined;
+  // The floor of whatever is being copied, when there is one to copy. A remix
+  // changes the doc's id, ownerId and name and nothing the solver reads, so a
+  // source row's fingerprint still matches and the clone costs a hash rather
+  // than a Dijkstra. Everything else here starts with no floor and solves once.
+  let sourceFloor: CourseFloor | null = null;
 
   if (builtIn) {
     seed = buildBuiltInDoc(builtIn.slug, userId)!;
@@ -75,6 +81,7 @@ export async function POST(req: Request) {
     }
     seed = src.doc;
     sourceName = src.name;
+    sourceFloor = { floorKey: src.floorKey, floorMs: src.floorMs };
   } else if (body?.doc) {
     // Claiming a local draft: someone built without an account and has just
     // signed in to keep it. The doc is caller-supplied, so it is validated
@@ -102,9 +109,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid WorldDoc" }, { status: 422 });
   }
 
+  // Derived here and never taken from the document — see `lib/course-floor.ts`.
+  // A new row has no runs, so there is no board for a moved floor to cost.
+  const { floorKey, floorMs } = courseFloorFor(doc, sourceFloor);
+
   const [row] = await db
     .insert(worlds)
-    .values({ id, ownerId: userId, name, doc })
+    .values({ id, ownerId: userId, name, doc, floorKey, floorMs })
     .returning();
 
   return NextResponse.json(row, { status: 201 });

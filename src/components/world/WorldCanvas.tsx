@@ -47,6 +47,8 @@ import { Player } from "@/components/play/Player";
 import { Peers } from "@/components/play/Peers";
 import { GoalZone } from "@/components/play/GoalZone";
 import { CheckpointZones } from "@/components/play/CheckpointZones";
+import { useCourse } from "@/components/play/course";
+import { authorMsFor } from "@/lib/medals";
 import { NightSky } from "@/components/sky/NightSky";
 import { NIGHT_LOOK, moonDirection } from "@/lib/atmosphere";
 import { PerfProbe } from "@/components/perf/PerfProbe";
@@ -303,6 +305,13 @@ export default function WorldCanvas({
 
         const doc = parseWorldDoc(row.doc);
         useEditorStore.getState().loadDoc(doc);
+        // The medal ladder, in one number. A built-in resolves off its slug;
+        // a world somebody built carries the floor the server solved when its
+        // document was last written — see lib/course-floor.ts. Set here rather
+        // than when a run begins, because it is a fact about the geometry.
+        useCourse
+          .getState()
+          .setAuthorMs(worldId, authorMsFor(worldId, row.floorMs ?? null));
         useEditorStore.getState().setReadOnly(Boolean(locked));
         // Arriving straight at a play link: stand the world up as soon as it
         // is here, without waiting for a mode change that already happened.

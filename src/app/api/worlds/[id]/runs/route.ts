@@ -7,7 +7,12 @@ import { runs, worlds } from "@/lib/db/schema";
 import { isBuiltInWorld } from "@/lib/built-in-worlds";
 import { isUuid } from "@/lib/ids";
 import { ghostSchema } from "@/lib/ghost";
-import { MAX_RUN_MS, floorMs, medalFor } from "@/lib/medals";
+import {
+  MAX_RUN_MS,
+  authorMsFor,
+  floorMs as shippedFloorMs,
+  medalForAuthor,
+} from "@/lib/medals";
 
 /**
  * The leaderboard for one course.
@@ -40,22 +45,37 @@ const submission = z.object({
 });
 
 /**
- * Whether runs may be posted against this id at all, and under what name.
+ * Whether runs may be posted against this id at all, and against what floor.
  *
  * A built-in slug is always raceable. A uuid has to be a world that exists and
  * that the caller can legitimately have played: published, or their own. A
  * private world belonging to somebody else must 404 rather than reveal that it
  * exists, which is the same rule the remix path in `POST /api/worlds` follows.
+ *
+ * It answers the floor at the same time because both callers need the row and
+ * neither should read it twice. The two sources are the ones `authorMsFor`
+ * names: a shipped course's floor is derived from the `AUTHOR_MS` table it was
+ * measured into, and a player's course carries its own in a column the server
+ * wrote the last time its document changed — see `lib/course-floor.ts`. Null
+ * means "not a course", which a sandbox world genuinely is.
  */
-async function raceable(id: string, userId: string | null): Promise<boolean> {
-  if (isBuiltInWorld(id)) return true;
-  if (!isUuid(id)) return false;
+async function raceable(
+  id: string,
+  userId: string | null
+): Promise<{ floorMs: number | null } | null> {
+  if (isBuiltInWorld(id)) return { floorMs: shippedFloorMs(id) };
+  if (!isUuid(id)) return null;
   const [row] = await db
-    .select({ ownerId: worlds.ownerId, published: worlds.published })
+    .select({
+      ownerId: worlds.ownerId,
+      published: worlds.published,
+      floorMs: worlds.floorMs,
+    })
     .from(worlds)
     .where(eq(worlds.id, id));
-  if (!row) return false;
-  return row.published === 1 || row.ownerId === userId;
+  if (!row) return null;
+  if (row.published !== 1 && row.ownerId !== userId) return null;
+  return { floorMs: row.floorMs };
 }
 
 /**
@@ -69,7 +89,8 @@ export async function GET(req: Request, { params }: Params) {
   const { id } = await params;
   const { userId } = await auth();
 
-  if (!(await raceable(id, userId))) {
+  const course = await raceable(id, userId);
+  if (!course) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -116,7 +137,15 @@ export async function GET(req: Request, { params }: Params) {
     }
   }
 
-  return NextResponse.json({ top, me, rank });
+  // The Author time travels with the board, because it is the only way the
+  // client can draw a medal for a course it did not ship with: `medalFor`
+  // takes a slug and returns null for every uuid there has ever been.
+  return NextResponse.json({
+    top,
+    me,
+    rank,
+    authorMs: authorMsFor(id, course.floorMs),
+  });
 }
 
 /**
@@ -132,7 +161,8 @@ export async function POST(req: Request, { params }: Params) {
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!(await raceable(id, userId))) {
+  const course = await raceable(id, userId);
+  if (!course) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -143,9 +173,11 @@ export async function POST(req: Request, { params }: Params) {
   const { timeMs, ghost } = parsed.data;
 
   // A time under the course's own physical floor did not happen here. See
-  // `floorMs` for what this does and does not claim to catch.
-  const floor = floorMs(id);
-  if (floor !== null && timeMs < floor) {
+  // `floorMs` for what this does and does not claim to catch. This used to be
+  // a slug lookup, which meant a course somebody built was the one board in
+  // the game where a hand-written `fetch` with a small number in it landed
+  // unchallenged; the floor now comes from the row for those.
+  if (course.floorMs !== null && timeMs < course.floorMs) {
     return NextResponse.json({ error: "Impossible time" }, { status: 422 });
   }
 
@@ -156,7 +188,7 @@ export async function POST(req: Request, { params }: Params) {
     user?.fullName?.trim() ||
     "Runner";
 
-  const medal = medalFor(id, timeMs);
+  const medal = medalForAuthor(authorMsFor(id, course.floorMs), timeMs);
 
   const [row] = await db
     .insert(runs)
@@ -189,5 +221,6 @@ export async function POST(req: Request, { params }: Params) {
     improved: row !== undefined,
     best: row?.timeMs ?? null,
     medal,
+    authorMs: authorMsFor(id, course.floorMs),
   });
 }

@@ -119,14 +119,57 @@ attempt. `world_id` is `text` with no foreign key, because the courses that
 ship are slugs generated from code and have no row to point at.
 
 - Submission upserts with `setWhere` on the time, so a slower concurrent write
-  cannot land last. It refuses times under `floorMs` — the solver's route.
-  That is a guard against a hand-written `fetch`, not anti-cheat, and the
-  comment in `medals.ts` says so.
+  cannot land last. It refuses times under the course's route floor. That is a
+  guard against a hand-written `fetch`, not anti-cheat, and the comment in
+  `medals.ts` says so.
 - The board endpoint never returns a ghost. Ghosts are the largest thing in the
   table and exactly one is ever watched; `runs/ghost` serves that one.
 - Ghosts are fixed-rate (10 Hz) fixed-point tracks — see `lib/ghost.ts` — read
   back with an index and a lerp, and recorded against the course's own clock so
   the replay and the on-screen timer cannot drift apart.
+
+### The course floor, and what an edit costs a board
+
+**Nothing downstream of `authorMsFor` is keyed by an id.** The medal ladder is
+multiples of one Author time, and that number has two sources: `AUTHOR_MS` for
+a shipped slug, and `worlds.floor_ms` for a course somebody built.
+`authorMsFor(id, floorMs)` is the only place they meet — everything past it
+(`medalTimesFor`, `medalForAuthor`, `nextMedalFor`) takes the number. The
+slug-keyed `medalTimes` / `medalFor` / `nextMedal` are thin wrappers kept for
+`/parkour`, which genuinely does only list shipped courses.
+
+**`floor_ms` is server-derived and must never come off the document.** The doc
+is client-authored and both `PUT /api/worlds/:id` and the room's
+`POST /api/worlds/:id/sync` accept one wholesale, so a floor stored inside it
+would be a floor the client writes — which is the exact claim the floor exists
+to check. It is computed from the document the server has just validated, and
+**all three write paths do it**: those two plus `POST /api/worlds`, which is
+create *and remix*.
+
+**`courseKey` is a proof, not a cache key.** `surfaces()` in `course-graph.ts`
+reads only `x`, `y`, `z` of each part — never shape, colour, finish or rotation,
+and never props — so a hash over exactly those cells plus the spawn and goal
+cells is a *proof* that the solver would return the same answer. Two things
+follow, and both matter:
+
+- The solver is ~30–90 ms on a shipped course, 279 ms on Island, and about two
+  seconds at the 50,000-part cap. It cannot run on `POST /runs`, and it cannot
+  run on every `sync` either — a room writes the whole document every five
+  seconds while anyone is building. A fingerprint match skips it.
+- **The board rule is one line: an edit that moves the floor resets the times,
+  and every other edit leaves them alone.** A repaint, a rotation, a finish
+  change, a prop drag and an idle autosave provably cannot move it. Both write
+  paths return `boardReset` and delete the world's runs when `floorMoved` says
+  so. Losing the goal counts as a move.
+
+`cellOf` in `course-floor.ts` floors x and z and rounds y **because
+`surfaceUnder` does**. If that derivation changes, this has to change with it —
+`course-floor.test.ts` is what holds the two together.
+
+Adding a column derived from the doc means adding a backfill too:
+`npm run floors:backfill` (safe to re-run, `--all` to recompute everything).
+Without one, every world that predates the column reads as "not a course" until
+somebody happens to press Save on it.
 
 ## Level geometry
 

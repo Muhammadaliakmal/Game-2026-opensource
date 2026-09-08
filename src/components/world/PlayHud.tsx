@@ -9,8 +9,8 @@ import {
   requestRespawn,
   requestRestart,
 } from "@/components/play/play-actions";
-import { formatTime, useCourse } from "@/components/play/course";
-import { MEDAL_LABELS, medalFor, nextMedal } from "@/lib/medals";
+import { formatTime, runAuthorMs, useCourse } from "@/components/play/course";
+import { MEDAL_LABELS, medalForAuthor, nextMedalFor } from "@/lib/medals";
 import { useRuns, type BoardRow } from "@/lib/runs";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
@@ -349,15 +349,16 @@ function CourseComplete({
 }) {
   const finishedMs = useCourse((s) => s.finishedMs);
   const best = useCourse((s) => s.best);
-  const worldId = useCourse((s) => s.worldId);
+  const authorMs = useCourse(runAuthorMs);
   if (finishedMs === null) return null;
 
   const isBest = best !== null && Math.abs(best - finishedMs) < 1;
-  // Only the ladder maps have medal times — a player's own world has no Author
-  // route, and inventing one for a course somebody built in ten seconds would
-  // make the medal mean nothing on the maps where it does mean something.
-  const medal = worldId ? medalFor(worldId, finishedMs) : null;
-  const chase = worldId ? nextMedal(worldId, medal) : null;
+  // Any course has medal times, shipped or built, because they are multiples
+  // of an Author time derived from the geometry rather than a table keyed by
+  // slug. A world with no goal is not a course and still has none — it cannot
+  // be finished, so this panel never opens for one.
+  const medal = medalForAuthor(authorMs, finishedMs);
+  const chase = nextMedalFor(authorMs, medal);
 
   return (
     <div className="hud-panel panel-enter pointer-events-auto flex w-full max-w-xs flex-col items-center gap-4 px-6 py-6 text-center">

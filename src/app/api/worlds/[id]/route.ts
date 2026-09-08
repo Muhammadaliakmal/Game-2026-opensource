@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { worlds } from "@/lib/db/schema";
+import { runs, worlds } from "@/lib/db/schema";
 import { parseWorldDoc } from "@/lib/worlddoc";
 import { buildBuiltInDoc, isBuiltInWorld } from "@/lib/built-in-worlds";
 import { isUuid } from "@/lib/ids";
+import { courseFloorFor, floorMoved } from "@/lib/course-floor";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -105,6 +106,25 @@ export async function PUT(req: Request, { params }: Params) {
       ? body.thumbnail
       : undefined;
 
+  // The floor this world already has, so an edit that does not move it can
+  // skip the solver. Scoped to the owner for the same reason the update below
+  // is: a row belonging to somebody else must not answer questions.
+  const [before] = await db
+    .select({ floorKey: worlds.floorKey, floorMs: worlds.floorMs })
+    .from(worlds)
+    .where(and(eq(worlds.id, id), eq(worlds.ownerId, userId)));
+
+  // The 404 has to come BEFORE the solve, not after it. `courseFloorFor` on a
+  // world at the 50,000-part cap is about two seconds of Dijkstra, and letting
+  // an unauthorised PUT buy that much CPU before being told no is a request
+  // anybody can make in a loop. The update below would have 404'd anyway; this
+  // only moves the answer in front of the expensive part.
+  if (!before) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const { floorKey, floorMs } = courseFloorFor(doc, before);
+
   // The ownerId in the WHERE clause is the authorisation check: a row belonging
   // to someone else simply matches nothing rather than leaking its existence.
   const [row] = await db
@@ -112,6 +132,8 @@ export async function PUT(req: Request, { params }: Params) {
     .set({
       doc: { ...doc, name },
       name,
+      floorKey,
+      floorMs,
       ...(thumbnailUrl !== undefined && { thumbnailUrl }),
       updatedAt: new Date(),
     })
@@ -121,7 +143,16 @@ export async function PUT(req: Request, { params }: Params) {
   if (!row) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
-  return NextResponse.json(row);
+
+  // The board rule, in one line an author can be told: an edit that moves the
+  // course's floor resets its times, and every other edit leaves them alone.
+  // The times on a board have to be times on the course as it is now — but a
+  // repaint, a rotation or a prop drag provably cannot move the floor (see
+  // `courseKey`), so an author tidying a world never destroys anybody's run.
+  const boardReset = floorMoved(before.floorMs, floorMs);
+  if (boardReset) await db.delete(runs).where(eq(runs.worldId, id));
+
+  return NextResponse.json({ ...row, boardReset });
 }
 
 /**

@@ -14,7 +14,7 @@ import { create } from "zustand";
  * timestamp is read whenever anyone wants to display it and is exact.
  */
 
-interface CourseState {
+export interface CourseState {
   /** `performance.now()` when the current attempt began, or null if idle. */
   startedAt: number | null;
   /** Final time in ms once the goal is reached, else null. */
@@ -23,6 +23,20 @@ interface CourseState {
   best: number | null;
   /** Which world's best time is loaded — guards against showing another's. */
   worldId: string | null;
+
+  /**
+   * The Author time for the loaded world, in ms, or null if it has none.
+   *
+   * The whole medal ladder is multiples of this one number, and until now the
+   * HUD derived it from the world's id — which worked for the twenty courses
+   * that ship, whose Author times are a table keyed by slug, and returned null
+   * for every course a player has ever built. A world's id cannot answer this;
+   * only its geometry can, and the server has already solved that and stored
+   * it. So it arrives as a number when the world loads.
+   */
+  authorMs: number | null;
+  /** Which world `authorMs` describes — the same guard `worldId` is. */
+  authorWorldId: string | null;
 
   /**
    * Index of the checkpoint the runner holds, or -1 for none.
@@ -44,6 +58,12 @@ interface CourseState {
 
   /** The course has this many checkpoints. Set when the world loads. */
   setCheckpointCount(n: number): void;
+  /**
+   * The Author time for a world. Set when the world loads, not when a run
+   * begins: a run can begin, end and begin again without the geometry moving,
+   * and this survives every one of those.
+   */
+  setAuthorMs(worldId: string, ms: number | null): void;
   /** A checkpoint was reached. Forward-only; the caller has already checked. */
   reachCheckpoint(index: number): void;
   /**
@@ -97,6 +117,8 @@ export const useCourse = create<CourseState>((set, get) => ({
   finishedMs: null,
   best: null,
   worldId: null,
+  authorMs: null,
+  authorWorldId: null,
   checkpoint: -1,
   checkpointCount: 0,
 
@@ -125,6 +147,8 @@ export const useCourse = create<CourseState>((set, get) => ({
 
   setCheckpointCount: (n) => set({ checkpointCount: n, checkpoint: -1 }),
 
+  setAuthorMs: (worldId, ms) => set({ authorMs: ms, authorWorldId: worldId }),
+
   reachCheckpoint: (index) =>
     set((s) => (index > s.checkpoint ? { checkpoint: index } : s)),
 
@@ -144,6 +168,18 @@ export const useCourse = create<CourseState>((set, get) => ({
     set({ startedAt: performance.now(), finishedMs: null, checkpoint: -1 });
   },
 }));
+
+/**
+ * The Author time for the run in progress, or null.
+ *
+ * Read through this rather than off `authorMs` directly. The two are set from
+ * different places — the loader knows the geometry, `begin` knows the run —
+ * and switching worlds without reloading (build to play, one course to the
+ * next) would otherwise show the previous world's ladder for a frame, which is
+ * the same trap `best` is guarded against.
+ */
+export const runAuthorMs = (s: CourseState): number | null =>
+  s.worldId !== null && s.worldId === s.authorWorldId ? s.authorMs : null;
 
 /** m:ss.cs — centiseconds, because tenths are too coarse to separate runs. */
 export function formatTime(ms: number): string {

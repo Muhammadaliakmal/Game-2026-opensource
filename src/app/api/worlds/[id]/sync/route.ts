@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { worlds } from "@/lib/db/schema";
+import { runs, worlds } from "@/lib/db/schema";
 import { parseWorldDoc } from "@/lib/worlddoc";
 import { buildBuiltInDoc, isBuiltInWorld } from "@/lib/built-in-worlds";
 import { isUuid } from "@/lib/ids";
 import { isRoomServer } from "@/lib/service-auth";
+import { courseFloorFor, floorMoved } from "@/lib/course-floor";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -96,10 +97,28 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Invalid WorldDoc" }, { status: 422 });
   }
 
+  // The floor is derived here as well as in `PUT`, and it has to be: a room
+  // is the *other* way a document gets written, and a course built
+  // collaboratively would otherwise keep the medals of geometry nobody has
+  // been standing on for an hour. The fingerprint is what makes this
+  // affordable on a path that fires every five seconds while people build —
+  // an idle autosave, a repaint or a prop drag costs a hash, not a solve.
+  const { floorKey, floorMs } = courseFloorFor(doc, row);
+
   await db
     .update(worlds)
-    .set({ doc, updatedAt: new Date() })
+    .set({ doc, floorKey, floorMs, updatedAt: new Date() })
     .where(eq(worlds.id, id));
 
-  return NextResponse.json({ ok: true, parts: doc.parts.length, props: doc.props.length });
+  // Same board rule as `PUT /api/worlds/:id`: times have to be times on the
+  // course as it is, and only a change that moves the floor is one.
+  const boardReset = floorMoved(row.floorMs, floorMs);
+  if (boardReset) await db.delete(runs).where(eq(runs.worldId, id));
+
+  return NextResponse.json({
+    ok: true,
+    parts: doc.parts.length,
+    props: doc.props.length,
+    boardReset,
+  });
 }

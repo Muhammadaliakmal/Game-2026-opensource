@@ -86,6 +86,56 @@ export function routeFloorMs(doc: WorldDoc): number | null {
 /** The Author time a route floor implies. */
 export const authorFromFloor = (floorMs: number) => Math.round(floorMs * HUMAN);
 
+/** The route floor an Author time was derived from. The inverse of the above. */
+export const floorFromAuthor = (authorMs: number) => Math.floor(authorMs / HUMAN);
+
+/**
+ * The Author time for a world, whichever kind of world it is.
+ *
+ * The one place the two sources meet, and the reason everything below this
+ * point takes a number rather than an id. A shipped course is a slug with an
+ * entry in `AUTHOR_MS`, cached because its geometry only changes when someone
+ * edits the source. A player's course is a row, and its floor is a column the
+ * server computed when the document was last written — see `course-floor.ts`
+ * for why it cannot be computed on demand and cannot live in the document.
+ *
+ * Everything downstream — the ladder, the medal a time earns, the next one to
+ * chase — was keyed by slug and is now keyed by this number, which is what
+ * lets a course somebody built have the same four medals as one that shipped.
+ */
+export function authorMsFor(
+  id: string,
+  floorMs: number | null | undefined
+): number | null {
+  const shipped = AUTHOR_MS[id];
+  if (shipped !== undefined) return shipped;
+  return floorMs === null || floorMs === undefined ? null : authorFromFloor(floorMs);
+}
+
+/** Every medal time for an Author time, best first. */
+export function medalTimesFor(authorMs: number): Array<{ medal: Medal; ms: number }> {
+  return MEDALS.map((medal) => ({ medal, ms: Math.round(authorMs * LADDER[medal]) }));
+}
+
+/** The medal a time earns against an Author time, or null for none. */
+export function medalForAuthor(authorMs: number | null, ms: number): Medal | null {
+  if (authorMs === null) return null;
+  for (const { medal, ms: threshold } of medalTimesFor(authorMs)) {
+    if (ms <= threshold) return medal;
+  }
+  return null;
+}
+
+/** The next medal to chase against an Author time. See `nextMedal`. */
+export function nextMedalFor(
+  authorMs: number | null,
+  earned: Medal | null
+): { medal: Medal; ms: number } | null {
+  if (authorMs === null) return null;
+  const have = earned === null ? MEDALS.length : MEDALS.indexOf(earned);
+  return have <= 0 ? null : medalTimesFor(authorMs)[have - 1];
+}
+
 /**
  * The fastest a submitted time is allowed to be, in ms. Null if unknown.
  *
@@ -148,16 +198,12 @@ export const AUTHOR_MS: Record<string, number> = {
   lattice: 34_684,
 };
 
-/** Every medal time for a map, best first. Null if the map has no Author time. */
+/** Every medal time for a shipped map, best first. Null if it has no Author time. */
 export function medalTimes(
   slug: string
 ): Array<{ medal: Medal; ms: number }> | null {
   const author = AUTHOR_MS[slug];
-  if (author === undefined) return null;
-  return MEDALS.map((medal) => ({
-    medal,
-    ms: Math.round(author * LADDER[medal]),
-  }));
+  return author === undefined ? null : medalTimesFor(author);
 }
 
 /**
@@ -168,12 +214,8 @@ export function medalTimes(
  * awarding anything.
  */
 export function medalFor(slug: string, ms: number): Medal | null {
-  const times = medalTimes(slug);
-  if (!times) return null;
-  for (const { medal, ms: threshold } of times) {
-    if (ms <= threshold) return medal;
-  }
-  return null;
+  const author = AUTHOR_MS[slug];
+  return author === undefined ? null : medalForAuthor(author, ms);
 }
 
 /** Is `a` a better medal than `b`? Null is worse than every medal. */
@@ -194,8 +236,6 @@ export function nextMedal(
   slug: string,
   earned: Medal | null
 ): { medal: Medal; ms: number } | null {
-  const times = medalTimes(slug);
-  if (!times) return null;
-  const have = earned === null ? MEDALS.length : MEDALS.indexOf(earned);
-  return have <= 0 ? null : times[have - 1];
+  const author = AUTHOR_MS[slug];
+  return author === undefined ? null : nextMedalFor(author, earned);
 }
