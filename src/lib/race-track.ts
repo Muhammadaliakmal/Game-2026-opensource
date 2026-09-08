@@ -73,6 +73,25 @@ export function onTrack(x: number, z: number): boolean {
 }
 
 /**
+ * Is this position past the rails, over nothing at all?
+ *
+ * The generators stamp blocks out to `HALF_WIDTH + RAIL_BAND` and not one cell
+ * further (see `circuit.ts` and `vapor-ridge.ts`, which both walk this same
+ * field), so beyond that bound there is no world — not a kerb, not a run-off,
+ * void. A bike there is falling whether or not it has started to yet.
+ *
+ * Deliberately a wider bound than `onTrack`. Two wheels on the kerb is a bad
+ * corner, not a crash, and a recovery that fired on it would take the race off
+ * anybody who ran wide. This fires only once there is nothing underneath.
+ *
+ * XZ only, on purpose: Vapor Ridge has a crest riders leave the ground over,
+ * and height says nothing about whether they are still above the track.
+ */
+export function beyondRails(x: number, z: number): boolean {
+  return Math.abs(trackDistance(x, z)) > HALF_WIDTH + RAIL_BAND;
+}
+
+/**
  * How far round the lap a position is, as 0..1 from the start line.
  *
  * The polar angle about the origin works as a lap parameter because the loop

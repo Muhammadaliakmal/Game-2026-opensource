@@ -14,7 +14,7 @@ import { playerFocus } from "@/components/play/camera-rig";
 import { setGridListener, type GridPose } from "@/lib/net/race";
 import { sendMove } from "@/lib/net/presence";
 import { useRaceStore } from "@/stores/race-store";
-import { GRID_YAW } from "@/lib/race-track";
+import { GRID_YAW, beyondRails, onTrack } from "@/lib/race-track";
 import { BikeModel, bikeColor } from "./BikeModel";
 import { Rider } from "./Rider";
 import type { RaceControl } from "./controls";
@@ -150,8 +150,34 @@ const CAM_LAG = 0.06;
  * Far less likely to be needed now that nothing can tip, but a bike can still
  * be shoved off an edge, and the chase camera is welded to it — so a bike that
  * leaves the world would take the view with it.
+ *
+ * ── Why height alone was not enough ──────────────────────────────────────
+ *
+ * This used to be the whole test, and it made the recovery worse than none at
+ * a corner. A bike that clears the rail is off the world at track height and
+ * only becomes "below" it after a second of falling — a second the chase
+ * camera spends pointed into the void. Worse, the safe pose was recorded on
+ * any frame above `RECOVER_BELOW_Y + 0.5`, *including those first airborne
+ * frames past the rail*. So the pose the rider was sent back to was a point
+ * over nothing: they fell, respawned in mid-air where they went off, fell
+ * again, and the only way out was the grid. A recovery that returns you to the
+ * place you are being recovered from is not a recovery.
+ *
+ * Both halves are fixed by asking the track, not the altimeter. `beyondRails`
+ * is the trigger and `onTrack` gates the memory — see `lib/race-track.ts`.
  */
 const RECOVER_BELOW_Y = 0.2;
+
+/**
+ * Frames past the rails before the bike believes it has left the world.
+ *
+ * The same argument as `IMPACT_CONFIRM` below: a single frame at the exact
+ * boundary — a wheel clipping the outside of the kerb, the solver resolving a
+ * contact a hair wide — is noise, and two consecutive frames are not. It costs
+ * about 33 ms of falling, which nobody can see, and buys a recovery that
+ * cannot fire on a rider merely running wide.
+ */
+const OFF_TRACK_CONFIRM = 2;
 
 /**
  * ── Hitting things ───────────────────────────────────────────────────────
@@ -259,6 +285,8 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
   const prevGround = useRef<{ x: number; z: number } | null>(null);
   /** Consecutive frames the bike has failed to go where it was sent. */
   const blockedFor = useRef(0);
+  /** Consecutive frames the bike has been past the rails. */
+  const offFor = useRef(0);
   const shake = useRef({ time: 0, amp: 0, dur: SHAKE_DUR });
   const wasBoosting = useRef(false);
 
@@ -278,6 +306,7 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     primed.current = false;
     prevGround.current = null;
     blockedFor.current = 0;
+    offFor.current = 0;
   };
 
   /**
@@ -352,7 +381,12 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       const lost =
         !Number.isFinite(t.x) || !Number.isFinite(t.y) || !Number.isFinite(t.z);
 
-      if (lost || t.y < RECOVER_BELOW_Y) {
+      // Past the rails is a fall that has not landed yet — the track's own
+      // distance field says there is nothing under the bike, whatever its
+      // height happens to be this frame. Counted, not believed on sight.
+      offFor.current = !lost && beyondRails(t.x, t.z) ? offFor.current + 1 : 0;
+
+      if (lost || t.y < RECOVER_BELOW_Y || offFor.current >= OFF_TRACK_CONFIRM) {
         const back = safe.current ?? home.current;
         if (back) {
           place(b, back);
@@ -360,7 +394,14 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
         }
       } else {
         view.current.set(t.x, t.y, t.z);
-        if (t.y > RECOVER_BELOW_Y + 0.5) {
+        // Only a pose on the racing surface is worth returning to. Height was
+        // never the question: the frames worth remembering are the ones with
+        // track underneath them, and the frames sailing over the barrier at
+        // full height are exactly the ones that used to be remembered. Riding
+        // the kerb is not recorded either — it is where a rider is about to
+        // come off, so sending them back to it would be sending them back to
+        // the mistake.
+        if (t.y > RECOVER_BELOW_Y + 0.5 && onTrack(t.x, t.z)) {
           safe.current = { x: t.x, y: t.y + 0.1, z: t.z, yaw: heading.current };
         }
       }
