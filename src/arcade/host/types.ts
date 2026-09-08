@@ -31,7 +31,14 @@ export interface GameServices {
   input: InputState;
   /** Seeded. `Math.random` is banned in a game module — see `rng.ts`. */
   rng: () => number;
-  sfx: (name: string) => void;
+  /**
+   * Play a named sound, optionally shifted by semitones.
+   *
+   * The shift is part of the contract rather than something a game works
+   * around, because a pitch that climbs with a streak is the cheapest piece of
+   * juice there is — five identical beeps and a rising phrase cost the same.
+   */
+  sfx: (name: string, semitones?: number) => void;
   /** Throttled by the host to ~10Hz. Never call this per frame. */
   onScore: (score: number) => void;
   onGameOver: (finalScore: number) => void;

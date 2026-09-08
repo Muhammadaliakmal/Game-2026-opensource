@@ -1,6 +1,12 @@
 import type { GameModule } from "./host/types";
 
 /**
+ * Payout rates are NOT here. They live in `lib/arcade-payout.ts` so a server
+ * route can read one without importing this file and, through it, every game
+ * module's dynamic import.
+ */
+
+/**
  * Every cabinet in the arcade, and the only place a game is named.
  *
  * ── Lazy, and strictly so ────────────────────────────────────────────────
@@ -17,12 +23,6 @@ export interface ArcadeEntry {
   title: string;
   tagline: string;
   controlsHint: string;
-  /**
-   * Coins per point of score. The payout tuning knob, and the only number
-   * that decides whether a game is worth playing for a reward — see
-   * `lib/arcade-payout.ts`, where the rest of the rule lives.
-   */
-  coinsPerPoint: number;
   /** Hidden from the cabinet list. For the host's own test game. */
   dev?: boolean;
   load: () => Promise<{ default: GameModule }>;
@@ -30,11 +30,17 @@ export interface ArcadeEntry {
 
 export const ARCADE: ArcadeEntry[] = [
   {
+    id: "chunk-runner",
+    title: "Chunk Runner",
+    tagline: "Don't stop. Don't blink.",
+    controlsHint: "SPACE / TAP to jump · hold to glide",
+    load: () => import("./games/chunk-runner"),
+  },
+  {
     id: "stub",
     title: "Test Pattern",
     tagline: "A square, at exactly 200 pixels a second.",
     controlsHint: "Nothing to press — this one proves the loop",
-    coinsPerPoint: 0,
     dev: true,
     load: () => import("./games/stub"),
   },

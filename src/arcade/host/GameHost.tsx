@@ -9,8 +9,48 @@ import { sfx } from "./audio";
 import type { ArcadeGame, GameServices } from "./types";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
-import { payout } from "@/lib/arcade-payout";
-import { load as loadSave } from "../persistence";
+import { today } from "../persistence";
+
+/**
+ * Turn a finished run into coins.
+ *
+ * The client sends what it did; the server decides what that is worth. None
+ * of the arithmetic is here — not the rate, not the caps — because a payout
+ * computed on this side would be a payout the player could edit. See
+ * `api/arcade/payout` and `lib/arcade-payout.ts`.
+ *
+ * Every failure path is the same and is deliberately quiet: a signed-out
+ * player has no wallet to pay into, and a network that dropped the request
+ * should cost somebody a few coins rather than an error on the screen they
+ * are reading their score off. `earned` stays null and the panel simply does
+ * not mention coins.
+ */
+async function settle(gameId: string, score: number) {
+  try {
+    const res = await fetch("/api/arcade/payout", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ gameId, score, date: today() }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (typeof data?.earned !== "number") return;
+
+    useArcade.getState().credit(data.earned);
+    useArcade.getState().setCapped(Boolean(data.cappedForToday));
+
+    // The wallet moved, so anything showing it is stale. Written straight in
+    // rather than refetched — the server just said what it is. Imported here
+    // rather than at the top so the arcade does not pull the shop store into
+    // its own chunk for a field it touches once per run.
+    if (typeof data.coins === "number") {
+      const { useShop } = await import("@/lib/shop");
+      useShop.setState({ coins: data.coins });
+    }
+  } catch {
+    /* see above: a lost payout is not worth a message */
+  }
+}
 
 /**
  * The canvas, the loop, and everything a game is handed.
@@ -87,10 +127,11 @@ export function GameHost({ className }: { className?: string }) {
         over = true;
         score = final;
         loop.stop();
-        const save = loadSave();
-        useArcade
-          .getState()
-          .finish(entry.id, final, payout(final, entry.coinsPerPoint, save.coinsEarnedToday));
+        // The screen goes up on the score, which is known now. The payout is
+        // a request, and a death screen that waited for the network to draw
+        // would make every death feel like a stutter.
+        useArcade.getState().finish(entry.id, final);
+        void settle(entry.id, final);
       },
     };
 

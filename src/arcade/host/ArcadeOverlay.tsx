@@ -29,6 +29,7 @@ export default function ArcadeOverlay() {
   const score = useArcade((s) => s.score);
   const best = useArcade((s) => s.best);
   const earned = useArcade((s) => s.earned);
+  const capped = useArcade((s) => s.capped);
   const error = useArcade((s) => s.error);
 
   const entry = gameId ? entryFor(gameId) : undefined;
@@ -142,6 +143,15 @@ export default function ArcadeOverlay() {
                 {earned !== null && earned > 0 && (
                   <p className="text-accent num text-sm font-semibold">
                     + ⬤ {earned}
+                  </p>
+                )}
+                {/* Said once the day is spent, because a player watching the
+                    coin line vanish deserves to know it is the cap rather
+                    than a bug. The score still counts and the best still
+                    stands — only the payout stops. */}
+                {capped && (
+                  <p className="hud-label">
+                    Coin limit reached for today · scores still count
                   </p>
                 )}
               </>

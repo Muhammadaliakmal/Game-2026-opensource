@@ -148,6 +148,27 @@ export const players = pgTable("players", {
   owned: text("owned").array().default([]).notNull(),
   /** The character being worn. Always a catalog id — see lib/characters.ts. */
   character: text("character").default("courier").notNull(),
+  /**
+   * Coins the arcade has paid this player on `arcade_day`.
+   *
+   * The arcade cannot use the course payout rule — an endless runner has no
+   * "best possible" for a difference to be measured against — so it pays per
+   * run, and a score is a number a client computes. This column is what makes
+   * that safe: it is the server's own record of the day, and the daily
+   * ceiling in `lib/arcade-payout.ts` is clamped against it rather than
+   * against anything the client says. See `awardArcadeCoins`.
+   */
+  arcadeCoins: integer("arcade_coins").default(0).notNull(),
+  /**
+   * The day `arcade_coins` belongs to, as YYYY-MM-DD.
+   *
+   * Text rather than a date, and the player's local day rather than UTC: a
+   * daily cap should roll over at the player's midnight, which is a fact only
+   * their browser knows. Storing what they claim is fine — the worst a lie
+   * about the date buys is one extra day's ceiling, and the ceiling is the
+   * thing being defended.
+   */
+  arcadeDay: text("arcade_day").default("").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

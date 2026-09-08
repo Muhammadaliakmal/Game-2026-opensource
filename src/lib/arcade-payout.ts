@@ -41,6 +41,25 @@
  * still shows a number going up.
  */
 
+/**
+ * Coins per point of score, per game.
+ *
+ * Here rather than on the registry entry beside the title, for one reason:
+ * the server has to know the rate to compute a payout, and the registry holds
+ * dynamic imports of game modules. A route that imported it to read one number
+ * would drag a canvas renderer into the server bundle. This module is pure
+ * arithmetic and imports nothing.
+ */
+export const RATES: Record<string, number> = {
+  "chunk-runner": 0.5,
+  "tower-stack": 2,
+  "block-merge": 0.05,
+  "block-survivor": 0.2,
+};
+
+/** The rate for a game, or zero for one that does not pay — the test pattern. */
+export const rateFor = (id: string): number => RATES[id] ?? 0;
+
 /** Coins a day of play pays at full rate. The design limit. */
 export const DAILY_SOFT_CAP = 500;
 

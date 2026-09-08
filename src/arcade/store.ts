@@ -2,7 +2,15 @@
 
 import { create } from "zustand";
 import { entryFor } from "./registry";
-import { load, recordRun, save, type ArcadeSave } from "./persistence";
+import { DAILY_HARD_CAP } from "@/lib/arcade-payout";
+import {
+  creditCoins,
+  load,
+  recordRun,
+  save,
+  today,
+  type ArcadeSave,
+} from "./persistence";
 
 /**
  * What React knows about the arcade.
@@ -47,9 +55,17 @@ interface ArcadeState {
   pause(): void;
   resume(): void;
   setStatus(s: ArcadeStatus): void;
+  setCapped(capped: boolean): void;
   setScore(n: number): void;
-  /** Called by the host when a run ends. Records the best and the payout. */
-  finish(gameId: string, score: number, coins: number): void;
+  /**
+   * A run ended. Records the score and shows the death screen at once — the
+   * payout is a separate, later fact, because it is a network round trip.
+   */
+  finish(gameId: string, score: number): void;
+  /** What the server actually paid, once it has said. */
+  credit(coins: number): void;
+  /** True once today's arcade ceiling has been reached. */
+  capped: boolean;
   fail(message: string): void;
 }
 
@@ -66,6 +82,7 @@ export const useArcade = create<ArcadeState>((set, get) => ({
   score: 0,
   best: {},
   earned: null,
+  capped: false,
   seed: 0,
   runId: 0,
   error: null,
@@ -82,6 +99,12 @@ export const useArcade = create<ArcadeState>((set, get) => ({
       seed: seed ?? (Math.random() * 0xffffffff) >>> 0,
       runId: get().runId + 1,
       best: s.best,
+      // Carried in from the save so the first run of a session already knows
+      // whether the day is spent, rather than learning it on the death screen.
+      capped:
+        typeof window !== "undefined" && savedNow().lastPlayDate === today()
+          ? savedNow().coinsEarnedToday >= DAILY_HARD_CAP
+          : false,
     });
   },
 
@@ -104,13 +127,23 @@ export const useArcade = create<ArcadeState>((set, get) => ({
   pause: () => set((s) => (s.status === "playing" ? { status: "paused" } : {})),
   resume: () => set((s) => (s.status === "paused" ? { status: "playing" } : {})),
   setStatus: (status) => set({ status }),
+  setCapped: (capped: boolean) => set({ capped }),
   setScore: (score) => set({ score }),
 
-  finish: (gameId, score, coins) => {
-    const next = recordRun(savedNow(), gameId, score, coins);
+  finish: (gameId, score) => {
+    const next = recordRun(savedNow(), gameId, score);
     saved = next;
     save(next);
-    set({ status: "gameover", score, earned: coins, best: next.best });
+    set({ status: "gameover", score, best: next.best });
+  },
+
+  credit: (coins) => {
+    if (coins > 0) {
+      const next = creditCoins(savedNow(), coins);
+      saved = next;
+      save(next);
+    }
+    set({ earned: coins });
   },
 
   fail: (message) => set({ status: "gameover", error: message }),

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { recordRun, rolled, type ArcadeSave } from "./persistence";
+import { creditCoins, recordRun, rolled, type ArcadeSave } from "./persistence";
 
 const base: ArcadeSave = {
   v: 1,
@@ -26,22 +26,35 @@ test("the same day is left exactly alone", () => {
 });
 
 test("a best score only ever rises", () => {
-  let s = recordRun(base, "chunk-runner", 900, 100, "2026-09-08");
-  s = recordRun(s, "chunk-runner", 400, 40, "2026-09-08");
+  let s = recordRun(base, "chunk-runner", 900, "2026-09-08");
+  s = recordRun(s, "chunk-runner", 400, "2026-09-08");
   assert.equal(s.best["chunk-runner"], 900, "a worse run took the record");
   assert.equal(s.totalRuns["chunk-runner"], 2, "both runs counted");
-  assert.equal(s.coinsEarnedToday, 140, "both payouts counted");
 });
 
-test("a run on a new day rolls the cap before adding to it", () => {
+test("recording a run does not credit coins", () => {
+  // A score is known when the run ends; a payout is a round trip that may say
+  // a different number or never answer. Keeping them apart is what lets the
+  // death screen show a new best without waiting for the network.
+  const s = recordRun(base, "chunk-runner", 900, "2026-09-08");
+  assert.equal(s.coinsEarnedToday, 0);
+});
+
+test("credited coins accumulate across a day", () => {
+  let s = creditCoins(base, 100, "2026-09-08");
+  s = creditCoins(s, 40, "2026-09-08");
+  assert.equal(s.coinsEarnedToday, 140);
+});
+
+test("a credit on a new day rolls the cap before adding to it", () => {
   const late = { ...base, coinsEarnedToday: 490 };
-  const s = recordRun(late, "tower-stack", 30, 60, "2026-09-09");
+  const s = creditCoins(late, 60, "2026-09-09");
   assert.equal(s.coinsEarnedToday, 60, "yesterday's total leaked into today");
 });
 
 test("games keep their own records", () => {
-  let s = recordRun(base, "chunk-runner", 900, 0, "2026-09-08");
-  s = recordRun(s, "tower-stack", 12, 0, "2026-09-08");
+  let s = recordRun(base, "chunk-runner", 900, "2026-09-08");
+  s = recordRun(s, "tower-stack", 12, "2026-09-08");
   assert.equal(s.best["chunk-runner"], 900);
   assert.equal(s.best["tower-stack"], 12);
 });

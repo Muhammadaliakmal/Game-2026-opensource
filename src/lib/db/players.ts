@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from ".";
 import { players } from "./schema";
 import { DEFAULT_CHARACTER } from "@/lib/characters";
+import { DAILY_HARD_CAP, payout } from "@/lib/arcade-payout";
 
 /**
  * The wallet, server side.
@@ -117,6 +118,79 @@ export async function buyCharacter(
   return {
     result: state.owned.includes(characterId) ? "owned" : "insufficient",
     state,
+  };
+}
+
+/**
+ * Pay an arcade run, and hold the day's ceiling while doing it.
+ *
+ * ── Where the two caps are enforced, and why they differ ─────────────────
+ *
+ * `payout()` computes the soft-capped amount from the day's total as this
+ * process last read it. That read can be stale — two tabs finishing runs at
+ * the same moment both see the same "earned today" — so a concurrent pair can
+ * each be granted a little more full-rate credit than they strictly should.
+ * That is a tuning inaccuracy and it is acceptable.
+ *
+ * The *hard* ceiling is not, so it is applied in the UPDATE itself, against
+ * the column rather than against the value JavaScript read. Two racing
+ * requests therefore cannot between them take more than a day's limit: the
+ * second one's LEAST() sees the first one's write.
+ *
+ * The rollover is in the same statement for the same reason. Reading the day,
+ * deciding it has changed and then writing zero is a race that eats a payout.
+ */
+export async function awardArcadeCoins(
+  userId: string,
+  score: number,
+  rate: number,
+  date: string
+): Promise<{ earned: number; coins: number; cappedForToday: boolean }> {
+  await db.insert(players).values({ userId }).onConflictDoNothing();
+
+  const [before] = await db
+    .select({ arcadeCoins: players.arcadeCoins, arcadeDay: players.arcadeDay })
+    .from(players)
+    .where(eq(players.userId, userId));
+
+  // A row from a previous day has no bearing on today's total.
+  const earnedToday = before && before.arcadeDay === date ? before.arcadeCoins : 0;
+  const wanted = payout(score, rate, earnedToday);
+
+  if (wanted <= 0) {
+    const { coins } = await playerState(userId);
+    return { earned: 0, coins, cappedForToday: true };
+  }
+
+  // `today` is the day-total as it will be after this write: zero if the
+  // stored day is not this one, so the rollover and the clamp are one
+  // expression and cannot disagree with each other.
+  const today = sql`(case when ${players.arcadeDay} = ${date} then ${players.arcadeCoins} else 0 end)`;
+  const granted = sql`least(${wanted}, greatest(0, ${DAILY_HARD_CAP} - ${today}))`;
+
+  const [row] = await db
+    .update(players)
+    .set({
+      coins: sql`${players.coins} + ${granted}`,
+      arcadeCoins: sql`${today} + ${granted}`,
+      arcadeDay: date,
+      updatedAt: sql`now()`,
+    })
+    .where(eq(players.userId, userId))
+    .returning({ coins: players.coins, arcadeCoins: players.arcadeCoins });
+
+  if (!row) {
+    const { coins } = await playerState(userId);
+    return { earned: 0, coins, cappedForToday: true };
+  }
+
+  // What was actually granted, read back rather than assumed: the clamp above
+  // may have paid less than `wanted`, and the screen must show what happened.
+  const earned = Math.max(0, row.arcadeCoins - earnedToday);
+  return {
+    earned,
+    coins: row.coins,
+    cappedForToday: row.arcadeCoins >= DAILY_HARD_CAP,
   };
 }
 

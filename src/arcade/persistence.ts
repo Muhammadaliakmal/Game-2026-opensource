@@ -88,12 +88,18 @@ export function save(next: ArcadeSave): void {
   }
 }
 
-/** Record a finished run. Returns the updated save; `best` only ever rises. */
+/**
+ * Record a finished run. Returns the updated save; `best` only ever rises.
+ *
+ * Coins are deliberately not an argument. A run's score is known the instant
+ * it ends and its payout is not — the payout is a round trip to a server that
+ * may say a different number, or refuse. Folding the two together would mean
+ * the death screen could not show a new best until the network answered.
+ */
 export function recordRun(
   prev: ArcadeSave,
   gameId: string,
   score: number,
-  coins: number,
   date = today()
 ): ArcadeSave {
   const s = rolled(prev, date);
@@ -101,6 +107,21 @@ export function recordRun(
     ...s,
     best: { ...s.best, [gameId]: Math.max(s.best[gameId] ?? 0, score) },
     totalRuns: { ...s.totalRuns, [gameId]: (s.totalRuns[gameId] ?? 0) + 1 },
-    coinsEarnedToday: s.coinsEarnedToday + Math.max(0, coins),
   };
+}
+
+/**
+ * Record what the server actually paid.
+ *
+ * This copy exists so the UI can say "capped for today" without asking. It is
+ * not the ledger — see the note at the top of this file — and the server's
+ * own column is what any cap is really enforced against.
+ */
+export function creditCoins(
+  prev: ArcadeSave,
+  coins: number,
+  date = today()
+): ArcadeSave {
+  const s = rolled(prev, date);
+  return { ...s, coinsEarnedToday: s.coinsEarnedToday + Math.max(0, coins) };
 }
