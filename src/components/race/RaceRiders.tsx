@@ -40,6 +40,14 @@ function RivalBike({ id }: { id: string }) {
   const group = useRef<THREE.Group>(null);
   const [label] = useState(() => peerMap().get(id)?.name ?? "Rider");
   const [color] = useState(() => bikeColor(id));
+  /**
+   * A rival's speed, and unlike their steering this one is not invented: it
+   * falls out of the interpolated positions that are already on the wire (see
+   * `samplePeer`), in the same units the local bike reports. So a rival tucks
+   * down the straights and sits up under braking for the same reason the
+   * player does — because they are actually going that fast.
+   */
+  const speed = useRef(0);
 
   useFrame(() => {
     const peer = peerMap().get(id);
@@ -48,6 +56,7 @@ function RivalBike({ id }: { id: string }) {
 
     const m = samplePeer(peer, Date.now());
     g.position.set(m.x, m.y, m.z);
+    speed.current = m.moveSpeed;
     // A rider reports the yaw its own body is pointing (see Bike.tsx), and the
     // model's forward is +Z, which a group rotation of theta points along. So
     // unlike the on-foot avatar — whose yaw is a camera angle and needs half a
@@ -59,9 +68,10 @@ function RivalBike({ id }: { id: string }) {
     <group ref={group}>
       <BikeModel color={color} />
       {/* No steer ref: a rival's steering is not on the wire — only where they
-          are and which way they point — so they sit upright rather than lean
-          off a number invented on this machine. */}
-      <Rider color={color} />
+          are and which way they point — so they do not lean off a number
+          invented on this machine. Speed is a different case: it is measured
+          from the positions that ARE on the wire, so the tuck is real. */}
+      <Rider color={color} speedRef={speed} />
       {/* A DOM label rather than 3D text, for the same reason Peers gives:
           troika would fetch a font over the network on first render. */}
       <Html center position={[0, 1.5, 0]} distanceFactor={14} zIndexRange={[10, 0]}>

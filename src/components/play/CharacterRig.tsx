@@ -51,6 +51,25 @@ const ARM_DROP = 1.32;
 const ELBOW_BEND = 0.22;
 
 /**
+ * These models face the opposite way from the courier, and every gait angle is
+ * stated in the courier's space (see `GaitPose`). So each one is negated here.
+ *
+ * Measured, not assumed: in all three GLBs `toes.l` sits at z +0.096 against
+ * `foot.l` at -0.019, and `upperleg.l` — the character's LEFT leg — is at
+ * x +0.171. Toes forward on +Z and left on +X is a model facing **+Z**. The
+ * courier is built facing -Z and turned around by `MODEL_FACING`, and its limb
+ * rotations happen inside that turn, so its angles are -Z-forward angles.
+ *
+ * Handing those straight to a +Z model — which is what this did — mirrors the
+ * whole pose. On the legs and arms that is invisible, because a swing cycle
+ * mirrored is just the other foot leading. On everything that is not
+ * symmetric it is not invisible at all: the lean tipped these characters
+ * BACKWARDS as they ran, which is the moonwalk, and the airborne pose threw
+ * the legs out behind instead of tucking them.
+ */
+const FACE_SIGN = -1;
+
+/**
  * The bones the gait touches. Every other bone keeps its rest pose.
  *
  * Deliberately the four limb roots, the chest and the head: the skin carries
@@ -66,6 +85,8 @@ const BONES = {
   elbowR: "lowerarm.r",
   legL: "upperleg.l",
   legR: "upperleg.r",
+  kneeL: "lowerleg.l",
+  kneeR: "lowerleg.r",
 } as const;
 
 type BoneKey = keyof typeof BONES;
@@ -192,7 +213,8 @@ export function CharacterRig({
       1 + (FEEL.squashScale[1] - 1) * p.squash,
       1 + (FEEL.squashScale[2] - 1) * p.squash
     );
-    root.current.rotation.x = p.lean;
+    root.current.rotation.x = FACE_SIGN * p.lean;
+    root.current.rotation.z = FACE_SIGN * p.roll;
     // The bob is authored in the courier's units, and this group sits above
     // the model's own scale — so it has to be divided back out or a character
     // half the size would bob twice as far up its own body.
@@ -200,16 +222,23 @@ export function CharacterRig({
 
     // Legs hang at rest, so the swing is the whole story. Arms come down out
     // of the T first, mirrored, and swing on top of that.
-    pose(joints.legL, p.legL);
-    pose(joints.legR, p.legR);
-    pose(joints.armL, p.armL, -ARM_DROP);
-    pose(joints.armR, p.armR, ARM_DROP);
-    pose(joints.elbowL, 0, -ELBOW_BEND);
-    pose(joints.elbowR, 0, ELBOW_BEND);
+    pose(joints.legL, FACE_SIGN * p.legL);
+    pose(joints.legR, FACE_SIGN * p.legR);
+    pose(joints.armL, FACE_SIGN * p.armL, -ARM_DROP);
+    pose(joints.armR, FACE_SIGN * p.armR, ARM_DROP);
+    // A flex has no sign of its own, so the anatomy supplies it: the shin
+    // folds backwards and the forearm forwards, which are opposite rotations
+    // about the same axis before FACE_SIGN turns them into this model's space.
+    // `lowerleg.*` was in the rig all along and had never been driven, which is
+    // why these characters ran on stilts.
+    pose(joints.kneeL, FACE_SIGN * -p.kneeL);
+    pose(joints.kneeR, FACE_SIGN * -p.kneeR);
+    pose(joints.elbowL, FACE_SIGN * p.elbowL, -ELBOW_BEND);
+    pose(joints.elbowR, FACE_SIGN * p.elbowR, ELBOW_BEND);
     // The head counter-rotates against the lean so it stays level-ish, and the
     // chest takes a little of it so the tip is not all at the hips.
-    pose(joints.head, -p.lean * 0.6);
-    pose(joints.chest, -p.lean * 0.25);
+    pose(joints.head, FACE_SIGN * -p.lean * 0.6);
+    pose(joints.chest, FACE_SIGN * -p.lean * 0.25);
   });
 
   return (

@@ -71,6 +71,31 @@ const LEAN = 0.38;
 /** How quickly the lean catches up. Lower is floatier. */
 const LEAN_RATE = 0.12;
 
+/**
+ * The rest pose, now that two of these are animated rather than baked into the
+ * JSX: the torso tipped forward over the tank, and the helmet tipped back out
+ * of it so the rider looks up the road rather than at the fuel cap.
+ */
+const TORSO_PITCH = 0.42;
+const HELMET_PITCH = -0.3;
+
+/**
+ * The speed at which the tuck is full, in world units per second.
+ *
+ * Owned here rather than read off Bike's MAX_SPEED on purpose: a rival's speed
+ * arrives as a measured one (see RaceRiders), so this has to be a number about
+ * riding rather than a number about the local bike's tuning.
+ */
+const TUCK_SPEED = 16;
+/** How far the rider folds down over the tank at speed, radians. */
+const TUCK = 0.16;
+/** How much of that the helmet takes back, so the eyes stay up the road. */
+const HEAD_LIFT = 0.7;
+/** How far the helmet turns to look through a corner, radians at full lock. */
+const HEAD_TURN = 0.3;
+/** Vertical travel from the road surface at speed, in units. */
+const BUMP = 0.008;
+
 export function Rider({
   /** Matches the bike so a rider is told apart at a glance, same as the bike. */
   color = "#22d3ee",
@@ -80,21 +105,36 @@ export function Rider({
    * value changes every single frame.
    */
   steerRef,
+  /**
+   * Speed along the road, world units per second, read every frame. Signed is
+   * fine — only the magnitude is used. A ref for the same reason `steerRef` is
+   * one: this changes every frame and must not re-render anything.
+   *
+   * Optional, and a rider without it simply sits upright at rest, which is the
+   * honest pose for something whose speed is genuinely unknown.
+   */
+  speedRef,
 }: {
   color?: string;
   steerRef?: React.RefObject<number>;
+  speedRef?: React.RefObject<number>;
 }) {
   const lean = useRef<THREE.Group>(null!);
+  const torso = useRef<THREE.Group>(null!);
+  const helmet = useRef<THREE.Group>(null!);
   const visorMat = useRef<THREE.MeshStandardMaterial>(null!);
   const current = useRef(0);
+  const tuck = useRef(0);
 
   useFrame((state, dt) => {
     if (!lean.current) return;
+    const t = state.clock.elapsedTime;
 
     // Lean the whole rider into the steer. A rider bolt upright through a
     // corner is the single thing that makes a bike read as a prop rather than
     // as something being ridden.
-    const want = -(steerRef?.current ?? 0) * LEAN;
+    const steer = steerRef?.current ?? 0;
+    const want = -steer * LEAN;
     // Frame-rate independent, like every other easing in this codebase.
     current.current = THREE.MathUtils.lerp(
       current.current,
@@ -102,6 +142,34 @@ export function Rider({
       1 - Math.pow(LEAN_RATE, dt)
     );
     lean.current.rotation.z = current.current;
+
+    // ── Speed ──────────────────────────────────────────────────────────────
+    // Eased on the same curve as the lean, so a rider does not snap into a
+    // tuck the frame the throttle is touched.
+    const v = Math.min(1, Math.abs(speedRef?.current ?? 0) / TUCK_SPEED);
+    tuck.current = THREE.MathUtils.lerp(tuck.current, v, 1 - Math.pow(LEAN_RATE, dt));
+    const folded = tuck.current;
+
+    if (torso.current) {
+      // Fold down over the tank as the speed comes up. This is the whole
+      // difference between a figure sitting on a bike and a figure riding one:
+      // the pose at 5 units/s and the pose at 20 should not be the same pose.
+      torso.current.rotation.x = TORSO_PITCH + folded * TUCK;
+    }
+    if (helmet.current) {
+      // The head gives most of the fold back, because a rider tucks their body
+      // and not their eyes — the road is still where it was.
+      helmet.current.rotation.x = HELMET_PITCH - folded * TUCK * HEAD_LIFT;
+      // And looks through the corner rather than at the front wheel.
+      helmet.current.rotation.y = -steer * HEAD_TURN;
+    }
+
+    // The road, felt rather than seen: a few millimetres of vertical at a
+    // frequency that rises with speed. Two waves that do not share a period,
+    // so it never settles into a hum. Scaled by speed, so a stationary bike on
+    // the grid is perfectly still.
+    lean.current.position.y =
+      (Math.sin(t * (7 + folded * 22)) + Math.sin(t * (11 + folded * 31)) * 0.5) * BUMP * folded;
 
     if (visorMat.current) {
       visorMat.current.emissiveIntensity =
@@ -118,7 +186,7 @@ export function Rider({
           rather than about the rider's own middle. */}
       <group ref={lean}>
         {/* ── Torso, tipped forward over the tank ── */}
-        <group rotation={[0.42, 0, 0]}>
+        <group ref={torso} rotation={[TORSO_PITCH, 0, 0]}>
           <mesh geometry={G.torso} material={M.torso} castShadow />
           <mesh geometry={G.core} position={[0, 0.04, 0.14]}>
             <meshStandardMaterial
@@ -130,7 +198,7 @@ export function Rider({
           </mesh>
 
           {/* ── Helmet ── */}
-          <group position={[0, 0.36, 0.04]} rotation={[-0.3, 0, 0]}>
+          <group ref={helmet} position={[0, 0.36, 0.04]} rotation={[HELMET_PITCH, 0, 0]}>
             <mesh geometry={G.head} material={M.helmet} castShadow />
             {/* Visor on +Z: the rider faces the way the bike points. */}
             <mesh geometry={G.visor} position={[0, -0.01, 0.16]}>

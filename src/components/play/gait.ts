@@ -46,6 +46,49 @@ const SWING = 0.85;
 export const LEAN = 0.22;
 
 /**
+ * Peak knee flex at full sprint.
+ *
+ * A straight leg swinging from the hip is the single thing that made this read
+ * as skating rather than running: the foot traces an arc through the floor on
+ * the way through, and with nothing folding, a body sliding along at speed is
+ * exactly what the eye reports. A knee is also the one joint that cannot be
+ * faked symmetrically — it bends one way only, which is why the flex fields
+ * below are magnitudes and never signed swings.
+ */
+const KNEE = 1.15;
+/**
+ * How far past the leg's furthest-back point the knee peaks, in phase radians.
+ *
+ * Not zero: the knee folds *after* toe-off, to clear the ground on the way
+ * through, and peaks around mid-swing. Folding it in step with the hip instead
+ * reads as a limp.
+ */
+const KNEE_LAG = 0.9;
+/** Extra knee flex while a landing is being absorbed. */
+const KNEE_LAND = 0.55;
+/** A trace of bend that never goes away, so the legs are never locked straight. */
+const KNEE_IDLE = 0.05;
+
+/** Peak elbow flex at full sprint, and its resting trace. */
+const ELBOW = 0.75;
+const ELBOW_IDLE = 0.12;
+
+/** Roll toward the leading leg, radians at full sprint. */
+const ROLL = 0.06;
+
+/**
+ * Idle motion, for a character that is standing still.
+ *
+ * All of it fades out as `gait` comes up, so this is the standing pose rather
+ * than a second animation fighting the walk. It matters more than it sounds:
+ * the shop shows a character with no speed at all, and a model that holds
+ * perfectly still there reads as a photograph of a toy.
+ */
+const IDLE_BREATH = 0.012;
+const IDLE_SWAY = 0.05;
+const IDLE_ROLL = 0.02;
+
+/**
  * How square-on to the facing a step has to be before it is allowed to decide
  * which way the legs cycle. cos(75 deg) — so running forward or backing up
  * flips the stride, while a pure sideways strafe leaves it alone rather than
@@ -53,7 +96,23 @@ export const LEAN = 0.22;
  */
 const STRIDE_COMMIT = 0.25;
 
-/** Everything a renderer needs to pose an avatar this frame. */
+/**
+ * Everything a renderer needs to pose an avatar this frame.
+ *
+ * ── The one convention in here ───────────────────────────────────────────
+ *
+ * Every **swing** (`lean`, `legL`, `armL`, `roll`) is signed, and is stated in
+ * the space the courier is authored in — forward is local -Z, so a positive
+ * X rotation carries a hanging limb forwards. A renderer whose model faces the
+ * other way negates them; see `FACE_SIGN` in CharacterRig.
+ *
+ * Every **flex** (`kneeL`, `elbowL`, …) is a magnitude and is never negative,
+ * because a knee and an elbow each bend one way only. The renderer applies the
+ * sign, and the two are opposite: a knee folds the shin backwards, an elbow
+ * folds the forearm forwards. Storing these signed is how you end up with a
+ * character whose knees bend the wrong way on one model and not the other,
+ * which — unlike a mirrored leg swing — is instantly visible.
+ */
 export interface GaitPose {
   /** 0..1 — how close to a full sprint this is. Drives lean, bob and swing. */
   gait: number;
@@ -61,12 +120,20 @@ export interface GaitPose {
   squash: number;
   /** Forward tip of the whole body, radians. */
   lean: number;
+  /** Side-to-side roll toward the leading leg, radians. */
+  roll: number;
   /** Vertical bob, in model units at the avatar's own scale. */
   bob: number;
   legL: number;
   legR: number;
   armL: number;
   armR: number;
+  /** Knee flex, >= 0. Folds the shin backwards. */
+  kneeL: number;
+  kneeR: number;
+  /** Elbow flex, >= 0. Folds the forearm forwards. */
+  elbowL: number;
+  elbowR: number;
 }
 
 export class Gait {
@@ -74,11 +141,16 @@ export class Gait {
     gait: 0,
     squash: 0,
     lean: 0,
+    roll: 0,
     bob: 0,
     legL: 0,
     legR: 0,
     armL: 0,
     armR: 0,
+    kneeL: 0,
+    kneeR: 0,
+    elbowL: 0,
+    elbowR: 0,
   };
 
   private phase = 0;
@@ -154,15 +226,59 @@ export class Gait {
     // Phase advances with distance travelled, not time, so the legs cannot
     // cycle while standing still and stride rate matches walk vs run for free.
     this.phase += speed * dt * 3.4 * this.stride;
-    const swing = Math.sin(this.phase) * SWING * p.gait;
+    // -1..1, already faded by speed: every swing below is a multiple of it, so
+    // the whole cycle comes up and down together rather than each limb having
+    // its own idea of how fast this is.
+    const cycle = Math.sin(this.phase) * p.gait;
+    const swing = cycle * SWING;
 
     if (motion.isOnGround) {
       p.legL = swing;
       p.legR = -swing;
       p.armL = -swing * 0.8;
       p.armR = swing * 0.8;
-      // Bob on the off-beat of the stride, plus a slow idle breath.
-      p.bob = Math.abs(Math.sin(this.phase)) * 0.035 * p.gait + Math.sin(elapsed * 1.6) * 0.012;
+
+      /**
+       * One knee flex per stride per leg, peaking KNEE_LAG after that leg is
+       * furthest back — the moment it has to fold to clear the ground.
+       *
+       * `max(0, …)` is the whole joint: it takes the half of the sine where
+       * the knee is folding and flattens the other half to zero, so the shin
+       * never swings out the front. Without it this is a hinge, not a knee.
+       */
+      const foldL = Math.max(0, -Math.sin(this.phase - KNEE_LAG));
+      const foldR = Math.max(0, -Math.sin(this.phase + Math.PI - KNEE_LAG));
+      // A landing folds both knees at once; the idle trace keeps them from
+      // ever locking straight, which is what makes a standing pose read as a
+      // person rather than as a mannequin.
+      const absorb = p.squash * KNEE_LAND + KNEE_IDLE;
+      p.kneeL = KNEE * p.gait * foldL + absorb;
+      p.kneeR = KNEE * p.gait * foldR + absorb;
+
+      // Elbows fold as their arm comes forward, and keep a resting bend so the
+      // arms are not two planks.
+      p.elbowL = ELBOW * Math.max(0, -cycle) + ELBOW_IDLE;
+      p.elbowR = ELBOW * Math.max(0, cycle) + ELBOW_IDLE;
+
+      // Roll toward the leading leg. Small — it is the difference between a
+      // body walking and a body being slid along, and any more than that is a
+      // swagger.
+      p.roll = ROLL * cycle;
+
+      // Bob twice per stride, which is what a real walk does — the body rises
+      // over each planted leg — plus a slow breath that never stops.
+      p.bob = Math.abs(Math.sin(this.phase)) * 0.05 * p.gait + Math.sin(elapsed * 1.6) * IDLE_BREATH;
+
+      // ── Idle ──────────────────────────────────────────────────────────────
+      // Faded out by speed, so it is the standing pose and not a second
+      // animation arguing with the walk.
+      const idle = 1 - p.gait;
+      if (idle > 0) {
+        const sway = Math.sin(elapsed * 0.8) * IDLE_SWAY * idle;
+        p.armL += sway;
+        p.armR -= sway;
+        p.roll += Math.sin(elapsed * 0.55) * IDLE_ROLL * idle;
+      }
     } else {
       // Airborne: tuck the legs and throw the arms up. Lerped so the pose
       // eases in rather than snapping the instant the feet leave the ground.
@@ -172,6 +288,13 @@ export class Gait {
       p.legR = THREE.MathUtils.lerp(p.legR, rising ? -0.35 : 0.3, k);
       p.armL = THREE.MathUtils.lerp(p.armL, -2.2, k);
       p.armR = THREE.MathUtils.lerp(p.armR, -2.0, k);
+      // A tuck is knees, not hips. Deeper on the way up, opening out on the
+      // way down so the legs are reaching for the ground before they meet it.
+      p.kneeL = THREE.MathUtils.lerp(p.kneeL, rising ? 1.3 : 0.5, k);
+      p.kneeR = THREE.MathUtils.lerp(p.kneeR, rising ? 0.9 : 0.3, k);
+      p.elbowL = THREE.MathUtils.lerp(p.elbowL, 0.9, k);
+      p.elbowR = THREE.MathUtils.lerp(p.elbowR, 0.9, k);
+      p.roll = THREE.MathUtils.lerp(p.roll, 0, k);
       p.bob = THREE.MathUtils.lerp(p.bob, 0.04, k);
     }
   }

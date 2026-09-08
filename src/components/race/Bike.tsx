@@ -684,7 +684,7 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
     >
       <CuboidCollider args={[0.25, HALF_HEIGHT, 0.85]} />
       <BikeModel color={color} />
-      <Rider color={color} steerRef={steer} />
+      <Rider color={color} steerRef={steer} speedRef={speed} />
     </RigidBody>
   );
 }

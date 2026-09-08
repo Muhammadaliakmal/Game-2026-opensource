@@ -32,10 +32,19 @@ const G = {
   head: new RoundedBoxGeometry(0.44, 0.36, 0.4, 3, 0.07),
   visor: new RoundedBoxGeometry(0.34, 0.13, 0.06, 2, 0.03),
   torso: new RoundedBoxGeometry(0.4, 0.44, 0.3, 3, 0.08),
-  limb: new RoundedBoxGeometry(0.12, 0.3, 0.13, 2, 0.045),
+  /**
+   * Half a limb. The limbs used to be one 0.3-tall box each, which is why the
+   * courier could not have knees — there was nothing below the hip to bend.
+   * Two segments of 0.15 with a joint between them occupy exactly the same
+   * space when straight, so the silhouette standing still is unchanged.
+   */
+  limb: new RoundedBoxGeometry(0.12, 0.15, 0.13, 2, 0.045),
   core: new THREE.SphereGeometry(0.055, 12, 12),
   antenna: new THREE.CylinderGeometry(0.012, 0.012, 0.18, 6),
 };
+
+/** Where the knee and elbow sit below their hip and shoulder. */
+const JOINT_Y = -0.15;
 
 /**
  * The model is built facing its own local -Z, and then the whole thing is
@@ -94,6 +103,10 @@ export function CharacterModel({
   const armR = useRef<THREE.Group>(null!);
   const legL = useRef<THREE.Group>(null!);
   const legR = useRef<THREE.Group>(null!);
+  const kneeL = useRef<THREE.Group>(null!);
+  const kneeR = useRef<THREE.Group>(null!);
+  const elbowL = useRef<THREE.Group>(null!);
+  const elbowR = useRef<THREE.Group>(null!);
   const head = useRef<THREE.Group>(null!);
   const visorMat = useRef<THREE.MeshStandardMaterial>(null!);
 
@@ -124,11 +137,20 @@ export function CharacterModel({
       1 + (FEEL.squashScale[2] - 1) * p.squash
     );
     root.current.rotation.x = p.lean;
+    root.current.rotation.z = p.roll;
 
     legL.current.rotation.x = p.legL;
     legR.current.rotation.x = p.legR;
     armL.current.rotation.x = p.armL;
     armR.current.rotation.x = p.armR;
+    // Flexes carry no sign of their own (see GaitPose). This model is authored
+    // facing -Z, so a positive X rotation carries a limb forwards: a knee folds
+    // the shin backwards and takes the minus, an elbow folds the forearm
+    // forwards and does not.
+    kneeL.current.rotation.x = -p.kneeL;
+    kneeR.current.rotation.x = -p.kneeR;
+    elbowL.current.rotation.x = p.elbowL;
+    elbowR.current.rotation.x = p.elbowR;
     rig.current.position.y = p.bob;
 
     // Head counter-rotates slightly against the lean, so it stays level-ish.
@@ -195,28 +217,51 @@ export function CharacterModel({
             </mesh>
           </group>
 
-          {/* ── Arms — pivot at the shoulder, so rotation.x swings properly ── */}
+          {/* ── Arms — shoulder, then a forearm hung off an elbow ──
+              Each segment's mesh is offset half its own length below its
+              pivot, so a joint rotates the segment about its top end the way
+              a real one does. */}
           <group ref={armL} position={[-0.26, 0.14, 0]}>
-            <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
+            <mesh geometry={G.limb} position={[0, -0.075, 0]} castShadow>
               <meshStandardMaterial color="#7c3aed" roughness={0.45} metalness={0.2} />
             </mesh>
+            <group ref={elbowL} position={[0, JOINT_Y, 0]}>
+              <mesh geometry={G.limb} position={[0, -0.075, 0]} castShadow>
+                <meshStandardMaterial color="#7c3aed" roughness={0.45} metalness={0.2} />
+              </mesh>
+            </group>
           </group>
           <group ref={armR} position={[0.26, 0.14, 0]}>
-            <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
+            <mesh geometry={G.limb} position={[0, -0.075, 0]} castShadow>
               <meshStandardMaterial color="#7c3aed" roughness={0.45} metalness={0.2} />
             </mesh>
+            <group ref={elbowR} position={[0, JOINT_Y, 0]}>
+              <mesh geometry={G.limb} position={[0, -0.075, 0]} castShadow>
+                <meshStandardMaterial color="#7c3aed" roughness={0.45} metalness={0.2} />
+              </mesh>
+            </group>
           </group>
 
-          {/* ── Legs — pivot at the hip ── */}
+          {/* ── Legs — hip, then a shin hung off a knee ── */}
           <group ref={legL} position={[-0.1, -0.24, 0]}>
-            <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
+            <mesh geometry={G.limb} position={[0, -0.075, 0]} castShadow>
               <meshStandardMaterial color="#312e81" roughness={0.5} metalness={0.2} />
             </mesh>
+            <group ref={kneeL} position={[0, JOINT_Y, 0]}>
+              <mesh geometry={G.limb} position={[0, -0.075, 0]} castShadow>
+                <meshStandardMaterial color="#312e81" roughness={0.5} metalness={0.2} />
+              </mesh>
+            </group>
           </group>
           <group ref={legR} position={[0.1, -0.24, 0]}>
-            <mesh geometry={G.limb} position={[0, -0.15, 0]} castShadow>
+            <mesh geometry={G.limb} position={[0, -0.075, 0]} castShadow>
               <meshStandardMaterial color="#312e81" roughness={0.5} metalness={0.2} />
             </mesh>
+            <group ref={kneeR} position={[0, JOINT_Y, 0]}>
+              <mesh geometry={G.limb} position={[0, -0.075, 0]} castShadow>
+                <meshStandardMaterial color="#312e81" roughness={0.5} metalness={0.2} />
+              </mesh>
+            </group>
           </group>
         </group>
       </group>

@@ -24,9 +24,16 @@ import { FrameLimiter } from "@/components/FrameLimiter";
  * ── Idle, deliberately ───────────────────────────────────────────────────
  *
  * The motion handed in is a standing one — no speed, on the ground — so `Gait`
- * produces its idle breath and nothing else. A walk cycle in a shop window
- * would mean inventing a speed, and the whole argument for driving these from
- * physics is that nobody invents a speed.
+ * produces its idle and nothing else. A walk cycle in a shop window would mean
+ * inventing a speed, and the whole argument for driving these from physics is
+ * that nobody invents a speed.
+ *
+ * That idle is a real pose rather than a held frame: breath, a slow arm sway, a
+ * weight shift, and knees that are never locked straight. All of it is faded
+ * out by `gait`, so it exists here and vanishes the moment the same character
+ * is running around a world. A shop window is the one place in the game where
+ * a character is looked at while doing nothing, so it is the one place where a
+ * missing idle reads as a broken model rather than as a still moment.
  */
 
 /** Standing still, on the ground. The gait's idle case. */
