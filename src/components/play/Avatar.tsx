@@ -4,6 +4,7 @@ import { Suspense, useEffect } from "react";
 import type { RefObject } from "react";
 import type { EcctrlHandle } from "ecctrl";
 import { characterFor } from "@/lib/characters";
+import { designFor } from "@/lib/character-design";
 import { useShop } from "@/lib/shop";
 import { CharacterModel } from "./CharacterModel";
 import { CharacterRig } from "./CharacterRig";
@@ -16,14 +17,20 @@ import type { AvatarMotion } from "./gait";
  * `Player` nor `Peers` has to know there are two. Both move identically — see
  * `gait.ts` — so everything above this point can treat an avatar as an avatar.
  *
- * ── The fallback is the courier, and that is not an accident ─────────────
+ * ── There is only one kind now, and the second is kept on purpose ────────
  *
- * A GLB is a download, and a download can be slow, refused, or served from a
- * cache that is not warm yet. Suspending on it with nothing underneath would
- * leave a player as an invisible pair of footsteps for as long as that took.
- * The procedural avatar needs no network at all, so it stands in — the
- * character pops in when it arrives, and a player whose connection never
- * delivers it is still a person running around rather than a hole.
+ * Every character in the catalogue is procedural: authored in
+ * `lib/character-design.ts`, owned outright, and free to download. So this
+ * chooser almost always takes the first branch.
+ *
+ * The GLB branch stays because the argument for it never depended on which
+ * models happened to be in the roster. A GLB is a download, and a download can
+ * be slow, refused, or served from a cache that is not warm yet — so anything
+ * that suspends on one needs something underneath it, or a player is an
+ * invisible pair of footsteps until it lands. The procedural build needs no
+ * network at all, which is what makes it both the default AND the only honest
+ * fallback: whatever stands in has to be the same character, and only code can
+ * guarantee that.
  */
 export function Avatar({
   characterId,
@@ -52,18 +59,23 @@ export function Avatar({
 }) {
   const character = characterFor(characterId);
 
-  const courier = (
+  // The procedural avatar, wearing this character's design. It is no longer
+  // only a fallback: every character in the catalogue is procedural now (see
+  // lib/character-design for why), so this is the ordinary path and the GLB
+  // branch below is what is left in place for a properly licensed model.
+  const built = (
     <CharacterModel
       handleRef={handleRef}
       motionRef={motionRef}
       hideUpClose={hideUpClose}
+      design={designFor(character.id)}
     />
   );
 
-  if (!character.url) return courier;
+  if (!character.url) return built;
 
   return (
-    <Suspense fallback={fallback ?? courier}>
+    <Suspense fallback={fallback ?? built}>
       <CharacterRig
         characterId={character.id}
         handleRef={handleRef}

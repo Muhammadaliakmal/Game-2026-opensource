@@ -15,6 +15,8 @@
  * invisible.
  */
 
+import { DESIGNS } from "./character-design";
+
 /**
  * The physics capsule is a 0.3 radius on a 0.3 half-height, so it stands 1.2
  * units tall. Every character is scaled to that rather than to a unit box:
@@ -54,8 +56,48 @@ export interface Character {
   accent: string;
 }
 
-const scaled = RIG_HEIGHT ? CAPSULE_HEIGHT / RIG_HEIGHT : 1;
+/**
+ * The scale a rigged GLB would need. Nothing uses it while the roster is
+ * procedural — see the note under CHARACTERS — and it is kept, exported, so
+ * adding a licensed model back is one catalogue row rather than a rediscovery
+ * of why 2.166 is the number.
+ */
+export const GLB_SCALE = RIG_HEIGHT ? CAPSULE_HEIGHT / RIG_HEIGHT : 1;
 
+/**
+ * ── What a price actually means ──────────────────────────────────────────
+ *
+ * A price is not a number of coins, it is a number of DAYS. `DAILY_SOFT_CAP`
+ * in `lib/arcade-payout.ts` is 500: past it a run pays a fifth, so 500 a day
+ * is what a player who is enjoying themselves actually banks. Every price
+ * here should be read as a division by that.
+ *
+ * The ladder is 2.5 days, 5 days, 10 days — each one double the last, so it
+ * reads as a deliberate progression rather than three arbitrary numbers, and
+ * so the last one is a goal somebody keeps playing towards rather than a
+ * thing they buy on the second evening and then have nothing left to want.
+ *
+ * These went up from 500/750/1200, which was one day, one and a half, and two
+ * and a half: the whole catalogue was owned in under a week and the arcade
+ * lost its reason to exist. The characters are the only coin sink in the
+ * game, so their prices are what the economy is FOR.
+ *
+ * ── The ceiling, which is a test and not a preference ────────────────────
+ *
+ * `coins.test.ts` asserts every price sits strictly between `MAX_PER_COURSE`
+ * (300, one course at Author) and `MAX_PER_COURSE * 20` (6000, the whole
+ * shipped ladder at its top tier). Below the floor a single course buys a
+ * character; at or above the ceiling parkour cannot buy it at all, however
+ * well it is played, and the shop becomes a locked door with a number on it.
+ * 6000 was tried here and is exactly the ceiling, so it failed — 5000 leaves
+ * the top character at 83% of the ladder, expensive but genuinely reachable,
+ * with the arcade shortening it rather than being the only way through.
+ *
+ * Raising them is safe in a way that lowering them is not: coins are earned
+ * and never sold, so a price is a length of play, never a cost. If it ever
+ * becomes a cost, this comment stops being true and the numbers want a much
+ * harder look — SPEC.md §1 is explicit about wait-or-pay.
+ */
 export const CHARACTERS: Character[] = [
   {
     id: "courier",
@@ -64,36 +106,54 @@ export const CHARACTERS: Character[] = [
     price: 0,
     url: null,
     scale: 1,
-    accent: "#22d3ee",
+    accent: DESIGNS.courier.glow,
   },
   {
-    id: "emberforged-warrior",
-    name: "Emberforged Warrior",
-    blurb: "Horned helm, banked coals. Built to take a bad landing.",
-    price: 500,
-    url: "/characters/emberforged-warrior.glb",
-    scale: scaled,
-    accent: "#f97316",
+    id: "emberforged",
+    name: "Emberforged",
+    blurb: "Horned, heavy and dark. Built to take a bad landing.",
+    price: 1250,
+    url: null,
+    scale: 1,
+    accent: DESIGNS.emberforged.glow,
   },
   {
-    id: "voidtouched-mage",
-    name: "Voidtouched Mage",
+    id: "voidtouched",
+    name: "Voidtouched",
     blurb: "A hat with opinions, and something purple under it.",
-    price: 750,
-    url: "/characters/voidtouched-mage.glb",
-    scale: scaled,
-    accent: "#a855f7",
+    price: 2500,
+    url: null,
+    scale: 1,
+    accent: DESIGNS.voidtouched.glow,
   },
   {
-    id: "frostbound-minion",
-    name: "Frostbound Minion",
+    id: "frostbound",
+    name: "Frostbound",
     blurb: "Cold enough to be quiet about it. Rattles on landing.",
-    price: 1200,
-    url: "/characters/frostbound-minion.glb",
-    scale: scaled,
-    accent: "#7dd3fc",
+    price: 5000,
+    url: null,
+    scale: 1,
+    accent: DESIGNS.frostbound.glow,
   },
 ];
+
+/**
+ * ── Why every `url` is null ──────────────────────────────────────────────
+ *
+ * The roster used to be one procedural courier and three downloaded GLBs. The
+ * GLBs had no licence anybody could produce, which is a launch blocker rather
+ * than a to-do, and they were a different art direction from the game they
+ * were in. Both problems have the same answer: author the roster here, in
+ * code, where it is owned outright and costs no download.
+ *
+ * `url` and `scale` are kept on the interface rather than deleted. The GLB
+ * path (`CharacterRig`, `chars:optimize`, the rig FK test) all still work, so
+ * a properly licensed model can be added as one row without reviving a code
+ * path — and the `scaled` constant above is what it would use.
+ *
+ * See `lib/character-design.ts` for the designs themselves, and LICENSING.md
+ * for the decision.
+ */
 
 /** The character every account starts in, and the fallback for anything else. */
 export const DEFAULT_CHARACTER = "courier";

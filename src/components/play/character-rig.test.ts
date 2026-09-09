@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import * as THREE from "three";
 import { BONES, SEATED, jointsOf, poseSeated } from "./character-rig";
 import { CHARACTERS } from "@/lib/characters";
+import { DESIGNS } from "@/lib/character-design";
 
 /**
  * The rig, checked against the models it actually drives.
@@ -54,6 +55,59 @@ function skeletonOf(file: string): { root: THREE.Object3D; byName: Map<string, T
 
 const RIGGED = CHARACTERS.filter((c) => c.url);
 
+/**
+ * ── The roster is procedural, and these tests have to say so ─────────────
+ *
+ * Every character in the catalogue is now built in code
+ * (`lib/character-design.ts`) rather than loaded from a GLB, because the GLBs
+ * had no licence anybody could produce. So `RIGGED` is empty, and every test
+ * below that iterates it would pass by iterating nothing — which is the worst
+ * possible outcome for a test suite: it would go green while checking
+ * absolutely nothing, and would keep doing so if a GLB were added back with a
+ * broken skeleton.
+ *
+ * Two things stop that. These tests SKIP with a stated reason rather than
+ * passing silently, so the report says out loud that the rig is unchecked; and
+ * `every character is drawable` below holds the invariant that actually
+ * matters now — that whatever is in the catalogue, something can draw it.
+ *
+ * Add a licensed GLB and every one of these wakes up unchanged.
+ */
+const NO_GLBS = RIGGED.length === 0;
+const SKIP = NO_GLBS
+  ? "the roster is procedural — no GLB to check (see lib/character-design)"
+  : false;
+
+test("every character in the catalogue is drawable", () => {
+  // The real invariant, and the one that survives the roster being code: a
+  // character either has a design the procedural avatar can build, or a GLB
+  // the rig can drive. One that has neither is a shop entry that renders an
+  // empty group — no error, no warning, just a player who paid for nothing.
+  assert.ok(CHARACTERS.length > 0, "the catalogue is empty");
+  for (const character of CHARACTERS) {
+    const drawable = Boolean(character.url) || character.id in DESIGNS;
+    assert.ok(
+      drawable,
+      `${character.id} has neither a design nor a GLB, so nothing can draw it`
+    );
+  }
+});
+
+test("a character's accent is the colour it actually glows", () => {
+  // The shop card, the CurrencyRail and the character's own chest core are
+  // three places the same colour appears, and the first two read `accent`
+  // while the third reads the design. Written twice, they drift.
+  for (const character of CHARACTERS) {
+    const design = DESIGNS[character.id];
+    if (!design) continue;
+    assert.equal(
+      character.accent,
+      design.glow,
+      `${character.id}: the shop shows ${character.accent}, the model glows ${design.glow}`
+    );
+  }
+});
+
 const at = (byName: Map<string, THREE.Object3D>, name: string) => {
   const o = byName.get(name);
   assert.ok(o, `${name} is missing`);
@@ -62,7 +116,7 @@ const at = (byName: Map<string, THREE.Object3D>, name: string) => {
   return v;
 };
 
-test("every shipped character has every bone the rig drives", () => {
+test("every shipped character has every bone the rig drives", { skip: SKIP }, () => {
   // The failure this prevents: a model exported from a renamed armature loads
   // fine, finds none of its bones, and stands perfectly still in the game while
   // everyone else walks. `jointsOf` skips what it cannot find, by design — so
@@ -76,7 +130,7 @@ test("every shipped character has every bone the rig drives", () => {
   }
 });
 
-test("the shipped characters face +Z, which is what FACE_SIGN is for", () => {
+test("the shipped characters face +Z, which is what FACE_SIGN is for", { skip: SKIP }, () => {
   // FACE_SIGN exists because these models face the opposite way from the
   // courier the gait is authored against, and getting that wrong tips a
   // running character backwards. It is a measurement, so it is measured:
@@ -97,7 +151,7 @@ test("the shipped characters face +Z, which is what FACE_SIGN is for", () => {
   }
 });
 
-test("the seated pose puts the hands forward and the legs folded", () => {
+test("the seated pose puts the hands forward and the legs folded", { skip: SKIP }, () => {
   /**
    * Forward kinematics over the real skeleton, which is the only way to check
    * a pose written as joint angles. The angles themselves say nothing readable
@@ -144,7 +198,7 @@ test("the seated pose puts the hands forward and the legs folded", () => {
   }
 });
 
-test("tucking folds the chest and lifts the head, and moves nothing else", () => {
+test("tucking folds the chest and lifts the head, and moves nothing else", { skip: SKIP }, () => {
   // The tuck is the only part of the riding pose that animates, and the rule it
   // has to keep is that a rider folding down does not take their hands off the
   // bars or their feet off the pegs.

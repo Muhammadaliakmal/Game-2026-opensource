@@ -5,6 +5,8 @@ import { Suspense, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { DEFAULT_CHARACTER, characterFor } from "@/lib/characters";
+import { DESIGNS, designFor, type CharacterDesign } from "@/lib/character-design";
+import { solid } from "@/components/play/block-materials";
 import { LEAN, LEAN_RATE, TUCK, TUCK_SPEED } from "./ride";
 import { RiderRig } from "./RiderRig";
 
@@ -39,35 +41,21 @@ const G = {
 };
 
 /**
- * The suit, shared for the same reason the geometries are.
+ * ── The suit is the character now ────────────────────────────────────────
  *
- * A rider's clothing does not change with the bike colour — only the two
- * emissive accents do — so these four were being rebuilt per rider for no
- * gain. Five riders on a grid is five copies each of a material that is
- * byte-identical, and every copy is its own draw-time state change.
+ * These four were fixed colours — one indigo torso, one white helmet — which
+ * was correct while every rider was the same voxel courier and only the two
+ * emissive accents varied with the bike. It stopped being correct the moment
+ * the roster became procedural: with no GLB left in the catalogue, `Rider`
+ * always takes the voxel branch, so a player who bought Frostbound and went
+ * racing got the courier's suit with a different glow on it. Buying a
+ * character has to change what you see on the bike, or it is not a purchase.
+ *
+ * So the palette comes from the design, through the SAME module-level cache
+ * the on-foot avatar uses (`play/block-materials`). One cache, so a character
+ * is one set of materials whether it is running or riding — two caches is how
+ * the same blue comes out slightly different in two modes.
  */
-const M = {
-  torso: new THREE.MeshStandardMaterial({
-    color: "#4f46e5",
-    roughness: 0.42,
-    metalness: 0.25,
-  }),
-  helmet: new THREE.MeshStandardMaterial({
-    color: "#e8ecff",
-    roughness: 0.3,
-    metalness: 0.15,
-  }),
-  arm: new THREE.MeshStandardMaterial({
-    color: "#7c3aed",
-    roughness: 0.45,
-    metalness: 0.2,
-  }),
-  leg: new THREE.MeshStandardMaterial({
-    color: "#312e81",
-    roughness: 0.5,
-    metalness: 0.2,
-  }),
-};
 
 /**
  * The rest pose, now that two of these are animated rather than baked into the
@@ -88,6 +76,16 @@ export function VoxelRider({
   /** Matches the bike so a rider is told apart at a glance, same as the bike. */
   color = "#22d3ee",
   /**
+   * Which character is riding.
+   *
+   * Distinct from `color`, which is the BIKE's colour and is assigned per
+   * connection so two riders are told apart on a grid. A character is chosen
+   * and paid for; a bike colour is handed out. They are allowed to disagree,
+   * and on a four-bike grid they have to — two players wearing the same
+   * character still need different bikes.
+   */
+  design = DESIGNS.courier,
+  /**
    * Steering, -1..1, read every frame. A ref rather than a prop so the lean
    * costs no re-render: this sits inside a physics frame loop and the steering
    * value changes every single frame.
@@ -104,6 +102,7 @@ export function VoxelRider({
   speedRef,
 }: {
   color?: string;
+  design?: CharacterDesign;
   steerRef?: React.RefObject<number>;
   speedRef?: React.RefObject<number>;
 }) {
@@ -175,7 +174,11 @@ export function VoxelRider({
       <group ref={lean}>
         {/* ── Torso, tipped forward over the tank ── */}
         <group ref={torso} rotation={[TORSO_PITCH, 0, 0]}>
-          <mesh geometry={G.torso} material={M.torso} castShadow />
+          <mesh
+            geometry={G.torso}
+            material={solid(design.shell, 0.42, 0.25)}
+            castShadow
+          />
           <mesh geometry={G.core} position={[0, 0.04, 0.14]}>
             <meshStandardMaterial
               color={color}
@@ -187,7 +190,11 @@ export function VoxelRider({
 
           {/* ── Helmet ── */}
           <group ref={helmet} position={[0, 0.36, 0.04]} rotation={[HELMET_PITCH, 0, 0]}>
-            <mesh geometry={G.head} material={M.helmet} castShadow />
+            <mesh
+              geometry={G.head}
+              material={solid(design.shell, 0.3, 0.15)}
+              castShadow
+            />
             {/* Visor on +Z: the rider faces the way the bike points. */}
             <mesh geometry={G.visor} position={[0, -0.01, 0.16]}>
               <meshStandardMaterial
@@ -206,7 +213,7 @@ export function VoxelRider({
           <group key={x} position={[x, 0.16, 0.14]} rotation={[1.15, 0, 0]}>
             <mesh
               geometry={G.arm}
-              material={M.arm}
+              material={solid(design.limb, 0.45, 0.2)}
               position={[0, -0.17, 0]}
               castShadow
             />
@@ -219,7 +226,7 @@ export function VoxelRider({
             <group rotation={[0.95, 0, 0]}>
               <mesh
                 geometry={G.thigh}
-                material={M.leg}
+                material={solid(design.boot, 0.5, 0.2)}
                 position={[0, -0.14, 0]}
                 castShadow
               />
@@ -227,7 +234,7 @@ export function VoxelRider({
             <group position={[0, -0.24, 0.16]} rotation={[-0.7, 0, 0]}>
               <mesh
                 geometry={G.shin}
-                material={M.leg}
+                material={solid(design.boot, 0.5, 0.2)}
                 position={[0, -0.13, 0]}
                 castShadow
               />
@@ -263,7 +270,14 @@ export function Rider({
   steerRef?: React.RefObject<number>;
   speedRef?: React.RefObject<number>;
 }) {
-  const voxel = <VoxelRider color={color} steerRef={steerRef} speedRef={speedRef} />;
+  const voxel = (
+    <VoxelRider
+      color={color}
+      design={designFor(characterId)}
+      steerRef={steerRef}
+      speedRef={speedRef}
+    />
+  );
   if (!characterFor(characterId).url) return voxel;
 
   return (
