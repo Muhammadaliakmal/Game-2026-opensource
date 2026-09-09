@@ -75,6 +75,17 @@ export const metadata: Metadata = {
     icon: "/favicon.png",
     apple: "/icons/apple-touch-icon.png",
   },
+  // AdSense ownership, third of three, and the only one that was missing.
+  //
+  // The loader <script> below proves ads can serve and public/ads.txt proves
+  // Google is authorised to sell — but neither satisfies the console's "Meta
+  // tag" verification option, which greps the raw HTML of the site root for
+  // this exact name and nothing else. Declared here rather than written by
+  // hand so it renders into the server HTML; a client-injected tag is not
+  // there when the verifier fetches the page.
+  other: {
+    "google-adsense-account": AD_CLIENT,
+  },
 };
 
 /**
