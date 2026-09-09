@@ -10,6 +10,9 @@ import { HeroMount } from "@/components/hero/HeroMount";
 import { PARKOUR_COURSES, SANDBOX_WORLDS } from "@/lib/built-in-worlds";
 import { ModeCard } from "@/components/modes/ModeCard";
 import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
+import { UGC } from "@/lib/features";
+import { AdSlot } from "@/components/AdSlot";
+import { SiteFooter } from "@/components/SiteFooter";
 
 /**
  * Home: a live world for a visitor, a world list for a player.
@@ -19,10 +22,17 @@ import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
  * used the product before reading a word; the headline underneath is then
  * confirming what they just did rather than making a claim.
  *
- * The headline copy is unchanged on purpose. "Build worlds out of blocks,
- * then walk around inside them" is concrete and specific, and its old
+ * The headline copy survived the redesign on purpose. "Build worlds out of
+ * blocks, then walk around inside them" is concrete and specific, and its old
  * gradient accent word and "Build · Play · Remix" eyebrow were template
  * chrome that said nothing it does not.
+ *
+ * It does move for the scope cut, because it stops being true. With the
+ * builder hidden (`lib/features`) the first promise this page makes has to be
+ * one the visitor can act on, so the headline, the sub-copy and the primary
+ * button all lead with parkour instead. Both sets of words live here rather
+ * than one replacing the other: flipping `UGC` back has to restore the pitch,
+ * not just re-expose a button under a headline that no longer matches it.
  */
 
 /**
@@ -100,19 +110,21 @@ export default async function Home() {
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-7 sm:gap-12 sm:px-6 sm:py-10">
           <section className="flex flex-col items-start gap-5">
             <h1 className="text-display max-w-2xl font-bold">
-              Build worlds out of blocks, then walk around inside them.
+              {UGC
+                ? "Build worlds out of blocks, then walk around inside them."
+                : "Twenty courses, one clock, and the ghost of your best run."}
             </h1>
             <p className="text-dim text-sm">
-              A voxel editor and a platformer in the same browser tab. Place a
-              block, hit play, and you&apos;re standing on it. No account
-              needed to start.
+              {UGC
+                ? "A voxel editor and a platformer in the same browser tab. Place a block, hit play, and you're standing on it. No account needed to start."
+                : "A platformer in a browser tab. Time a run, take the medal, then go again against a ghost of the run before it. No account needed to start."}
             </p>
             <div className="flex flex-wrap gap-2">
               <Link
-                href="/build/new"
+                href={UGC ? "/build/new" : "/parkour"}
                 className="hud-chip hud-chip--primary px-6 py-3"
               >
-                Start building
+                {UGC ? "Start building" : "Play parkour"}
               </Link>
               <Link href="/browse" className="hud-chip px-6 py-3">
                 Browse worlds
@@ -182,6 +194,10 @@ export default async function Home() {
               </ul>
             </section>
           )}
+
+          {/* Last thing on the page, under real content — see lib/ads. */}
+          <AdSlot placement="home" />
+          <SiteFooter />
         </div>
       </div>
     );
@@ -233,81 +249,98 @@ export default async function Home() {
                 >
                   Play
                 </Link>
-                <RemixButton from={w.slug} name={w.name} />
+                {/* Remix is the door into the builder, and v1 does not open it
+                    — see lib/features. The route still works for anyone who
+                    has one open. */}
+                {UGC && <RemixButton from={w.slug} name={w.name} />}
               </div>
             </li>
           ))}
         </ul>
       </section>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-xl font-bold">
-          {myWorlds.length === 0
-            ? "Your worlds"
-            : `Your worlds (${myWorlds.length})`}
-        </h2>
-        <NewWorldButton />
-      </div>
+      {/* ── Your worlds ──
+          Hidden wholesale in v1 rather than emptied: a heading reading "Your
+          worlds (0)" over a dashed box explaining how to make one is the
+          builder advertising itself, which is the thing the scope cut is
+          about. Anyone who already has worlds still reaches them by URL, and
+          flipping UGC brings the whole section back. */}
+      {UGC && (
+        <>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+            <h2 className="text-xl font-bold">
+              {myWorlds.length === 0
+                ? "Your worlds"
+                : `Your worlds (${myWorlds.length})`}
+            </h2>
+            <NewWorldButton />
+          </div>
 
-      {myWorlds.length === 0 ? (
-        <div className="text-dim rounded-[var(--radius)] border border-dashed border-[var(--border-color)] p-12 text-center text-sm">
-          Nothing here yet. Hit{" "}
-          <span className="text-accent font-semibold">New world</span> and start
-          placing blocks — or remix one of the featured worlds above.
-        </div>
-      ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {myWorlds.map((w) => (
-            // The card cannot clip its overflow: the kebab menu opens outside
-            // its bounds.
-            <li
-              key={w.id}
-              className="card hover:border-accent/50 relative p-4 transition-colors"
-            >
-              {w.thumbnailUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={w.thumbnailUrl}
-                  alt=""
-                  className="mb-3 aspect-video w-full rounded-[var(--radius)] object-cover"
-                />
-              )}
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="min-w-0 truncate text-sm font-semibold">
-                  {w.name}
-                </h3>
-                <WorldCardMenu
-                  worldId={w.id}
-                  worldName={w.name}
-                  published={w.published === 1}
-                />
-              </div>
-              <p className="hud-label num mt-1 flex flex-wrap items-center gap-x-1.5">
-                <span>{w.partCount.toLocaleString()} parts</span>
-                {w.published === 1 && (
-                  <>
-                    <span aria-hidden>·</span>
-                    <span className="text-accent">
-                      Public · {w.playCount.toLocaleString()} plays
-                    </span>
-                  </>
-                )}
-              </p>
-              <div className="mt-4 flex gap-2">
-                <Link href={`/build/${w.id}`} className="hud-chip">
-                  Build
-                </Link>
-                <Link
-                  href={`/play/${w.id}`}
-                  className="hud-chip hud-chip--primary"
+          {myWorlds.length === 0 ? (
+            <div className="text-dim rounded-[var(--radius)] border border-dashed border-[var(--border-color)] p-12 text-center text-sm">
+              Nothing here yet. Hit{" "}
+              <span className="text-accent font-semibold">New world</span> and
+              start placing blocks — or remix one of the featured worlds above.
+            </div>
+          ) : (
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {myWorlds.map((w) => (
+                // The card cannot clip its overflow: the kebab menu opens
+                // outside its bounds.
+                <li
+                  key={w.id}
+                  className="card hover:border-accent/50 relative p-4 transition-colors"
                 >
-                  Play
-                </Link>
-              </div>
-            </li>
-          ))}
-        </ul>
+                  {w.thumbnailUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={w.thumbnailUrl}
+                      alt=""
+                      className="mb-3 aspect-video w-full rounded-[var(--radius)] object-cover"
+                    />
+                  )}
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="min-w-0 truncate text-sm font-semibold">
+                      {w.name}
+                    </h3>
+                    <WorldCardMenu
+                      worldId={w.id}
+                      worldName={w.name}
+                      published={w.published === 1}
+                    />
+                  </div>
+                  <p className="hud-label num mt-1 flex flex-wrap items-center gap-x-1.5">
+                    <span>{w.partCount.toLocaleString()} parts</span>
+                    {w.published === 1 && (
+                      <>
+                        <span aria-hidden>·</span>
+                        <span className="text-accent">
+                          Public · {w.playCount.toLocaleString()} plays
+                        </span>
+                      </>
+                    )}
+                  </p>
+                  <div className="mt-4 flex gap-2">
+                    <Link href={`/build/${w.id}`} className="hud-chip">
+                      Build
+                    </Link>
+                    <Link
+                      href={`/play/${w.id}`}
+                      className="hud-chip hud-chip--primary"
+                    >
+                      Play
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
+
+      {/* Last thing on the page, under real content — see lib/ads. */}
+      <AdSlot placement="home" />
+      <SiteFooter />
     </div>
   );
 }

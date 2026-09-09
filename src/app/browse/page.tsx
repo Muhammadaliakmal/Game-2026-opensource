@@ -8,6 +8,9 @@ import {
   CommunityCourses,
   CommunityCoursesFallback,
 } from "@/components/modes/CommunityCourses";
+import { UGC } from "@/lib/features";
+import { AdSlot } from "@/components/AdSlot";
+import { SiteFooter } from "@/components/SiteFooter";
 
 /**
  * The public gallery.
@@ -127,8 +130,19 @@ export default async function BrowsePage() {
 
       {published.length === 0 ? (
         <div className="text-dim rounded-[var(--radius)] border border-dashed border-[var(--border-color)] p-12 text-center text-sm">
-          Nothing else published yet. Build something and publish it from your
-          world&apos;s ⋮ menu.
+          {/* An empty state is a place to send someone, and with the builder
+              hidden (lib/features) "build something" sends them nowhere. */}
+          {UGC ? (
+            <>
+              Nothing else published yet. Build something and publish it from
+              your world&apos;s ⋮ menu.
+            </>
+          ) : (
+            <>
+              Nothing else published yet. The parkour courses and the built-in
+              worlds are on the home page.
+            </>
+          )}
         </div>
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -161,6 +175,10 @@ export default async function BrowsePage() {
           ))}
         </ul>
       )}
+
+      {/* Under the gallery, never between the cards — see lib/ads. */}
+      <AdSlot placement="browse" className="mt-10" />
+      <SiteFooter />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { PALETTE, type PartTuple } from "@/lib/worlddoc";
 import { heroParts, heroWorldDoc } from "@/lib/hero-world";
 import { DRAFT_ID, hasDraft, saveDraft } from "@/lib/draft";
 import { sfxPlace } from "@/lib/audio";
+import { UGC } from "@/lib/features";
 
 /**
  * The landing page hero: a real, live Blockworld world you can turn and build
@@ -22,6 +23,14 @@ import { sfxPlace } from "@/lib/audio";
  * just the renderer, an orbit camera and one interaction, because the job here
  * is to make the product legible in three seconds, not to be usable for real
  * work. Anything the visitor does place follows them into the editor.
+ *
+ * ── With the builder hidden (lib/features) ───────────────────────────────
+ *
+ * Placement and the "keep building" door are the builder's pitch, so both go
+ * when it does. What is left is the same world, still lit, still turnable,
+ * still rotating on its own — a hero that shows the place off rather than one
+ * that teaches a click the rest of the app then refuses to honour. The first
+ * thing a visitor does here should be a thing they can keep doing.
  */
 
 // A few cheerful indices to cycle through, so successive clicks are not one
@@ -49,6 +58,9 @@ export default function HeroCanvas() {
     const start = down.current;
     down.current = null;
     if (!start) return;
+    // The world is a diorama when the builder is hidden: still turnable,
+    // because OrbitControls is a separate concern, but not placeable.
+    if (!UGC) return;
     // Left button only, and only if the pointer stayed put — otherwise the
     // visitor was turning the world and would not expect a block.
     if (e.button !== 0) return;
@@ -129,7 +141,9 @@ export default function HeroCanvas() {
       <div className="pointer-events-none absolute inset-x-0 bottom-3 flex flex-col items-center gap-2 px-3">
         {placed === 0 && (
           <div className="hud-panel text-dim px-3 py-2 text-2xs">
-            Click anywhere to place a block · drag to turn
+            {UGC
+              ? "Click anywhere to place a block · drag to turn"
+              : "Drag to turn"}
           </div>
         )}
         {placed === 1 && (

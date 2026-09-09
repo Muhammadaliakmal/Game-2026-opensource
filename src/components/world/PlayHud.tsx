@@ -19,6 +19,7 @@ import { HudZone, HudZones } from "@/components/hud/HudZones";
 import { SettingsButton } from "@/components/hud/SettingsButton";
 import { ControlArranger } from "@/components/hud/ControlArranger";
 import { useHudOverlay } from "@/lib/hud-overlay";
+import { UGC } from "@/lib/features";
 
 /**
  * The Play HUD.
@@ -636,8 +637,11 @@ function PlayMenu({
             </button>
           ) : (
             // Someone who just played a world they like should be one click
-            // from building on it — that fork is the whole share loop.
-            !isDraft && (
+            // from building on it — that fork is the whole share loop, and it
+            // closes with the builder (lib/features). A door into the editor
+            // from inside a session is the same mistake as one on the home
+            // page, and harder to notice.
+            UGC && !isDraft && (
               <RemixButton from={worldId} name={name} className="hud-menu-item" />
             )
           )}
