@@ -6,6 +6,8 @@ import { RoomAuth } from "@/components/RoomAuth";
 import { SiteNav } from "@/components/SiteNav";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { clerkAppearance } from "@/lib/clerk-appearance";
+import { AD_CLIENT } from "@/lib/ads";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 /**
@@ -48,8 +50,16 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  // Without this, Next resolves every relative Open Graph and Twitter URL
+  // against localhost:3000 — so a shared link gets no preview image and the
+  // failure is invisible from inside the app.
+  metadataBase: new URL(SITE_URL),
   title: "Blockworld",
-  description: "A UGC 3D world builder",
+  // Describes what the thing IS, not what the repo contains: the builder is
+  // hidden in v1 (lib/features), and this string is what a search result and
+  // an ad review both read.
+  description:
+    "A browser platformer. Twenty parkour courses, medals, ghosts and leaderboards — no download, no account needed to start.",
   // Next serves app/manifest.ts at this path; naming it here is what puts the
   // <link rel="manifest"> in the document, which is what makes the app
   // installable and what PWABuilder reads to package the Android build.
@@ -86,6 +96,25 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${orbitron.variable} ${plex.variable} ${jetbrains.variable} h-full antialiased`}
     >
+      {/*
+        AdSense, and why it is a bare <script> rather than next/script.
+
+        React 19 hoists an `async` script into <head> and dedupes it by `src`,
+        so this lands in the server-rendered HTML head — which is what AdSense
+        actually wants: Auto Ads and the site-verification crawler both read
+        the document they are served, and `next/script`'s afterInteractive
+        strategy injects from the client after hydration, where a crawler
+        fetching raw HTML will not see it.
+
+        `crossOrigin="anonymous"` is Google's own snippet, not a guess: without
+        it the script is opaque to the page and ad errors surface as unhelpful
+        script errors.
+      */}
+      <script
+        async
+        src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${AD_CLIENT}`}
+        crossOrigin="anonymous"
+      />
       {/*
         `h-dvh` (not `min-h-full`) is deliberate: the R3F <Canvas> sizes itself
         to height:100% of its parent, which only resolves if every ancestor has
