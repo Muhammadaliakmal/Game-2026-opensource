@@ -584,6 +584,14 @@ Vercel cannot host it: a room has to stay resident and a serverless function
 does not. It needs somewhere that runs a persistent Node process with
 WebSockets.
 
+**Live as of 2026-09-09.** The app is on Vercel at `https://specdrivengames.com`
+(Vercel project `blockyard`, DNS at Namecheap; `www` is a 308 to the apex). The
+room server is the Render Blueprint below, at
+`wss://blockworld-rooms.onrender.com`. Three values are the whole coupling
+between them, and each one is silent when wrong: the app's
+`NEXT_PUBLIC_MULTIPLAYER_URL` is the room server's address, the server's
+`APP_URL` is the app's, and `MULTIPLAYER_SECRET` is the same string on both.
+
 Two things constrain the deploy, both easy to get wrong:
 
 - **Deploy from the repo root, not from `server/`.** The server imports
@@ -624,7 +632,7 @@ repo root rather than `cd server && fly deploy`.
 fly auth login
 fly apps create <your-unique-name>          # then set that name as `app` in server/fly.toml
 fly deploy --config server/fly.toml --dockerfile server/Dockerfile .
-fly secrets set --config server/fly.toml   APP_URL=https://your-app.vercel.app   CLERK_SECRET_KEY=sk_...   MULTIPLAYER_SECRET=...
+fly secrets set --config server/fly.toml   APP_URL=https://specdrivengames.com   CLERK_SECRET_KEY=sk_...   MULTIPLAYER_SECRET=...
 ```
 
 `fly.toml` pins `min_machines_running = 1` and `auto_stop_machines = "off"`

@@ -28,7 +28,7 @@ were built world-agnostic and then only ever pointed at generated worlds.
 | A leaderboard for an arbitrary world | **Done, and already reachable.** `runs.worldId` is `text` with **no foreign key** so it holds slugs *and* uuids, and `raceable()` in the runs route already admits any uuid world that is published or the caller's own. |
 | A solver that reads a route floor off geometry | **Done and general.** `routeFloorMs(doc: WorldDoc)` takes a document. It was written against the shipped courses but has no slug in its signature. |
 | Turning a built-in into a world you own | **Done.** Remix clones the generated doc into a real row. |
-| Room server, Dockerfile, Render blueprint | **Done**, not deployed. See 7d. |
+| Room server, Dockerfile, Render blueprint | **Done and deployed** (2026-09-09) at `wss://blockworld-rooms.onrender.com`. See 7d. |
 
 So the honest size of "user-authored courses" is: **two editor tools, and one
 number that currently lives in a code constant.**
@@ -331,9 +331,9 @@ pass — `?perf=1` now mounts on every canvas, which is what 6f added it for.
 **Accept:** `plan-phase5.md` §5 has no "not measured" rows left, and 6f's
 frame-budget table has a column taken on hardware.
 
-**In progress.** The measuring instruments exist and the artefacts are
-verified; the deploy itself is waiting on credentials nobody but the account
-holder can enter.
+**Deployed 2026-09-09.** The app is live at `https://specdrivengames.com` and
+the room server at `wss://blockworld-rooms.onrender.com`. What is left of this
+row is hardware and one dashboard setting, not credentials.
 
 Verified locally (2026-09-08), because these are the parts of a deploy that can
 fail without anyone's password:
@@ -352,18 +352,37 @@ fail without anyone's password:
 - **`next build` is clean**, 285 app tests and 59 server tests pass, `/parkour`
   is still correctly dynamic.
 
-Still blocked, and on exactly three things:
+Verified against the live deployment (2026-09-09), from outside, with no
+dashboard access:
 
-1. **`vercel login`** — the CLI is installed and logged out. Nobody but the
-   account holder can complete it, and no deploy of the app happens without it.
-2. **A Render Blueprint run**, which is a wizard: it prompts for `APP_URL`,
-   `CLERK_SECRET_KEY` and `MULTIPLAYER_SECRET` because they are `sync: false`.
-   The app then needs the *same* `MULTIPLAYER_SECRET` and
-   `NEXT_PUBLIC_MULTIPLAYER_URL=wss://…` — a build-time var, so setting it
-   means redeploying the app, not just saving it.
-3. **A device.** The tier-3 phone pass and the four-browser frame-rate half of
+- **The domain serves the app over TLS.** `specdrivengames.com` answers 200 from
+  Vercel. `www` was added afterwards as a 308 to the apex — a CNAME at Namecheap
+  plus a redirect-only domain in Vercel, touching no env var and no code.
+- **`NEXT_PUBLIC_MULTIPLAYER_URL` is in the shipped bundle**, as
+  `wss://blockworld-rooms.onrender.com`, read back out of the live `/race`
+  chunks. Worth checking that way rather than in the dashboard: the var is
+  inlined at build time, so a value that was saved but never rebuilt looks
+  identical in the settings UI and is absent from the thing users run.
+- **`APP_URL` and `MULTIPLAYER_SECRET` agree across the two hosts.** A room
+  opened `island` and was handed a doc, which only happens through
+  `GET /api/worlds/:id/sync` — a route that answers 404 to a wrong secret, and
+  that 404 would have failed the join with `world island not found`.
+
+Still open:
+
+1. **A device.** The tier-3 phone pass and the four-browser frame-rate half of
    §5 are properties of renderers on hardware. `?perf=1` mounts on every canvas
    for exactly this.
+2. **The deployed half of the four-peer soak.** `npm run peers:soak -- --url
+   wss://blockworld-rooms.onrender.com` needs a token to get past `verifyJoin`,
+   which is the row below.
+3. **`ALLOW_ANONYMOUS_ROOMS` on the Render service is unconfirmed**, and cannot
+   be confirmed from outside: a tokenless join succeeds either way. Off, it
+   returns a guest seat (`auth.ts:139`); on, it returns an editor, because
+   `canEdit` short-circuits on it before both the guest and built-in checks
+   (`BuildRoom.ts:99`). The distinguishing signal is the `canEdit` flag in the
+   room's `world` message. One look at Render's environment settles it, and it
+   wants settling: set, every visitor is an editor of every world.
 
 `server/scripts/room-token.ts` (`cd server && npm run token`) closes the other
 Phase 5 row without a browser: it mints a genuine Clerk session token through
