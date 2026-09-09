@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { PageShell } from "@/components/PageShell";
 import { useRouter } from "next/navigation";
 import { isMatchCode, makeMatchCode, normalizeMatchCode } from "@/lib/match-code";
 import { multiplayerEnabled } from "@/lib/net/room";
@@ -38,8 +39,7 @@ export default function RaceLobbyPage() {
   return (
     // Rebinds --color-accent to the racing magenta for the whole screen, the
     // same mechanism the in-game HUD uses. See globals.css.
-    <main data-mode="race" className="bg-base min-h-dvh px-4 py-6 sm:px-8 sm:py-10">
-      <div className="mx-auto flex max-w-2xl flex-col gap-8">
+    <PageShell mode="race" width="prose">
         {/* The same cover the home page shows, at full width.
             Arriving here used to mean a heading and two sentences, which made
             the mode feel like a form to fill in — and the picture is what
@@ -168,7 +168,6 @@ export default function RaceLobbyPage() {
             </li>
           </ul>
         </section>
-      </div>
-    </main>
+    </PageShell>
   );
 }

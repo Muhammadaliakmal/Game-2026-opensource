@@ -223,10 +223,269 @@ input {
   }
 }
 
+/*
+  A panel that has to be READ rather than glanced at, over a world that is
+  still moving behind it: the race lobby, a results table, an error.
+
+  `--readout` above is the right material for a number you flick your eye to
+  while riding — translucent enough that the track still shows through, which
+  is what you want when the panel is 90px wide and sits in a corner. It is the
+  wrong material for a 320px card carrying six characters somebody has to read
+  off the screen and type into a phone. Neon Circuit's start straight is a
+  black-and-white checkerboard with red kerbs and blue block walls, and a
+  74%-opaque ground over that is a room code on a checkerboard.
+
+  So a modal carries a nearly solid ground of its own. Blur is kept as an
+  enhancement and is explicitly NOT the mechanism: `backdrop-filter` blurs
+  what is behind a panel, it does not darken it, so a bright high-frequency
+  background blurs into an evenly bright one. The contrast comes from the fill.
+*/
+.hud-panel--modal {
+  background: rgb(12 12 18 / 0.94);
+  border-color: rgb(255 255 255 / 0.18);
+  box-shadow: var(--lift), var(--glow-strong);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .hud-panel--modal {
+    background: rgb(12 12 18 / 0.985);
+  }
+}
+
+/*
+  The scrim behind one.
+
+  Separate from the panel because it has to cover the whole viewport, and
+  because it is what makes the modal read as an interruption rather than as
+  another HUD element that happens to be large. `pointer-events: none` on the
+  element and `auto` on the panel inside it: a scrim that eats taps is a scrim
+  that stops a player pressing the control underneath it by accident, which
+  sounds like a feature until the modal is the lobby and the control is the
+  throttle.
+*/
+.hud-scrim {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: rgb(0 0 0 / 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/*
+  ── The room code ─────────────────────────────────────────────────────────
+
+  The one string on the lobby screen whose entire purpose is to be read off a
+  phone and typed into another one. It gets its own chip, its own size and the
+  mono face, because "six characters at body size in the middle of a
+  paragraph" is a sharing mechanic that depends on somebody squinting.
+*/
+.room-code {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-lg);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.22em;
+  /* The tracking is applied to the right of each glyph including the last,
+     so without this the string sits visibly left of centre in its own chip. */
+  text-indent: 0.22em;
+  color: var(--color-accent);
+  background: color-mix(in oklab, var(--color-accent) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-accent) 55%, transparent);
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+  text-shadow: 0 0 14px
+    color-mix(in oklab, var(--color-accent) 60%, transparent);
+}
+
 .card {
   background: var(--color-panel);
   border: var(--border);
   border-radius: var(--radius);
+}
+
+/*
+  ══ Shape language ═══════════════════════════════════════════════════════
+
+  Chamfers: corners cut at 45° rather than rounded.
+
+  ── Why this is the highest-leverage change in the whole direction ───────
+
+  A uniform `border-radius` is the single most generic shape on the web. It is
+  what a card component looks like before anyone has decided anything, and it
+  is why the pages outside the HUD read as a dashboard while the in-race HUD
+  reads as a game — the HUD had already earned its character from glow and
+  tracking, and the pages had nothing but rounded rectangles.
+
+  A cut corner is instantly and specifically HUD. It costs one property.
+
+  ── Applied additively, not globally ────────────────────────────────────
+
+  There is no rule here setting `clip-path` on `.card` or `.hud-panel`. It is
+  opt-in per element, because `clip-path` has one real consequence: it clips.
+  Anything that must escape its own box — the world-card kebab menu, a
+  dropdown, a focus ring — cannot live inside a chamfered element, and making
+  every surface in the app chamfered by default would have broken those
+  silently. The classes are here; the elements that want the shape ask for it.
+
+  The cut is on the top-left and bottom-right specifically. Cutting all four
+  reads as an octagon, which is a stop sign rather than a panel; cutting one
+  diagonal pair gives the shape a direction and lets a row of them read as a
+  set.
+*/
+.chamfer {
+  clip-path: polygon(
+    14px 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%,
+    0 14px
+  );
+}
+
+/** Hero tiles and primary buttons — big enough that 14px would read as a nick. */
+.chamfer-lg {
+  clip-path: polygon(
+    24px 0,
+    100% 0,
+    100% calc(100% - 24px),
+    calc(100% - 24px) 100%,
+    0 100%,
+    0 24px
+  );
+}
+
+/** Tags and pills. One corner, because two on a 20px-tall chip is a hexagon. */
+.chamfer-sm {
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px);
+}
+
+/*
+  ── The border problem, and the wrapper that solves it ──────────────────
+
+  `clip-path` clips the border along with everything else, so a chamfered
+  element with `border: 1px` loses the border exactly on the two cut corners —
+  which are the corners the whole treatment exists to draw attention to.
+
+  The fix is a wrapper whose background IS the border: one padding-pixel of
+  accent, with the real surface chamfered identically inside it. Both layers
+  are clipped to the same polygon, so the "border" follows the diagonal.
+
+      <div class="chamfer chamfer-edge"><div class="chamfer …">…</div></div>
+
+  It is a wrapper rather than a pseudo-element because `::before` would need
+  its own clip and would still sit inside the parent's, which clips it back.
+*/
+.chamfer-edge {
+  padding: 1px;
+  background: var(--color-edge);
+}
+.chamfer-edge--accent {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--color-accent) 70%, transparent),
+    color-mix(in oklab, var(--color-accent) 10%, transparent)
+  );
+}
+
+/*
+  ══ Depth ════════════════════════════════════════════════════════════════
+
+  Two effects, both cheap, both GPU-friendly.
+*/
+
+/* Lit from above. One inset hairline is the difference between a panel that
+   sits on the page and one that is a flat patch of a different colour. */
+.panel-lit {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+/*
+  Grain, against banding.
+
+  A large area of near-black in an 8-bit gradient bands visibly — the page
+  ground runs #05060A to #12121b, which is about six steps, and six steps
+  across a 900px-tall hero is six visible stripes. A little noise dithers them
+  away for the cost of one inline SVG.
+
+  `mix-blend-mode: overlay` rather than a flat opacity so it darkens the light
+  parts and lightens the dark ones instead of fogging everything evenly, and
+  `pointer-events: none` because it covers its parent completely.
+*/
+.grain {
+  position: relative;
+}
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.8'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/*
+  ══ Corner brackets ══════════════════════════════════════════════════════
+
+  Four L-shaped marks at a panel's corners. The other instantly-readable HUD
+  signature, and — unlike the chamfer, which is decoration — this one carries
+  meaning: it marks the SELECTED thing, and only that. A screen where every
+  panel has brackets has said nothing.
+
+  Drawn with two gradients rather than four elements, so a component can opt in
+  with one class and no extra DOM. Each gradient paints an L by drawing a
+  horizontal and a vertical bar and letting `background-size` cut them to
+  length at each corner.
+*/
+.brackets {
+  position: relative;
+}
+.brackets::before,
+.brackets::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  border-color: var(--color-accent);
+  border-style: solid;
+  border-width: 0;
+}
+.brackets::before {
+  top: 0;
+  left: 0;
+  border-top-width: 2px;
+  border-left-width: 2px;
+}
+.brackets::after {
+  right: 0;
+  bottom: 0;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+}
+
+/*
+  ══ Press ════════════════════════════════════════════════════════════════
+
+  A 4% scale-down on press, on everything pressable.
+
+  Non-negotiable on touch and the reason it is here rather than per component:
+  a finger covers the thing it is pressing, so the press state is the ONLY
+  feedback a thumb gets, and `:hover` — which is what the chips were relying on
+  — does not exist on a phone. Every chip in the app had a hover treatment and
+  no active one.
+
+  `:active` rather than a JS held-state: it is free, it cannot get stranded,
+  and it releases correctly when a finger slides off. The transition is already
+  declared on these elements, and the global reduced-motion rule flattens the
+  duration to nothing while leaving the transform — which is right, because the
+  feedback survives and only its animation goes.
+*/
+.hud-chip:active:not(:disabled),
+.hud-menu-item:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 /* ── Buttons ───────────────────────────────────────────────────────────

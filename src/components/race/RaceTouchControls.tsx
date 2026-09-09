@@ -12,6 +12,8 @@ import { useControlLayout } from "@/lib/control-layout";
 import { usePlayerSettings, type RaceScheme } from "@/lib/player-settings";
 import { useTouchScale } from "@/lib/use-media-query";
 import { raceTouch, releaseRaceTouch } from "./race-touch";
+import { boostArmed } from "./telemetry";
+import { useGauge } from "./use-gauge";
 
 /**
  * Thumb controls for riding, in four schemes.
@@ -129,18 +131,7 @@ export function RaceTouchControls() {
         </ThumbStack>
 
         <ThumbStack>
-          <TouchButton
-            label="BOOST"
-            control="boost"
-            size="md"
-            accent="#ffffff"
-            onPress={() => {
-              raceTouch.boost = true;
-            }}
-            onRelease={() => {
-              raceTouch.boost = false;
-            }}
-          />
+          <BoostButton />
           {/* The one control the thumb rests on for the whole race, so it is
               the biggest, lowest and furthest into the corner. */}
           <TouchButton
@@ -158,6 +149,62 @@ export function RaceTouchControls() {
         </ThumbStack>
       </ThumbCluster>
     </>
+  );
+}
+
+/**
+ * BOOST, which knows whether there is anything in the tank.
+ *
+ * ── The bug this exists to make impossible ───────────────────────────────
+ *
+ * The button used to be a plain <TouchButton>, so its only visual states were
+ * "resting" and "my finger is on it". Held down against an empty meter it
+ * stayed solid white for the rest of the race while the tank sat at zero — the
+ * control said "firing" and the game said "no", and there was no way to tell
+ * from the screen which one was right. Two independent things had to be true
+ * for that: the button's fill was driven by the press rather than by the
+ * charge, and nothing ever told it the charge had run out.
+ *
+ * Both are answered by deriving `armed` from the same predicate the simulation
+ * gates on. Not a copy of it — the function itself, out of telemetry.ts.
+ *
+ * ── Why a subscription and not a store selector ──────────────────────────
+ *
+ * The tank is a number in a plain module object written by the bike's frame
+ * loop, exactly like speed, for the reason `telemetry.ts` gives: routing a
+ * per-frame value through React re-renders the whole HUD sixty times a second.
+ * So this samples at the gauges' own 20 Hz and calls `setState` only on the
+ * transition — a race is maybe a dozen renders of one button, rather than
+ * three thousand.
+ */
+function BoostButton() {
+  const [armed, setArmed] = useState(false);
+
+  useGauge(() => {
+    const next = boostArmed();
+    // Compared before setting: React bails out of an identical value anyway,
+    // but doing it here means the common case never reaches React at all.
+    setArmed((prev) => (prev === next ? prev : next));
+  });
+
+  return (
+    <TouchButton
+      label="BOOST"
+      control="boost"
+      size="md"
+      accent="#ffffff"
+      armed={armed}
+      // The flag is set unconditionally, armed or not. The simulation is the
+      // thing that refuses an empty boost; a button that swallowed the press
+      // would also swallow the release, and a `boostHeld` that never clears is
+      // the other half of the same bug.
+      onPress={() => {
+        raceTouch.boost = true;
+      }}
+      onRelease={() => {
+        raceTouch.boost = false;
+      }}
+    />
   );
 }
 

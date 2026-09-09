@@ -30,11 +30,25 @@ export function Avatar({
   handleRef,
   motionRef,
   hideUpClose = true,
+  fallback,
 }: {
   characterId: string;
   handleRef?: RefObject<EcctrlHandle | null>;
   motionRef?: RefObject<AvatarMotion | null>;
   hideUpClose?: boolean;
+  /**
+   * What to show while the GLB is in flight, when the courier is the wrong
+   * answer.
+   *
+   * It is the right answer almost everywhere: in a world, a player whose
+   * character has not arrived should still be a person running around. The
+   * exception is the shop window, where the whole purpose of the canvas is to
+   * show the specific character named beside it — so standing the courier in
+   * for a Voidtouched Mage means the panel says one name and the pedestal
+   * shows a different character, which is not a loading state, it is wrong
+   * information. The shop passes an empty pedestal instead.
+   */
+  fallback?: React.ReactNode;
 }) {
   const character = characterFor(characterId);
 
@@ -49,7 +63,7 @@ export function Avatar({
   if (!character.url) return courier;
 
   return (
-    <Suspense fallback={courier}>
+    <Suspense fallback={fallback ?? courier}>
       <CharacterRig
         characterId={character.id}
         handleRef={handleRef}

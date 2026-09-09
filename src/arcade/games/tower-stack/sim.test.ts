@@ -187,3 +187,79 @@ test("a drop lands where the block was, not a step further on", () => {
   dropAt(s, base.x);
   assert.equal(s.drop, "perfect", "a dead-centre drop at full speed missed");
 });
+
+/**
+ * ── The tower goes up ────────────────────────────────────────────────────
+ *
+ * These pin the world-to-screen transform rather than the rules, because the
+ * bug they exist for was purely a transform: every rule below already held
+ * while the tower was being drawn downward from a pinned top, and the game was
+ * still showing a stack that descended into the floor. A rule test cannot
+ * catch a sign error in a projection; only a test that asks where a row lands
+ * on screen can.
+ */
+
+test("the base rests on the ground rather than floating", () => {
+  const s = createSim();
+  // The base is row 0, and a row occupies [y, y + ROW_H].
+  assert.equal(s.rowY(0) + T.ROW_H, T.FLOOR_Y);
+});
+
+test("the active block sits one row above the top of the tower", () => {
+  const s = createSim();
+  assert.equal(s.rowY(s.placed - 1) - s.rowY(s.placed), T.ROW_H);
+  for (let i = 0; i < 5; i++) dropAt(s, topRow(s).x);
+  assert.equal(s.rowY(s.placed - 1) - s.rowY(s.placed), T.ROW_H);
+});
+
+test("a taller tower puts its newest row higher up the screen", () => {
+  // The regression itself. Canvas y grows downward, so "higher" is a SMALLER
+  // number, and the shipped renderer had this exactly inverted.
+  const s = createSim();
+  const first = s.rowY(s.placed - 1);
+  dropAt(s, topRow(s).x);
+  assert.ok(
+    s.rowY(s.placed - 1) < first,
+    "the tower grew downward: newest row moved to a larger y"
+  );
+});
+
+test("the view does not move until the tower needs it to", () => {
+  // A camera that starts climbing on the first drop makes the ground scroll
+  // away under a two-block tower, which is worse than not having one.
+  const s = createSim();
+  assert.equal(s.camTarget, 0);
+  dropAt(s, topRow(s).x);
+  assert.equal(s.camTarget, 0, "the camera moved for a two-block tower");
+});
+
+test("once it does move, the play line stops climbing", () => {
+  const s = createSim();
+  // Well past the point where the stack reaches the drop line.
+  for (let i = 0; i < 60; i++) {
+    dropAt(s, topRow(s).x);
+    // Settle the easing, which is the only reason cam and camTarget differ.
+    for (let k = 0; k < 120; k++) s.step(DT, false);
+  }
+  const y = s.rowY(s.placed - 1);
+  assert.ok(
+    Math.abs(y - T.VIEW_H * T.DROP_LINE) < 1,
+    `the top of the tower settled at ${y}, not the drop line`
+  );
+  assert.ok(y > 0, "the tower climbed off the top of the screen");
+});
+
+test("a sliced piece is thrown from the height it was cut at", () => {
+  // Not from a fixed screen position: once the view climbs, a constant would
+  // spawn debris in the middle of the tower.
+  const s = createSim();
+  for (let i = 0; i < 40; i++) dropAt(s, topRow(s).x);
+  for (let k = 0; k < 120; k++) s.step(DT, false);
+  const cutAt = s.rowY(s.placed);
+  dropAt(s, topRow(s).x + 30);
+  const piece = s.slices.find((sl) => sl.life > 1.0)!;
+  assert.ok(
+    Math.abs(piece.y - cutAt) < 1,
+    `debris spawned at ${piece.y}, block was cut at ${cutAt}`
+  );
+});

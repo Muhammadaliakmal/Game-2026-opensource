@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { KPH_PER_UNIT, raceTelemetry } from "./telemetry";
+import { useRef } from "react";
+import {
+  BOOST_MIN_TO_FIRE,
+  KPH_PER_UNIT,
+  boostArmed,
+  raceTelemetry,
+} from "./telemetry";
+import { useGauge } from "./use-gauge";
 
 /**
  * Speed and boost, drawn straight into the DOM.
@@ -20,50 +26,10 @@ import { KPH_PER_UNIT, raceTelemetry } from "./telemetry";
  * `textContent` and one transform per gauge, exactly like the editor's
  * coordinate readout.
  *
- * It samples at 20 Hz rather than every frame on purpose: at 60 Hz the last
- * digit of a speedometer is a blur, and a blur is not information. The bar is
- * drawn at the same rate and CSS-eased between samples, so it still looks
- * continuous while costing a third as many writes.
+ * The loop itself lives in `use-gauge.ts` rather than here, because the BOOST
+ * button reads the same telemetry from a completely different tree — see that
+ * file for why one sampler and not two.
  */
-
-const SAMPLE_MS = 50;
-
-type Sink = () => void;
-const sinks = new Set<Sink>();
-let raf = 0;
-let last = 0;
-
-function pump(now: number) {
-  raf = requestAnimationFrame(pump);
-  if (now - last < SAMPLE_MS) return;
-  last = now;
-  for (const s of sinks) s();
-}
-
-/** Subscribe a draw function to the shared 20 Hz sampler. */
-function useGauge(draw: Sink) {
-  const ref = useRef(draw);
-  // Updated after each render rather than during one: the subscription below
-  // must not be torn down and rebuilt every time the component re-renders for
-  // an unrelated reason, so the sampler holds a stable indirection instead of
-  // the callback itself.
-  useEffect(() => {
-    ref.current = draw;
-  });
-
-  useEffect(() => {
-    const sink = () => ref.current();
-    sinks.add(sink);
-    if (raf === 0) raf = requestAnimationFrame(pump);
-    return () => {
-      sinks.delete(sink);
-      if (sinks.size === 0) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-    };
-  }, []);
-}
 
 /**
  * The speedometer.
@@ -139,6 +105,11 @@ export function BoostMeter() {
         : raceTelemetry.drifting
           ? "charging"
           : "idle";
+      // Armed is a separate axis from what the tank is *doing*, because the
+      // two answer different questions: `state` is "is something happening",
+      // `armed` is "could it". They were conflated, which is how a meter at
+      // zero and a meter at full came to look nearly the same.
+      wrap.current.dataset.armed = boostArmed() ? "1" : "0";
     }
   });
 
@@ -146,6 +117,7 @@ export function BoostMeter() {
     <div
       ref={wrap}
       data-state="idle"
+      data-armed="0"
       className="hud-panel hud-panel--readout group flex flex-col gap-1 px-3 py-2 data-[state=spending]:shadow-[var(--glow-strong)]"
     >
       <div className="flex items-center gap-2">
@@ -155,8 +127,18 @@ export function BoostMeter() {
         <span className="hud-label text-accent opacity-0 transition-opacity group-data-[state=charging]:opacity-100">
           drift
         </span>
+        {/* And the one word that says it is gone. Same slot, mutually
+            exclusive with the above — you cannot be charging and empty. */}
+        <span className="hud-label text-dim ml-auto opacity-0 transition-opacity group-data-[armed=0]:opacity-100">
+          empty
+        </span>
       </div>
-      <div className="bg-edge/50 relative h-1.5 w-24 overflow-hidden rounded-full sm:w-28">
+      {/* The track is a real, visible empty state rather than a hairline.
+          `bg-edge/50` over a bright section of Vapor Ridge is grey on grey,
+          which made the difference between a full tank and an empty one
+          almost invisible — and boost is the mechanic the mode is sold on.
+          Subtlety belongs on the container, not on the data. */}
+      <div className="border-edge relative h-2 w-24 overflow-hidden rounded-full border bg-black/55 sm:w-28">
         <div
           ref={charge}
           className="bg-accent/35 absolute inset-0 h-full w-full origin-left transition-transform duration-100 ease-linear"
@@ -164,8 +146,20 @@ export function BoostMeter() {
         />
         <div
           ref={tank}
-          className="bg-accent absolute inset-0 h-full w-full origin-left transition-transform duration-100 ease-linear"
+          className="bg-accent absolute inset-0 h-full w-full origin-left transition-transform duration-100 ease-linear group-data-[armed=0]:bg-white/25"
           style={{ transform: "scaleX(0)" }}
+        />
+        {/* The fire threshold, drawn where it actually is.
+
+            Without it the floor is an invisible rule: a rider with a sliver in
+            the tank presses BOOST, nothing happens, and the only available
+            explanation is that boost is broken. A tick at the same fraction
+            the gate uses turns that into "not enough yet", which is a rule
+            rather than a fault. */}
+        <span
+          aria-hidden
+          className="absolute inset-y-0 w-px bg-white/45"
+          style={{ left: `${BOOST_MIN_TO_FIRE * 100}%` }}
         />
       </div>
     </div>

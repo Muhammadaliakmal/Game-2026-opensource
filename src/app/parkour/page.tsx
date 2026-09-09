@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { PARKOUR_COURSES } from "@/lib/built-in-worlds";
 import {
@@ -9,6 +8,7 @@ import { TIERS, type Tier } from "@/lib/course-kit";
 import { MEDALS, MEDAL_LABELS, medalTimes } from "@/lib/medals";
 import { formatTime } from "@/components/play/course";
 import { CourseCard } from "@/components/modes/CourseCard";
+import { PageShell, PageHeader } from "@/components/PageShell";
 
 /**
  * The parkour ladder.
@@ -68,23 +68,16 @@ export default function ParkourPage() {
   );
 
   return (
-    <div
-      // Rebinds --color-accent to the parkour green for the whole screen, the
-      // same mechanism the in-game HUD uses. See globals.css.
-      data-mode="parkour"
-      className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-8"
-    >
-      <header className="mb-8 flex flex-col gap-2">
-        <Link href="/" className="hud-label w-fit">
-          ← Blockworld
-        </Link>
-        <h1 className="text-display font-bold">Parkour</h1>
+    // `mode` rebinds --color-accent to the parkour green for the whole screen,
+    // the same mechanism the in-game HUD uses. See globals.css.
+    <PageShell mode="parkour">
+      <PageHeader title="Parkour">
         <p className="text-dim max-w-xl text-sm">
           {courses.length} courses, Tutorial to Expert. The clock runs from the
           moment you land, checkpoints keep it running through a fall, and every
           map has an Author time somebody has to beat eventually.
         </p>
-      </header>
+      </PageHeader>
 
       <ul className="grid gap-4 sm:grid-cols-2">
         {courses.map((course, i) => {
@@ -138,6 +131,6 @@ export default function ParkourPage() {
           are multiples of it.
         </p>
       </section>
-    </div>
+    </PageShell>
   );
 }

@@ -72,11 +72,28 @@ export function InstallPanel({
 
   if (installed) {
     return (
-      <section className="card border-accent/40 flex flex-col gap-2 p-5">
+      <section className="card border-accent/40 flex flex-col gap-3 p-5">
         <h2 className="text-ink text-sm font-semibold">Already installed</h2>
         <p className="text-dim text-xs">
-          You are running Blockworld as an app. Nothing to do here.
+          You are running Blockworld as an app, so it is already on your home
+          screen and it updates itself with the site.
         </p>
+        {/* A route out, rather than a full stop.
+
+            This page said "Nothing to do here" and meant it — a screen a
+            player navigated to deliberately, which then offered them nothing
+            and no way onward except Back. The nav slot that leads here is now
+            hidden once installed (see components/SiteNav), so the only people
+            who reach this are following an old link or a shared URL; they
+            should still land somewhere they can play from. */}
+        <div className="flex flex-wrap gap-2">
+          <a href="/parkour" className="hud-chip hud-chip--primary">
+            Play parkour
+          </a>
+          <a href="/arcade" className="hud-chip">
+            Arcade
+          </a>
+        </div>
       </section>
     );
   }

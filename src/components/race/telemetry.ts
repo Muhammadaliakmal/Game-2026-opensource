@@ -21,7 +21,48 @@ export const raceTelemetry = {
   charge: 0,
   drifting: false,
   boosting: false,
+  /**
+   * Whether the rider is under their own control at all — false on the grid,
+   * during the lights, and after the flag.
+   *
+   * Here rather than derived from the race store because the two things that
+   * read it (the boost button's armed state, and the sim itself) both want the
+   * value the *simulation* is acting on this frame, not the value React last
+   * rendered with.
+   */
+  riding: false,
 };
+
+/**
+ * The floor a boost can be fired from, as a fraction of the tank.
+ *
+ * ── Why there is a floor at all ──────────────────────────────────────────
+ *
+ * The gate used to be `boost > 0`, which is technically a gate and practically
+ * none: the trickle refills the tank continuously, so a rider tapping BOOST
+ * against an empty meter gets a shove every time the trickle crosses zero
+ * again. That is a mechanic nobody chose — it is a way of holding the boost
+ * button down that happens to work — and it hollows out the drift, which is
+ * the thing the whole mode is built around.
+ *
+ * ── Why it lives here ────────────────────────────────────────────────────
+ *
+ * It is the contract between the simulation and the button, and it has to be
+ * ONE number. The bug this fixes was precisely the two disagreeing: the sim
+ * gated the thrust and the button's fill state was driven by whether it had
+ * ever been pressed, so a player looked at a solid white BOOST button over an
+ * empty meter for eighteen seconds. A button whose armed state is derived from
+ * the same constant the effect gates on cannot drift from it.
+ *
+ * `telemetry.ts` imports nothing, so both sides can read it without either one
+ * pulling in the other.
+ */
+export const BOOST_MIN_TO_FIRE = 0.08;
+
+/** Is there enough in the tank to fire, right now? The one answer both sides use. */
+export function boostArmed(): boolean {
+  return raceTelemetry.riding && raceTelemetry.boost >= BOOST_MIN_TO_FIRE;
+}
 
 /** Back to a standing start — called when a bike mounts or is recovered. */
 export function resetTelemetry() {
@@ -30,6 +71,7 @@ export function resetTelemetry() {
   raceTelemetry.charge = 0;
   raceTelemetry.drifting = false;
   raceTelemetry.boosting = false;
+  raceTelemetry.riding = false;
 }
 
 /**

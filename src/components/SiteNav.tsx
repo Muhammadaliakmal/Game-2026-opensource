@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { useInstallPrompt } from "@/lib/use-install-prompt";
+import { CurrencyRail } from "@/components/hud/CurrencyRail";
 
 /**
  * The site header's right-hand side, in two layouts.
@@ -44,13 +46,34 @@ import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
  * came to be desktop-only once already.
  */
 
-const LINKS = [
+/**
+ * The destinations, and the one that is conditional.
+ *
+ * `installed` on a row means "hide this once the app IS installed". Only
+ * `/download` carries it, and it is the difference between a nav slot and a
+ * dead end: an installed app that still offers "Get the app" spends a
+ * top-level slot on a page whose entire content is "Nothing to do here". A
+ * primary navigation item should never lead somewhere with nothing on it.
+ *
+ * Hiding rather than relabelling, because there is no second thing that page
+ * does. If it grows one — release notes, a link to the store listing — it
+ * comes back as its own row.
+ */
+/** One destination. `as const` narrows each row, so the flag needs a type. */
+interface NavLink {
+  href: string;
+  label: string;
+  /** Hidden once the app is installed. See the note above. */
+  hideWhenInstalled?: boolean;
+}
+
+const LINKS: readonly NavLink[] = [
   { href: "/", label: "Home" },
   { href: "/browse", label: "Browse" },
   { href: "/arcade", label: "Arcade" },
   { href: "/shop", label: "Characters" },
-  { href: "/download", label: "Get the app" },
-] as const;
+  { href: "/download", label: "Get the app", hideWhenInstalled: true },
+];
 
 /**
  * The home glyph. A logo is something people read rather than something they
@@ -79,6 +102,20 @@ function HomeIcon() {
 export function SiteNav() {
   const pathname = usePathname();
   const panel = useRef<HTMLDivElement>(null);
+
+  /*
+   * Read through the same hook `/download` uses, so the nav and the page can
+   * never disagree about whether the app is installed.
+   *
+   * It is a live media query rather than a one-time sample — an installed app
+   * can be launched either way — and it renders `false` on the server, so the
+   * link is present in the HTML and removed on hydration for the small number
+   * of visitors who are running it standalone. That is the right way round:
+   * the server cannot know, and shipping the link and withdrawing it costs one
+   * chip's worth of layout on a screen that is about to be a full-screen app.
+   */
+  const { installed } = useInstallPrompt();
+  const links = LINKS.filter((l) => !(installed && l.hideWhenInstalled));
 
   /*
    * Open state, stored as WHERE it was opened rather than as a boolean.
@@ -136,7 +173,7 @@ export function SiteNav() {
             list — which is how a fourth destination would have been added to
             one layout and forgotten in the other, the same way Browse went
             desktop-only once already. */}
-        {LINKS.map((l) => (
+        {links.map((l) => (
           <Link
             key={l.href}
             href={l.href}
@@ -168,6 +205,11 @@ export function SiteNav() {
       </div>
 
       {/* ── Mobile: identity stays out, destinations go in ── */}
+      {/* The wallet sits beside the avatar in both layouts, because both are
+          answers to "who am I here" rather than places to go — and a balance
+          you have to open a menu to see is a balance nobody sees. It hides
+          itself on a narrow screen; see the component. */}
+      <CurrencyRail />
       <Show when="signed-in">
         <UserButton />
       </Show>
@@ -217,7 +259,7 @@ export function SiteNav() {
           // phone's rounded corners.
           className="hud-panel panel-enter absolute inset-x-2 top-full z-50 mt-1 flex flex-col gap-0.5 p-1.5 sm:hidden"
         >
-          {LINKS.map((l) => (
+          {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}

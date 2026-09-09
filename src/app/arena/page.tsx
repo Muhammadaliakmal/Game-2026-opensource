@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { PageShell } from "@/components/PageShell";
 import { useRouter } from "next/navigation";
 import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
 import { isMatchCode, makeMatchCode, normalizeMatchCode } from "@/lib/match-code";
@@ -32,8 +33,7 @@ export default function ArenaLobbyPage() {
   };
 
   return (
-    <main className="bg-base min-h-dvh px-4 py-6 sm:px-8 sm:py-10">
-      <div className="mx-auto flex max-w-2xl flex-col gap-8">
+    <PageShell mode="arena" width="prose">
         <header className="flex flex-col gap-2">
           <Link href="/" className="hud-label w-fit">
             ← Blockworld
@@ -96,7 +96,6 @@ export default function ArenaLobbyPage() {
             </button>
           </form>
         </section>
-      </div>
-    </main>
+    </PageShell>
   );
 }

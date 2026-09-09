@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRaceStore, standings, formatLapTime } from "@/stores/race-store";
 import { requestRaceRematch, requestStart } from "@/lib/net/race";
@@ -53,15 +53,22 @@ export function RaceHud({ code }: { code: string }) {
     <ControlArranger />
     <HudZones mode="race">
       {/* ── Top-left: which race this is, and who is winning it ── */}
+      {/* Both of these are `--readout` rather than plain glass, and the reason
+          is the same one the boost meter and the speedometer already had: 5.5%
+          white over Neon Circuit's checkerboard start straight is a panel the
+          road markings read straight through, and the row it happens to worst
+          is the one carrying the player's own name. A code and a running order
+          are read *while riding*, which is the exact definition `--readout`
+          exists for — they were simply never moved onto it. */}
       <HudZone at="top-left">
-        <div className="hud-panel pointer-events-auto flex items-center gap-2.5 px-3 py-2">
+        <div className="hud-panel hud-panel--readout pointer-events-auto flex items-center gap-2.5 px-3 py-2">
           <span className="bg-accent h-1.5 w-1.5 shrink-0" aria-hidden />
           <span className="text-2xs font-medium">Race</span>
           <span className="hud-divider" />
           <span className="num text-2xs tracking-widest">{code}</span>
         </div>
 
-        <div className="hud-panel pointer-events-auto flex flex-col gap-1 px-3 py-2">
+        <div className="hud-panel hud-panel--readout pointer-events-auto flex flex-col gap-1 px-3 py-2">
           {order.map((r, i) => (
             <div
               key={r.id}
@@ -205,10 +212,16 @@ export function RaceHud({ code }: { code: string }) {
               {riders.length} of {target} riders on the grid
             </span>
 
+            {/* The code is the entire point of this screen — it is the one
+                string somebody reads off one phone and types into another —
+                so it is a target rather than a word in a sentence. It used to
+                be four accent-coloured characters mid-paragraph over a
+                checkerboard. */}
+            <RoomCode code={code} />
+
             <p className="text-dim text-xs">
-              Send the code <span className="num text-accent">{code}</span> to
-              whoever you want to race. The lights go on their own once the
-              grid is full.
+              Send it to whoever you want to race. The lights go on their own
+              once the grid is full.
             </p>
 
             <button
@@ -281,9 +294,63 @@ export function RaceHud({ code }: { code: string }) {
  */
 function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="hud-panel panel-enter pointer-events-auto flex w-[min(20rem,80vw)] flex-col items-center gap-3 px-6 py-5 text-center">
-      {children}
-    </div>
+    <>
+      {/* The scrim, and why it is not just a darker panel.
+
+          Blur alone does not separate a modal from a high-frequency
+          background — it averages the background without darkening it, so a
+          checkerboard blurs to an evenly bright grey and white text on it is
+          still unreadable. The fill is what buys the contrast; the blur is the
+          part that makes it look deliberate.
+
+          `fixed` rather than absolute: the panel lives inside the HUD grid,
+          which is inset by the safe area, and a scrim that stopped at the
+          notch would be a lit strip along the top of a dimmed screen. */}
+      <div className="hud-scrim" aria-hidden />
+      <div className="hud-panel hud-panel--modal panel-enter pointer-events-auto relative flex w-[min(20rem,80vw)] flex-col items-center gap-3 px-6 py-5 text-center">
+        {children}
+      </div>
+    </>
+  );
+}
+
+/**
+ * The room code, as a thing you copy rather than a thing you transcribe.
+ *
+ * The clipboard write is best-effort and silent on failure: `navigator
+ * .clipboard` needs a secure context and can be refused outright, and a race
+ * lobby is not the place to explain that. The code is still on screen at a
+ * size that can be read across a table, which is the floor this has to clear.
+ */
+function RoomCode({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  // Cleared on a timer, so the confirmation gets out of the way by itself.
+  // Cleaned up on unmount as well — the lobby closes the moment the lights go
+  // out, which is well inside the two seconds.
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 1600);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard?.writeText(code).then(
+          () => setCopied(true),
+          () => {}
+        );
+      }}
+      className="hud-chip--touch flex flex-col items-center gap-1.5 bg-transparent p-0"
+      aria-label={`Room code ${code.split("").join(" ")}. Copy.`}
+    >
+      <span className="room-code" aria-hidden>
+        {code}
+      </span>
+      <span className="hud-label">{copied ? "Copied" : "Tap to copy"}</span>
+    </button>
   );
 }
 

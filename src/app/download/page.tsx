@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { apkInfo, formatBytes, APK_PATH } from "@/lib/apk";
+import { PageShell, PageHeader } from "@/components/PageShell";
 import { InstallPanel } from "./InstallPanel";
 
 export const metadata: Metadata = {
@@ -26,22 +26,19 @@ export default async function DownloadPage() {
   const apk = await apkInfo();
 
   return (
-    <main className="bg-base min-h-dvh px-4 py-6 sm:px-8 sm:py-10">
-      <div className="mx-auto flex max-w-2xl flex-col gap-8">
-        <header className="flex flex-col gap-2">
-          <Link href="/" className="hud-label w-fit">
-            ← Blockworld
-          </Link>
-          <h1 className="text-ink text-2xl font-semibold">
-            Get Blockworld
-          </h1>
+    // `prose` caps the CONTENT rather than the container, so the back-link and
+    // the heading start at the same x as every other route. That 106px
+    // discrepancy — content visibly sliding sideways on navigation — was the
+    // whole of bug #20; see components/PageShell.
+    <PageShell width="prose">
+      <PageHeader title="Get Blockworld">
           <p className="text-dim text-sm">
             Blockworld runs in a browser, so there is nothing you have to
             install. Installing it anyway gets you a home-screen icon, a
             fullscreen window with no address bar over the HUD, and a game that
             opens in one tap instead of a URL.
           </p>
-        </header>
+      </PageHeader>
 
         <InstallPanel apkAvailable={apk.available} apkPath={APK_PATH} />
 
@@ -80,7 +77,6 @@ export default async function DownloadPage() {
             </li>
           </ul>
         </section>
-      </div>
-    </main>
+    </PageShell>
   );
 }

@@ -57,37 +57,53 @@ export function createRenderer(): Renderer {
       ctx.fillStyle = "#0b1030";
       ctx.fillRect(0, 0, w, h);
 
-      const dropY = h * T.DROP_LINE;
+      // ── The ground ──
+      // The base has to be standing on something. Without it the first block
+      // hangs in the middle of an empty field and the game reads as unfinished
+      // before the player has pressed anything.
+      ctx.fillStyle = "#141a3d";
+      ctx.fillRect(0, T.FLOOR_Y, w, h - T.FLOOR_Y);
+      ctx.fillStyle = "#2b3570";
+      ctx.fillRect(0, T.FLOOR_Y, w, 2);
 
       // ── The tower ──
-      // Row 0 is the one just placed and sits at the drop line; each older row
-      // is one row-height below it. The camera is already folded into that
-      // relationship, so nothing here has to know how tall the tower is.
+      // Every y comes from `sim.rowY`, which is the one place the world-to-
+      // screen transform is written. The tower is anchored to the floor and
+      // grows UP; the camera only starts climbing once the top would pass the
+      // drop line. Drawing it downward from a pinned top — which is what this
+      // did — is the same tower and the opposite mechanic.
       for (let i = 0; i < T.VISIBLE_ROWS; i++) {
         const row = sim.rowAt(i);
         if (!row) break;
-        const y = dropY + i * T.ROW_H;
+        const y = sim.rowY(sim.placed - 1 - i);
+        // Off the bottom: everything below is further off it still.
         if (y > h) break;
         ctx.fillStyle = rowColour(sim.placed - 1 - i);
         ctx.fillRect(Math.round(row.x), Math.round(y), Math.round(row.w), T.ROW_H - 2);
       }
 
       // ── The block in play ──
+      // One row above the top of the tower, wherever that currently is.
+      const activeY = sim.rowY(sim.placed);
+      const landY = sim.rowY(sim.placed - 1);
       if (!sim.dead) {
         const x = sim.prevX + (sim.curX - sim.prevX) * alpha;
         ctx.fillStyle = rowColour(sim.placed);
         ctx.fillRect(
           Math.round(x),
-          Math.round(dropY - T.ROW_H),
+          Math.round(activeY),
           Math.round(sim.curW),
           T.ROW_H - 2
         );
-        // A one-pixel guide down from the block's left edge. In a timing game
-        // the only information that matters is where the edges line up, and
-        // this is what makes that readable at 520 px/s.
+        // A one-pixel guide from the block's left edge across the row it is
+        // about to land on. In a timing game the only information that matters
+        // is where the two edges line up, and this is what makes that readable
+        // at 520 px/s. Anchored to the landing row rather than to a fixed
+        // screen height, so it can never end up hanging in empty space below
+        // the tower — which is what it did before there was a floor.
         ctx.globalAlpha = 0.35;
         ctx.fillStyle = "#e2e8f0";
-        ctx.fillRect(Math.round(x), Math.round(dropY), 1, T.ROW_H);
+        ctx.fillRect(Math.round(x), Math.round(landY), 1, T.ROW_H);
         ctx.globalAlpha = 1;
       }
 
@@ -106,7 +122,7 @@ export function createRenderer(): Renderer {
         const age = comboAge / T.COMBO_TIME;
         ctx.save();
         ctx.globalAlpha = 1 - age;
-        ctx.translate(w / 2, dropY - 70);
+        ctx.translate(w / 2, activeY - 42);
         // Scales up as it fades, which is the cheapest way to make a number
         // feel like an event rather than a readout.
         ctx.scale(1 + age * 0.6, 1 + age * 0.6);

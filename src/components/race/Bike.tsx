@@ -19,7 +19,7 @@ import { BikeModel, bikeColor } from "./BikeModel";
 import { Rider } from "./Rider";
 import type { RaceControl } from "./controls";
 import { raceTouch } from "./race-touch";
-import { raceTelemetry, resetTelemetry } from "./telemetry";
+import { boostArmed, raceTelemetry, resetTelemetry } from "./telemetry";
 import { CAMERA_MODES, raceCamera, cycleRaceCamera } from "./race-camera";
 import { bound } from "@/lib/keybinds";
 import { assistSteer } from "@/lib/race-assist";
@@ -458,6 +458,13 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       const stick = useJoystickStore.getState().joysticks.default;
       // Nobody drives before the lights.
       const armed = phase === "racing";
+      // Published BEFORE anything reads them back through `boostArmed`, which
+      // is the ordering that makes one function serve both sides. The tank is
+      // republished at the end of the step with the drain applied — that write
+      // is what the meter draws; this one is what the gate reads, and both are
+      // this frame's.
+      raceTelemetry.riding = armed;
+      raceTelemetry.boost = boost.current;
 
       const throttle = armed && (Boolean(k.forward) || raceTouch.throttle);
       const reverse = armed && (Boolean(k.backward) || raceTouch.reverse);
@@ -501,8 +508,13 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
         (Boolean(k.drift) || raceTouch.drift) &&
         speed.current > DRIFT_MIN_SPEED &&
         Math.abs(steer.current) > 0.15;
+      // The gate, and the only gate. `boostArmed()` reads the same telemetry
+      // the BOOST button's fill state is derived from, against the same
+      // threshold, so the button cannot say "ready" while this says no — which
+      // is the whole of bug #24. `riding` is written above, before this line,
+      // so the answer is this frame's rather than last frame's.
       const boosting =
-        armed && (Boolean(k.boost) || raceTouch.boost) && boost.current > 0;
+        (Boolean(k.boost) || raceTouch.boost) && boostArmed();
 
       // A boost with no kick to it is a number going up. One short shake on
       // the rising edge, well under the crash one, so the two are never

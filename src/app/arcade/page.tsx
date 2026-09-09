@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { ArcadeLobby } from "@/components/arcade/ArcadeLobby";
+import { PageShell, PageHeader } from "@/components/PageShell";
 import { DAILY_HARD_CAP, DAILY_SOFT_CAP } from "@/lib/arcade-payout";
 
 /**
@@ -17,18 +17,14 @@ export const metadata = {
 
 export default function ArcadePage() {
   return (
-    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
-      <header className="mb-8 flex flex-col gap-2">
-        <Link href="/" className="hud-label w-fit">
-          ← Blockworld
-        </Link>
-        <h1 className="text-display font-bold">Arcade</h1>
+    <PageShell>
+      <PageHeader title="Arcade">
         <p className="text-dim max-w-xl text-sm">
           Short games, played on a flat screen over the world. A run takes under
           two minutes and every one of them pays something — the coins are the
           same coins the courses pay, and they buy the same characters.
         </p>
-      </header>
+      </PageHeader>
 
       <ArcadeLobby />
 
@@ -44,6 +40,6 @@ export default function ArcadePage() {
           runs keep counting after that — only the payout stops.
         </p>
       </section>
-    </div>
+    </PageShell>
   );
 }

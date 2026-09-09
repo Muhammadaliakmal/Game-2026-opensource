@@ -75,6 +75,7 @@ export function TouchButton({
   mode = "hold",
   active = false,
   disabled = false,
+  armed = true,
   accent = "var(--color-accent)",
   square = false,
   control,
@@ -89,6 +90,24 @@ export function TouchButton({
   /** Latch state, for a control whose "on" is owned by somebody else. */
   active?: boolean;
   disabled?: boolean;
+  /**
+   * Whether the thing behind this control can currently do anything.
+   *
+   * ── Why this is not `disabled` ───────────────────────────────────────
+   *
+   * `disabled` sets the DOM attribute, and a disabled button stops emitting
+   * pointer events. A control that becomes disabled *while a finger is on it*
+   * therefore never sees its own `pointerup` — so the input flag it set stays
+   * true forever, and the next time it becomes armed the game acts as though
+   * the button is held. Boost is exactly that case: it disarms mid-press, by
+   * design, the instant the tank runs out.
+   *
+   * So `armed` is presentation only. The press and the release still fire, the
+   * simulation still refuses the effect, and nothing can be stranded. The
+   * distinction matters enough to have its own prop: `disabled` means "this
+   * control does not apply right now", `armed` means "it applies and is empty".
+   */
+  armed?: boolean;
   accent?: string;
   /** Steering pads are wide rectangles, not discs. */
   square?: boolean;
@@ -147,6 +166,9 @@ export function TouchButton({
     <button
       aria-label={typeof label === "string" ? label : undefined}
       aria-pressed={mode === "latch" ? active : undefined}
+      // `aria-disabled`, not `disabled` — see the prop's own note. It announces
+      // the empty state without taking the element out of the event stream.
+      aria-disabled={!armed || undefined}
       disabled={disabled}
       onPointerDown={(e) => {
         if (disabled) return;
@@ -228,19 +250,27 @@ export function TouchButton({
         pointerEvents: "auto",
         userSelect: "none",
         WebkitUserSelect: "none",
-        opacity: disabled ? 0.35 : 1,
+        // Three states, not two. Disabled is the control being absent;
+        // unarmed is the control being present and empty, which has to be
+        // legible at a glance from the corner of the eye — a player should
+        // never have to check the meter to know whether boost is ready.
+        opacity: disabled ? 0.35 : armed ? 1 : 0.55,
         transition:
           "transform .1s var(--ease-ui), background .12s var(--ease-ui), box-shadow .12s var(--ease-ui)",
         // The saved offset and the press feedback compose here. Translate
         // first so the 0.93 press scale still happens about the button's own
         // centre wherever the player has moved it to.
         transform: `translate(${offsetX}px, ${offsetY}px) scale(${held ? 0.93 : 1})`,
-        border: `2px solid ${accent}`,
-        background: lit ? accent : "var(--glass-bg)",
-        color: lit ? "var(--color-accent-ink)" : accent,
+        // Unarmed desaturates the ring as well as dimming it, so the empty
+        // state does not read as merely "a bit further away" — and crucially
+        // it cannot fill, which is what the shipped button did and never
+        // undid.
+        border: `2px solid ${armed ? accent : "var(--color-edge)"}`,
+        background: lit && armed ? accent : "var(--glass-bg)",
+        color: lit && armed ? "var(--color-accent-ink)" : armed ? accent : "var(--color-dim)",
         boxShadow: editing
           ? `0 0 0 2px var(--color-accent), 0 0 22px -2px var(--color-accent)`
-          : lit
+          : lit && armed
             ? `0 0 26px -4px ${accent}`
             : "none",
         // A control being arranged should look grabbable, and must not fight

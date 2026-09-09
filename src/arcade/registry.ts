@@ -22,7 +22,16 @@ export interface ArcadeEntry {
   id: string;
   title: string;
   tagline: string;
-  controlsHint: string;
+  /**
+   * How you play it, said twice — once for a thumb and once for a keyboard.
+   *
+   * Not one string with both in it. "SPACE / TAP to jump" is the shape that
+   * ships when nobody decides, and it is wrong on every device: a phone is
+   * told about a key it does not have, and a desktop is told to tap. Which one
+   * a screen shows is a `(pointer: coarse)` question answered at the point of
+   * render — see `<ControlsHint>`.
+   */
+  hint: { touch: string; keys: string };
   /**
    * Tempo of this cabinet's music, in BPM. Optional — `music.ts` has a default.
    *
@@ -43,7 +52,7 @@ export const ARCADE: ArcadeEntry[] = [
     id: "chunk-runner",
     title: "Chunk Runner",
     tagline: "Don't stop. Don't blink.",
-    controlsHint: "SPACE / TAP to jump · hold to glide",
+    hint: { touch: "Tap to jump · hold to glide", keys: "Space to jump · hold to glide" },
     // An endless runner is played in a forward lean, so it gets the quicker
     // pulse of the two.
     bpm: 148,
@@ -53,7 +62,7 @@ export const ARCADE: ArcadeEntry[] = [
     id: "tower-stack",
     title: "Tower Stack",
     tagline: "Perfect or nothing.",
-    controlsHint: "SPACE / TAP to drop",
+    hint: { touch: "Tap to drop", keys: "Space to drop" },
     // Stacking is a game of waiting for one moment, and a track that hurries
     // the player into pressing is a track that costs them the perfect.
     bpm: 132,
@@ -63,7 +72,10 @@ export const ARCADE: ArcadeEntry[] = [
     id: "stub",
     title: "Test Pattern",
     tagline: "A square, at exactly 200 pixels a second.",
-    controlsHint: "Nothing to press — this one proves the loop",
+    hint: {
+      touch: "Nothing to press — this one proves the loop",
+      keys: "Nothing to press — this one proves the loop",
+    },
     dev: true,
     load: () => import("./games/stub"),
   },

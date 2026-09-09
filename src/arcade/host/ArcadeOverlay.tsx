@@ -2,6 +2,9 @@
 
 import { useEffect } from "react";
 import { MuteButton } from "@/components/MuteButton";
+import { ControlsHint, Hotkey } from "@/components/hud/Hotkey";
+import { RewardBurst } from "@/components/hud/RewardBurst";
+import { useShop } from "@/lib/shop";
 import { GameHost } from "./GameHost";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
@@ -32,6 +35,10 @@ export default function ArcadeOverlay() {
   const earned = useArcade((s) => s.earned);
   const capped = useArcade((s) => s.capped);
   const error = useArcade((s) => s.error);
+  /* The wallet after the payout. `GameHost.settle` writes the server's own
+     number into this store, so the balance shown next to "+22" is the one the
+     header is showing rather than a second guess at it. */
+  const coins = useShop((s) => s.coins);
 
   const entry = gameId ? entryFor(gameId) : undefined;
 
@@ -75,16 +82,45 @@ export default function ArcadeOverlay() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm"
+      /*
+        Opaque, and the word is load-bearing.
+
+        This was `bg-black/90 backdrop-blur-sm`, which is a scrim rather than a
+        shell: the site header stayed mounted underneath and ghosted straight
+        through the game's own top bar, so "Home / Browse / Arcade / Characters
+        / Get the app" was legible behind the cabinet's title for the whole
+        run. A cabinet is a game taking over the screen, not a dialog floating
+        on a web page, and 10% of a nav bar showing through is the single
+        clearest signal that this is a website pretending.
+
+        The safe-area padding is on the header and the footer rather than on
+        this element, because the CANVAS should paint edge to edge under a
+        notch — that is the half of `viewportFit: "cover"` that is right — and
+        only the things you have to read need to stay inside it.
+      */
+      className="bg-base fixed inset-0 z-50 flex flex-col"
       role="dialog"
       aria-modal="true"
       aria-label={entry.title}
     >
       {/* ── Chrome ── */}
-      <header className="flex items-center justify-between gap-3 px-4 py-3">
+      <header
+        className="flex items-center justify-between gap-3 px-4 py-3"
+        style={{
+          paddingTop: "max(12px, env(safe-area-inset-top, 0px))",
+          paddingLeft: "max(16px, env(safe-area-inset-left, 0px))",
+          paddingRight: "max(16px, env(safe-area-inset-right, 0px))",
+        }}
+      >
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold">{entry.title}</h2>
-          <p className="hud-label truncate">{entry.controlsHint}</p>
+          {/* `text-ink` explicitly. It inherited, and what it inherited from
+              was a translucent shell over the page — so the title was the
+              lowest-contrast text in the arcade, on the element naming the
+              thing you are playing. */}
+          <h2 className="text-ink truncate text-base font-semibold">
+            {entry.title}
+          </h2>
+          <ControlsHint hint={entry.hint} className="hud-label truncate block" />
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className="hud-readout num text-sm font-semibold">{score}</span>
@@ -140,29 +176,18 @@ export default function ArcadeOverlay() {
             {error ? (
               <p className="text-danger max-w-xs text-sm font-semibold">{error}</p>
             ) : (
-              <>
-                <h3 className="text-lg font-semibold">
-                  {score > 0 && score >= bestScore ? "New best" : "Run over"}
-                </h3>
-                <p className="hud-readout num text-2xl font-bold">{score}</p>
-                {/* Only when something was actually earned — the same rule the
-                    course finish panel follows. A day past its ceiling pays
-                    nothing, and printing "+0" would read as a bug. */}
-                {earned !== null && earned > 0 && (
-                  <p className="text-accent num text-sm font-semibold">
-                    + ⬤ {earned}
-                  </p>
-                )}
-                {/* Said once the day is spent, because a player watching the
-                    coin line vanish deserves to know it is the cap rather
-                    than a bug. The score still counts and the best still
-                    stands — only the payout stops. */}
-                {capped && (
-                  <p className="hud-label">
-                    Coin limit reached for today · scores still count
-                  </p>
-                )}
-              </>
+              /* The whole payoff beat, in one component shared with the course
+                 finish. The coins count up rather than appearing: this is the
+                 one moment in the loop with the player's undivided attention,
+                 and it was spending it on a score and two buttons while the
+                 currency the arcade exists to pay was credited silently. */
+              <RewardBurst
+                score={score}
+                best={bestScore}
+                earned={earned}
+                balance={coins}
+                capped={capped}
+              />
             )}
             <div className="flex gap-2">
               <button
@@ -170,10 +195,12 @@ export default function ArcadeOverlay() {
                 className="hud-chip hud-chip--primary"
                 onClick={restart}
               >
-                Again · R
+                Again
+                <Hotkey>R</Hotkey>
               </button>
               <button type="button" className="hud-chip" onClick={close}>
-                Quit · Esc
+                Quit
+                <Hotkey>Esc</Hotkey>
               </button>
             </div>
           </Panel>
@@ -186,7 +213,7 @@ export default function ArcadeOverlay() {
 /** The one panel shape every non-playing state uses. */
 function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70 text-center">
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center backdrop-blur-[2px]">
       {children}
     </div>
   );

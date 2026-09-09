@@ -57,7 +57,14 @@ export interface Sim {
   rows: Row[];
   slices: Slice[];
 
-  /** How high the camera has scrolled, in pixels. Eased toward `camTarget`. */
+  /**
+   * How high the view has climbed, in view pixels. Eased toward `camTarget`.
+   *
+   * Zero for the first several rows: the tower is anchored to the ground and
+   * simply grows up the screen, and the camera only starts moving once the top
+   * of it would pass the drop line. That is what makes the first drop land on
+   * something visible instead of floating in the middle of an empty screen.
+   */
   cam: number;
   camTarget: number;
 
@@ -65,8 +72,18 @@ export interface Sim {
   drop: Drop;
 
   step(dt: number, dropPressed: boolean): void;
-  /** Row `i` counting from the bottom of what is kept, or null. */
+  /** Row `i` counting back from the newest, or null. 0 is the top of the tower. */
   rowAt(i: number): Row | null;
+  /**
+   * Screen y of the top edge of the row at height `r`, where 0 is the base.
+   *
+   * The one place the world-to-screen transform is written, so the renderer,
+   * the falling slices and any future thing that needs to point at a row all
+   * agree. Having it here rather than in the renderer is what lets the drop's
+   * debris spawn at the height the block was actually cut at — the renderer
+   * runs after the step and does not know where the block was.
+   */
+  rowY(r: number): number;
 }
 
 export function createSim(): Sim {
@@ -97,6 +114,7 @@ export function createSim(): Sim {
     drop: "none",
     step,
     rowAt,
+    rowY,
   };
 
   // The base course, centred. It is `placed` 1 and is never dropped.
@@ -119,13 +137,23 @@ export function createSim(): Sim {
     return rows[index % rows.length];
   }
 
+  function rowY(r: number): number {
+    // A row occupies `[rowY, rowY + ROW_H]`, so the base (r = 0) sits with its
+    // BOTTOM on the floor — hence the +1. `cam` is added rather than
+    // subtracted because climbing moves the world down the screen.
+    return T.FLOOR_Y - (r + 1) * T.ROW_H + s.cam;
+  }
+
   function spawnSlice(x: number, w: number, away: number) {
     const sl = slices[sliceNext];
     sliceNext = (sliceNext + 1) % slices.length;
     sl.x = x;
     sl.w = w;
-    // At the drop line, which is where the block was when it was cut.
-    sl.y = T.VIEW_H * T.DROP_LINE;
+    // At the height the block was actually cut, which is the active block's
+    // row — one above the current top. Before the floor existed this was the
+    // drop line unconditionally, which was right only because the tower's top
+    // was pinned there.
+    sl.y = rowY(s.placed);
     sl.vx = away * 60;
     sl.vy = -40;
     sl.life = 1.1;
@@ -217,7 +245,11 @@ export function createSim(): Sim {
     row.w = s.curW;
     s.placed++;
 
-    s.camTarget += T.ROW_H;
+    // Not `+= ROW_H`. The camera does not move at all until the tower is tall
+    // enough to reach the drop line, and from then on it tracks the top of the
+    // stack exactly — so the play line is at a constant screen height for the
+    // whole run and the first rows are visibly standing on the ground.
+    s.camTarget = Math.max(0, T.ROW_H * s.placed - T.CLIMB);
     s.speed = Math.min(T.SLIDE_CAP, s.speed + T.SLIDE_INC);
     s.score += T.ROW_POINTS + s.combo * T.COMBO_POINTS;
 

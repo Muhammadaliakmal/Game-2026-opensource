@@ -3,6 +3,7 @@ import type { Tier } from "@/lib/course-kit";
 // From lib/sky-stops rather than lib/atmosphere: this renders on the
 // server, and atmosphere.ts imports the whole of three.js.
 import { NIGHT_STOPS } from "@/lib/sky-stops";
+import { SILHOUETTE_COLUMNS, silhouetteFor } from "@/lib/course-silhouette";
 
 /**
  * One course on the parkour ladder.
@@ -15,38 +16,39 @@ import { NIGHT_STOPS } from "@/lib/sky-stops";
  *
  * ── What the picture is ──────────────────────────────────────────────────
  *
- * The course's own difficulty curve, as a skyline: one bar per section, rising
- * with the tier. It is not a map — a 220x90 thumbnail of a 90-unit course is
- * an unreadable smear — it is the shape of the ask, which is the thing worth
- * knowing before you press it.
+ * The course's own elevation, read off its actual blocks — see
+ * `lib/course-silhouette`. It is not a map: a 220x90 thumbnail of a 90-unit
+ * course is an unreadable smear. It is where the run climbs, where it gives
+ * height back and where it breaks, which is the shape of the ask.
+ *
+ * ── It used to be a lie ──────────────────────────────────────────────────
+ *
+ * The skyline was generated from the TIER — a climb rate and a bar width per
+ * difficulty — so all four Hard courses drew the same picture, and the `seed`
+ * prop that appeared to vary them only fed a gradient id. Two adjacent cards
+ * with identical art and identical captions is worse than two cards with no
+ * art at all, because it looks like information.
  */
 
-/** How steep the skyline climbs, and how narrow the landings get, by tier. */
-const PROFILE: Record<Tier, { climb: number; width: number; gap: number }> = {
-  Tutorial: { climb: 0.28, width: 20, gap: 6 },
-  Easy: { climb: 0.46, width: 17, gap: 8 },
-  Medium: { climb: 0.6, width: 14, gap: 10 },
-  Hard: { climb: 0.74, width: 10, gap: 13 },
-  Expert: { climb: 0.9, width: 7, gap: 16 },
-};
+function CourseArt({ slug, index }: { slug: string; index: number }) {
+  // Cached at module scope in the library — see the note there about why that
+  // cache is permanently valid.
+  const heights = silhouetteFor(slug);
+  const id = `c${index}`;
 
-function CourseArt({ tier, seed }: { tier: Tier; seed: number }) {
-  const { climb, width, gap } = PROFILE[tier];
-  const id = `c${seed}`;
-
-  const bars: { x: number; y: number; w: number }[] = [];
-  let x = 8;
-  let i = 0;
-  while (x < 212) {
-    // Rises overall, with a dip every third step so it reads as a course
-    // rather than a bar chart — every good one gives height back somewhere.
-    const t = i / 9;
-    const dip = i % 3 === 2 ? 0.12 : 0;
-    const y = 78 - (t * climb - dip) * 58;
-    bars.push({ x, y: Math.max(12, y), w: width });
-    x += width + gap;
-    i++;
-  }
+  const step = 220 / SILHOUETTE_COLUMNS;
+  // A 2px sliver of air between columns, so a run of equal heights still reads
+  // as separate blocks rather than one bar.
+  const width = step - 2;
+  const bars = (heights ?? []).map((h, i) => ({
+    x: i * step + 1,
+    // 12 is the ceiling and 82 the floor, so a full-height column stops short
+    // of the top edge and a zero-height one is a gap rather than a hairline.
+    y: 82 - h * 70,
+    w: width,
+    // Kept so the renderer can tell "nothing here" from "something very low".
+    empty: h <= 0,
+  }));
 
   return (
     <svg
@@ -73,19 +75,25 @@ function CourseArt({ tier, seed }: { tier: Tier; seed: number }) {
         ))}
       </g>
 
-      {bars.map((b, k) => (
-        <g key={k}>
-          <rect x={b.x} y={b.y} width={b.w} height={90 - b.y} fill="#131a3c" />
-          <rect
-            x={b.x}
-            y={b.y - 2}
-            width={b.w}
-            height="2.5"
-            fill="var(--color-accent)"
-            opacity={0.45 + Math.min(0.5, k * 0.07)}
-          />
-        </g>
-      ))}
+      {/* A gap in the course is drawn as a gap. That is the half of this that
+          the tier-generated version could not do at all: a course is defined
+          by where the ground is not. */}
+      {bars.map((b, k) =>
+        b.empty ? null : (
+          <g key={k}>
+            <rect x={b.x} y={b.y} width={b.w} height={90 - b.y} fill="#131a3c" />
+            {/* The lit top edge, which is the surface a runner lands on. */}
+            <rect
+              x={b.x}
+              y={b.y - 2}
+              width={b.w}
+              height="2.5"
+              fill="var(--color-accent)"
+              opacity={0.45 + Math.min(0.5, k * 0.03)}
+            />
+          </g>
+        )
+      )}
     </svg>
   );
 }
@@ -116,7 +124,7 @@ export function CourseCard({
       className="group card hover:border-accent/70 focus-visible:border-accent/70 block overflow-hidden transition-colors"
     >
       <div className="relative h-28 w-full">
-        <CourseArt tier={tier} seed={index} />
+        <CourseArt slug={slug} index={index} />
         <div
           aria-hidden
           className="absolute inset-0"

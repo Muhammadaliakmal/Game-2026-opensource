@@ -66,6 +66,34 @@ export const DROP_LINE = 0.32;
 /** How fast the camera eases to a new tower height, per second. */
 export const CAM_LERP = 9;
 
+/**
+ * ── The ground, and why the game needed one ──────────────────────────────
+ *
+ * The tower used to be drawn top-down from the drop line: the newest row sat
+ * at `DROP_LINE` and every older one below it. That is arithmetically the same
+ * tower and visually the opposite game. On the first drop the base floated in
+ * the middle of an empty screen with nothing under it; by the third the three
+ * rows read as a stack growing DOWNWARD, because the top was pinned and the
+ * bottom was the end that moved. A game called Tower Stack in which the tower
+ * descends is not conveying its own mechanic.
+ *
+ * So the tower is anchored to a floor instead, and the camera only starts to
+ * climb once the stack is tall enough to need it — which is what every game of
+ * this kind does and the reason `cam` was in the simulation all along without
+ * anything reading it.
+ */
+/** Height of the ground plate, in view pixels. */
+export const GROUND_H = 46;
+/** Screen y of the top of the ground. The base row rests on this. */
+export const FLOOR_Y = VIEW_H - GROUND_H;
+/**
+ * How much tower fits between the floor and the drop line.
+ *
+ * Past this the view scrolls instead of the tower running off the top, so the
+ * play line stays at a comfortable height for the whole run.
+ */
+export const CLIMB = FLOOR_Y - VIEW_H * DROP_LINE;
+
 /** Degrees of hue per row. A free, premium-looking gradient up the tower. */
 export const HUE_STEP = 7;
 export const HUE_START = 190;
