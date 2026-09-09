@@ -42,6 +42,32 @@ export interface GameServices {
   /** Throttled by the host to ~10Hz. Never call this per frame. */
   onScore: (score: number) => void;
   onGameOver: (finalScore: number) => void;
+  /**
+   * A board cabinet's result: the local player finished `place` of `of`.
+   *
+   * ── Why a placement is not a score ───────────────────────────────────
+   *
+   * `onGameOver` takes a number that a runner grows without limit, and
+   * `lib/arcade-payout.ts` pays a rate per point on exactly that basis — it
+   * says so itself: an endless runner has no best-possible score, so paying
+   * per run is the only rule that leaves it worth playing twice. A Ludo match
+   * has a top. Paid per point it would pay more for a *longer* match, which
+   * rewards stalling in the one game whose main design risk is already that it
+   * runs too long.
+   *
+   * Optional, so the three runners that predate this are untouched. The host
+   * reads it and the payout route learns about placements in 8f — see
+   * `plan-phase8.md` §2B and §4; until then a board cabinet earns nothing,
+   * which is the right way round for a rate nobody has agreed yet.
+   *
+   * ── Fires when the *player* is placed, not when the match resolves ────
+   *
+   * Ludo carries on after first place to settle 2nd and 3rd. The run does not:
+   * `onGameOver` puts up the result screen and can only fire once, so the run
+   * ends when the local seat has a place. Playing out the remaining seats is a
+   * thing to watch, not a thing to wait for. See §2D.
+   */
+  onPlaced?: (place: number, of: number) => void;
 }
 
 export interface ArcadeGame {
