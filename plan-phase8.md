@@ -187,15 +187,99 @@ count of cells the hop exists to show.
 always on rather than behind a setting somebody has to find. Red-against-green
 is the exact pair Ludo is built on.
 
-### 8c — Ludo
-`games/ludo/` as `board.ts` / `rules.ts` / `render.ts` / `tuning.ts` /
-`index.ts`. Quick Ludo as the default mode — §5's own note that a 12–20 minute
-match is wrong for a browser arcade is correct, and matters more than the
-variants list.
+### 8c — Ludo — **done**
 
-### 8d — Bots
-`host/bots.ts`: step-counted think time, `scoreMove` per rules module,
-difficulty tiers, name pool. Honest one-line disclosure in the lobby.
+`games/ludo/` as `board.ts` / `rules.ts` / `render.ts` / `tuning.ts` /
+`index.ts`, plus the registry row and `onPlaced` wired through the host. 26
+further tests, and one correction.
+
+**The board does not step one cell at a time, and the test said it did.**
+`board.test.ts` shipped asserting a Manhattan distance of 1 between every pair
+of consecutive loop cells, which the standard 52-cell table violates at four
+places: an arm's edge row meets the next arm's edge column at a vertex, and the
+square between them — `(6, 6)` and its three rotations — is part of the central
+design rather than of the track. The generator was right and the assertion was
+wrong. It now asserts the *distribution* — 48 straights, 4 corners, each corner
+inside a quarter rather than at the seam — because the obvious repair, `d <= 2`,
+would also pass a table that took a two-cell leap down a straight, which is the
+fault the test exists to catch.
+
+**The transform is the host's and the ink is the game's.** `render.ts` draws
+inside `painter.layout`, so a cell is 1 unit and a line is 0.05, and it draws
+nothing the host could have drawn for both games. Two things are derived rather
+than typed: the yard blocks come from the bounding box of their own slots, and
+the four home triangles are one triangle rotated by `rotatePoint` — the same
+turn the geometry itself was built with, now exported so the board and its
+furniture cannot disagree by a quarter turn.
+
+**Text is the one thing not in board units.** A font size of 0.4 units is a size
+no engine hints properly, so `label()` undoes the scale for the duration and
+sets a real pixel size. Names on a phone are the first thing to turn to mush.
+
+**The die sits in the active seat's yard**, which is a label nobody has to read:
+the dice being in front of somebody is how a table says whose turn it is. A tap
+anywhere throws them — hit-testing a die in the corner of a board on a phone is
+a 60-pixel target, and there is nothing else to press in that phase. During a
+move a tap resolves to the piece first and the destination second, because one
+token's destination can be another's square (a token on 5 and one on 8 with a
+three showing) and a finger on a piece means *that* piece.
+
+**A placement is not a score, all the way through.** `GameHost` gained
+`onPlaced`, the store gained `placement` and `finishPlaced`, and the overlay
+shows "2nd / of 4 players" instead of the coin burst. Two things follow from
+the same fact: a placement is deliberately not written through `recordRun`,
+which keeps a best *score* and would record "your best Ludo is a 1" — a bigger
+number being a worse result — and a board cabinet is paid nothing yet, which is
+§2B's point and §4's open number. The registry row carries `board: true`, and
+the overlay hides the score readout on it: `0 · best 0` for four minutes is a
+readout that is wrong rather than merely useless.
+
+**Match length is now measured rather than claimed.** `tuning.ts` argued for
+Quick Ludo as the default on the grounds that a standard match runs 12–20
+minutes. Over sixty seeded four-bot tables: two tokens is a median of 5.3
+minutes (p10 4.0, p90 6.5) and four tokens is 14.2 (p90 17.9). Both halves of
+the argument hold, and `match.test.ts` pins the band — pacing is not a property
+of the rules alone, and bot think time, the dice tumble and the turn-end beat
+can each be retuned by somebody looking at a different problem.
+
+**`match.test.ts` plays the real module with no canvas.** `create()` needs no
+context to build, so a whole match is steppable headless, which is the only
+test that covers the thing most likely to be wrong here: not an answer, but the
+*order* the machine, the seats and the animator run in. All three ways this
+deadlocks — an animator never stepped, `animationDone()` called before the hops
+drain, a bot waiting on a phase the machine is waiting for the bot to leave —
+are invisible to a type checker and fatal in a way no unit test would notice.
+
+### 8d — Bots — **done**
+
+`host/bots.ts`: step-counted waits, `scoreMove` per rules module, difficulty
+tiers, a name pool, and `fillSeats`. 14 tests.
+
+**Two waits, not one.** A seat pauses before reaching for the dice (300–600 ms)
+and again before committing to a move (§7's 400–1400 ms), because they are
+different acts: there is nothing to deliberate about a roll, and that beat
+exists only so you can see whose turn it became. One shared delay produces a
+bot that dawdles over the dice and then snaps out a move, which reads as a
+machine pretending.
+
+**A blunder is a different move, not a re-roll.** Picking uniformly from *every*
+move when the dice say to blunder quietly dilutes the tiers — with two moves on
+offer a 0.6 rate lands back on the best one half the time, so "easy" plays well
+70% of the time and the number in the table means nothing. Choosing from the
+moves that are not best makes the rate the thing it claims to be. Ties count as
+best: two equally good moves are not a mistake to pick between, and a forced
+move cannot be blundered at all.
+
+**`BLUNDER_RATE` moved out of `ludo/tuning.ts`.** "An easy opponent blunders
+three times in five" is a sentence about opponents, not about this board, and
+`host/rules.ts` had already drawn that line. Left in a game's tuning it gets
+copied into the next game's, and the easy tier ends up easy in one cabinet and
+merciless in the other.
+
+**The wall-clock test is the one that earns its keep.** `a bot that is not
+being stepped is a bot that is not thinking` waits 40 real milliseconds and
+asserts nothing moved. It is the whole of §2C in one assertion, and it is the
+only test in the file that the `setTimeout` implementation fails.
 
 ### 8e — Snakes & Ladders, with power cards
 Cheap once 8a–8b exist. Ships the decision layer §6 correctly argues for.
@@ -205,10 +289,15 @@ Flat per-placement, server-side. Touches `lib/arcade-payout.ts` and the route.
 
 ## 4. Open decisions
 
-- **Where a board cabinet lives in the world.** The existing cabinets are
-  objects a player walks up to. Four seats and a 15-second turn timer is a
-  much longer commitment than a runner; whether Ludo is a cabinet or its own
-  route is unresolved.
-- **Flat placement payout values.** §2B fixes the shape, not the numbers.
+- **Where a board cabinet lives in the world.** Shipped as a cabinet, because
+  that took no code — `ArcadeCabinets` already had four floor positions and
+  only two games to stand in them. It is not settled: four seats and a 15-second
+  turn timer is a much longer commitment than a runner, and a five-minute match
+  reached by walking across a world is a five-minute match nobody finds twice.
+  The measured length makes this decidable now in a way it was not before.
+- **Flat placement payout values.** §2B fixes the shape, not the numbers, and
+  until they exist a board cabinet pays nothing — `GameHost.onPlaced` does not
+  call `settle` at all. That is the right way round for a rate nobody has
+  agreed, but it does mean Ludo currently earns a player no coins.
 - **Whether the daily challenge ships in this phase or waits on §2E.** It is
   technically free; it is also the thin end of that wedge.

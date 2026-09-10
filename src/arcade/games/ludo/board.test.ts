@@ -34,15 +34,37 @@ test("the loop is 52 distinct cells", () => {
   assert.equal(seen.size, LOOP_LEN, "the quarters do not overlap");
 });
 
-test("the loop is a loop: every step is one cell, and it closes", () => {
+test("the loop is a loop: it steps one cell at a time, and it closes", () => {
+  // Forty-eight straight steps and four corners, and the corners are diagonal.
+  //
+  // That is the real board rather than a concession to this one: an arm's edge
+  // row and the next arm's edge column meet at a vertex, and the square between
+  // them — (6,6) and its three rotations — is part of the central design, not
+  // of the track. A token turning the corner therefore moves diagonally, which
+  // every standard 52-cell Ludo table does.
+  //
+  // Asserted as a distribution rather than as `d <= 2`, which would also pass a
+  // table that took a two-cell leap in the middle of a straight — the exact
+  // fault this test exists to catch. The wrap from 51 back to 0 is included,
+  // because it is the step the rotation has to get right and the one a
+  // hand-typed table always gets wrong.
+  const corners: number[] = [];
   for (let i = 0; i < LOOP_LEN; i++) {
     const a = LOOP_CELLS[i];
     const b = LOOP_CELLS[(i + 1) % LOOP_LEN];
-    const d = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
-    // Including the wrap from 51 back to 0, which is the one the rotation has
-    // to get right and the one a hand-typed table always gets wrong.
-    assert.equal(d, 1, `cells ${i} and ${(i + 1) % LOOP_LEN} are not adjacent`);
+    const dc = Math.abs(a[0] - b[0]);
+    const dr = Math.abs(a[1] - b[1]);
+    const straight = dc + dr === 1;
+    const corner = dc === 1 && dr === 1;
+    assert.ok(
+      straight || corner,
+      `cells ${i} and ${(i + 1) % LOOP_LEN} are neither adjacent nor a corner`
+    );
+    if (corner) corners.push(i);
   }
+  // One per quarter, and inside it rather than at the seam between two — the
+  // seam is the straight that closes the ring.
+  assert.deepEqual(corners, [5, 18, 31, 44]);
 });
 
 test("the four seats start a quarter apart", () => {

@@ -84,14 +84,11 @@ export const BOT_WEIGHTS = {
 export const THREAT_RANGE = 6;
 
 /**
- * How often each tier throws its own plan away.
+ * How often a bot is wrong is NOT here, and that is the point.
  *
- * Spec §7, and the second rule there is the one that matters: a bot that
- * always plays the best move is *more* obviously a bot than one that
- * occasionally leaves a piece hanging. Perfect play is a tell.
+ * It lived here briefly, and it does not belong to Ludo: "an easy opponent
+ * blunders three times in five" is a sentence about opponents, not about this
+ * board. Left in a game's tuning it would be copied into the next game's, and
+ * the easy tier would end up easy in one cabinet and merciless in the other.
+ * `host/bots.ts` owns `BLUNDER_RATE`; this file owns what a move is worth.
  */
-export const BLUNDER_RATE: Record<string, number> = {
-  easy: 0.6,
-  normal: 0.2,
-  hard: 0,
-};

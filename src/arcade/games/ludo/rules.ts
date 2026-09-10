@@ -287,7 +287,7 @@ export function createLudoRules(
       // `difficulty` is accepted and unused: being *worse* is not a different
       // scoring function, it is how often the best move is thrown away, and
       // that belongs in the bot rather than in the game's own opinion of a
-      // move. See `tuning.ts`'s BLUNDER_RATE.
+      // move. See `host/bots.ts`'s BLUNDER_RATE.
       return score;
     },
   };

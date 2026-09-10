@@ -44,6 +44,15 @@ export interface ArcadeEntry {
   bpm?: number;
   /** Hidden from the cabinet list. For the host's own test game. */
   dev?: boolean;
+  /**
+   * A turn-based cabinet: it reports a placement, not a score.
+   *
+   * The overlay reads it to decide whether to put a number in the corner. A
+   * Ludo match has no running total — showing "0 · best 0" for four minutes is
+   * a readout that is not merely useless but actively wrong about what the
+   * player is doing. See `host/types.ts`'s `onPlaced`.
+   */
+  board?: boolean;
   load: () => Promise<{ default: GameModule }>;
 }
 
@@ -67,6 +76,21 @@ export const ARCADE: ArcadeEntry[] = [
     // the player into pressing is a track that costs them the perfect.
     bpm: 132,
     load: () => import("./games/tower-stack"),
+  },
+  {
+    id: "ludo",
+    title: "Ludo",
+    tagline: "Four seats. One of them is yours.",
+    hint: {
+      touch: "Tap to roll · tap a piece to move",
+      keys: "Space to roll · click a piece, or 1-4",
+    },
+    // Slower than either runner, and deliberately so: this is a game of
+    // waiting for a six, and a track that hurries the table makes the waiting
+    // worse rather than shorter.
+    bpm: 104,
+    board: true,
+    load: () => import("./games/ludo"),
   },
   {
     id: "stub",

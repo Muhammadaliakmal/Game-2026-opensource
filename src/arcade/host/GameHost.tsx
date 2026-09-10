@@ -134,6 +134,17 @@ export function GameHost({ className }: { className?: string }) {
         useArcade.getState().finish(entry.id, final);
         void settle(entry.id, final);
       },
+      onPlaced: (place, of) => {
+        if (over) return;
+        over = true;
+        stopRun();
+        useArcade.getState().finishPlaced(entry.id, place, of);
+        // No `settle`. A board cabinet pays nothing yet, and that is the right
+        // way round: the rate is a flat amount per placement rather than a
+        // rate per point (`plan-phase8.md` §2B), nobody has agreed the numbers,
+        // and paying a placement through the runner's route would pay 1 coin
+        // for first place and 4 for last.
+      },
     };
 
     const loop = createLoop(

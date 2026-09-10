@@ -43,6 +43,15 @@ interface ArcadeState {
   best: Record<string, number>;
   /** Coins the last finished run paid. Null until one has. */
   earned: number | null;
+  /**
+   * Where the local player came, on a board cabinet. Null on a runner.
+   *
+   * Separate from `score` rather than folded into it, because they are not the
+   * same kind of number and the result screen reads them differently: a score
+   * is compared with a best, and a placement is compared with nothing — you
+   * came second, and second last week does not make second today worse.
+   */
+  placement: { place: number; of: number } | null;
   /** The seed the current run was created with, so it can be replayed. */
   seed: number;
   /** Bumped to ask the host for a fresh game with the same entry. */
@@ -62,6 +71,15 @@ interface ArcadeState {
    * payout is a separate, later fact, because it is a network round trip.
    */
   finish(gameId: string, score: number): void;
+  /**
+   * A board match ended, and this is where the player came.
+   *
+   * Deliberately not routed through `finish`: `recordRun` keeps a best *score*
+   * per game, and a placement written into it would record "your best Ludo is
+   * a 1" — a bigger number being a worse result. Board cabinets keep no best
+   * until there is something worth keeping.
+   */
+  finishPlaced(gameId: string, place: number, of: number): void;
   /** What the server actually paid, once it has said. */
   credit(coins: number): void;
   /** True once today's arcade ceiling has been reached. */
@@ -82,6 +100,7 @@ export const useArcade = create<ArcadeState>((set, get) => ({
   score: 0,
   best: {},
   earned: null,
+  placement: null,
   capped: false,
   seed: 0,
   runId: 0,
@@ -95,6 +114,7 @@ export const useArcade = create<ArcadeState>((set, get) => ({
       status: "loading",
       score: 0,
       earned: null,
+      placement: null,
       error: null,
       seed: seed ?? (Math.random() * 0xffffffff) >>> 0,
       runId: get().runId + 1,
@@ -109,7 +129,13 @@ export const useArcade = create<ArcadeState>((set, get) => ({
   },
 
   close: () =>
-    set({ activeGame: null, status: "loading", score: 0, error: null }),
+    set({
+      activeGame: null,
+      status: "loading",
+      score: 0,
+      placement: null,
+      error: null,
+    }),
 
   // A new run of the same game: the host watches `runId` and rebuilds. The
   // seed is rerolled, because replaying an identical course after dying on it
@@ -119,6 +145,7 @@ export const useArcade = create<ArcadeState>((set, get) => ({
       status: "loading",
       score: 0,
       earned: null,
+      placement: null,
       error: null,
       seed: (Math.random() * 0xffffffff) >>> 0,
       runId: s.runId + 1,
@@ -136,6 +163,9 @@ export const useArcade = create<ArcadeState>((set, get) => ({
     save(next);
     set({ status: "gameover", score, best: next.best });
   },
+
+  finishPlaced: (_gameId, place, of) =>
+    set({ status: "gameover", score: 0, placement: { place, of } }),
 
   credit: (coins) => {
     if (coins > 0) {

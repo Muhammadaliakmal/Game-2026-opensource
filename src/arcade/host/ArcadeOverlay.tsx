@@ -33,6 +33,7 @@ export default function ArcadeOverlay() {
   const score = useArcade((s) => s.score);
   const best = useArcade((s) => s.best);
   const earned = useArcade((s) => s.earned);
+  const placement = useArcade((s) => s.placement);
   const capped = useArcade((s) => s.capped);
   const error = useArcade((s) => s.error);
   /* The wallet after the payout. `GameHost.settle` writes the server's own
@@ -123,9 +124,17 @@ export default function ArcadeOverlay() {
           <ControlsHint hint={entry.hint} className="hud-label truncate block" />
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="hud-readout num text-sm font-semibold">{score}</span>
-          {bestScore > 0 && (
-            <span className="hud-label num">best {bestScore}</span>
+          {/* A board cabinet has no running total, and "0 · best 0" for four
+              minutes is a readout that is wrong rather than merely useless.
+              What is worth reading during a match — whose turn it is, what the
+              dice said — is on the board itself, beside the pieces it is about. */}
+          {!entry.board && (
+            <>
+              <span className="hud-readout num text-sm font-semibold">{score}</span>
+              {bestScore > 0 && (
+                <span className="hud-label num">best {bestScore}</span>
+              )}
+            </>
           )}
           {/* The cabinets have music now, and this screen covers the site
               header — which is where the only other mute button lives. A
@@ -175,6 +184,17 @@ export default function ArcadeOverlay() {
           <Panel>
             {error ? (
               <p className="text-danger max-w-xs text-sm font-semibold">{error}</p>
+            ) : placement ? (
+              /* A placement, said as a placement. `RewardBurst` counts coins up
+                 from a score, and a board cabinet has neither yet — see
+                 `plan-phase8.md` §2B. Until it pays, showing a payout beat with
+                 nothing in it would be worse than showing the result plainly. */
+              <div className="flex flex-col items-center gap-1">
+                <p className="text-display font-semibold">
+                  {ordinal(placement.place)}
+                </p>
+                <p className="text-dim text-sm">of {placement.of} players</p>
+              </div>
             ) : (
               /* The whole payoff beat, in one component shared with the course
                  finish. The coins count up rather than appearing: this is the
@@ -208,6 +228,17 @@ export default function ArcadeOverlay() {
       </div>
     </div>
   );
+}
+
+/**
+ * "2nd", not "Place 2".
+ *
+ * The whole result is one word, so it should be the word somebody would say.
+ */
+function ordinal(n: number): string {
+  const suffix =
+    n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th";
+  return `${n}${suffix}`;
 }
 
 /** The one panel shape every non-playing state uses. */

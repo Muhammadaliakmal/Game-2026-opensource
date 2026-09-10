@@ -51,7 +51,15 @@ export const HOME = 57;
 export const BOARD_SIZE = 15;
 
 const rotCell = (c: number, r: number): [number, number] => [14 - r, c];
-const rotPoint = (p: Vec2): Vec2 => ({ x: 15 - p.y, y: p.x });
+/**
+ * The board's four-fold symmetry, as a function.
+ *
+ * Exported because the renderer needs the same turn the geometry was built
+ * with — the home triangles and the yard blocks are one quarter rotated three
+ * times, exactly like the cells are. Two copies of this line would be two
+ * places for the board and its furniture to disagree by a quarter turn.
+ */
+export const rotatePoint = (p: Vec2): Vec2 => ({ x: 15 - p.y, y: p.x });
 const centre = (c: number, r: number): Vec2 => ({ x: c + 0.5, y: r + 0.5 });
 
 /**
@@ -147,9 +155,9 @@ const positions: Vec2[] = (() => {
     for (let i = 0; i < HOME_LANE; i++) out[laneCell(seat, i)] = lane[i];
     for (let i = 0; i < MAX_TOKENS; i++) out[yardCell(seat, i)] = yard[i];
     out[homeCell(seat)] = home;
-    lane = lane.map(rotPoint);
-    yard = yard.map(rotPoint);
-    home = rotPoint(home);
+    lane = lane.map(rotatePoint);
+    yard = yard.map(rotatePoint);
+    home = rotatePoint(home);
   }
 
   return out;
