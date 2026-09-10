@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SiteFooter } from "@/components/SiteFooter";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { CHARACTERS, characterFor } from "@/lib/characters";
@@ -180,6 +181,8 @@ export function Shop() {
           );
         })}
       </div>
+
+      <SiteFooter />
     </div>
   );
 }

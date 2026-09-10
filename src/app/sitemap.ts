@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
+import { publishedPosts } from "@/lib/blog";
 import { SITE_URL } from "@/lib/site";
 
 /**
@@ -21,6 +22,14 @@ import { SITE_URL } from "@/lib/site";
  * world id and a session to be anything but an empty grid, and it is hidden
  * outright in v1 (`lib/features`). `/download` is absent too — the spec calls
  * it a dead end, and a sitemap is not the place to argue with that.
+ *
+ * ── The publisher pages are content, not boilerplate ─────────────────────
+ *
+ * About, Contact and Terms are listed beside the policy because an ad review
+ * is an assessment of a publisher and those four pages are the only place a
+ * publisher exists on a site made of WebGL. The blog is listed only when it
+ * has something in it: a sitemap that promises a crawler a page which 404s is
+ * a worse first impression than one that never mentions it.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
@@ -32,8 +41,31 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/arcade`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/shop`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/browse`, lastModified: now, changeFrequency: "daily", priority: 0.6 },
+    { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${SITE_URL}/contact`, lastModified: now, changeFrequency: "yearly", priority: 0.4 },
     { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
+
+  // Only when written. `publishedPosts()` is empty until then, so this whole
+  // section — index and posts — is absent rather than promised.
+  const posts = publishedPosts();
+  const blog: MetadataRoute.Sitemap = posts.length
+    ? [
+        {
+          url: `${SITE_URL}/blog`,
+          lastModified: now,
+          changeFrequency: "weekly" as const,
+          priority: 0.6,
+        },
+        ...posts.map((post) => ({
+          url: `${SITE_URL}/blog/${post.slug}`,
+          lastModified: new Date(`${post.date}T00:00:00Z`),
+          changeFrequency: "yearly" as const,
+          priority: 0.5,
+        })),
+      ]
+    : [];
 
   const worlds: MetadataRoute.Sitemap = BUILT_IN_WORLDS.map((w) => ({
     url: `${SITE_URL}/play/${w.slug}`,
@@ -42,5 +74,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.5,
   }));
 
-  return [...fixed, ...worlds];
+  return [...fixed, ...blog, ...worlds];
 }

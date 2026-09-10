@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { SiteFooter } from "@/components/SiteFooter";
 
 /**
  * The one page container. Every non-immersive route renders inside it.
@@ -30,6 +31,20 @@ import type { ReactNode } from "react";
  * shell rather than of the page, which is the thing that was actually
  * inconsistent, and a narrow page stays narrow.
  *
+ * ── Why the footer is here ───────────────────────────────────────────────
+ *
+ * It was on `/` and `/browse` and nowhere else, which is half of a footer: an
+ * ad review looks for the policy links from whatever page it lands on, and
+ * "landed on /arcade" was a page with no route to a privacy policy at all.
+ * Rendering it here puts it on every route that uses the shell in one place,
+ * and — the part that matters more — on every route added later without
+ * anybody having to remember. The three pages with bespoke containers ask for
+ * it themselves.
+ *
+ * Not in the root layout, for the reason `SiteFooter` documents: the immersive
+ * routes are a definite-height canvas, and a footer there comes out of the
+ * frame the game is drawn in.
+ *
  * ── Why it is a Server Component ─────────────────────────────────────────
  *
  * It has no state and no handlers, so making it a client component would drag
@@ -47,6 +62,7 @@ export function PageShell({
    */
   width = "wide",
   className = "",
+  footer = true,
 }: {
   children: ReactNode;
   /**
@@ -61,6 +77,11 @@ export function PageShell({
   mode?: "build" | "race" | "parkour" | "arena";
   width?: "wide" | "prose";
   className?: string;
+  /**
+   * Off only for a page that is not public content — the dev kit, and
+   * anything else a reader is never sent to.
+   */
+  footer?: boolean;
 }) {
   return (
     <div
@@ -73,6 +94,7 @@ export function PageShell({
           page. That difference is the entire bug. */}
       <div className={width === "prose" ? "flex max-w-2xl flex-col gap-8" : ""}>
         {children}
+        {footer && <SiteFooter />}
       </div>
     </div>
   );

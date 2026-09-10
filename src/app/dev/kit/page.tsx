@@ -39,7 +39,7 @@ const MODES = ["build", "race", "parkour"] as const;
 
 export default function KitPage() {
   return (
-    <PageShell>
+    <PageShell footer={false}>
       <PageHeader title="Kit">
         <p className="text-dim text-sm">
           Every chrome primitive, in all three mode accents. Not linked from
