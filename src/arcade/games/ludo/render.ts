@@ -37,7 +37,8 @@ import type { LudoMove, LudoState } from "./rules";
  * line is 0.05. The only exception is text, which is set in real pixels by
  * momentarily undoing the scale — a font size of 0.4 board units is a font
  * size no engine hints properly, and names on a phone are the first thing to
- * turn to mush.
+ * turn to mush. That undoing is `painter.label`, which moved into the host
+ * when the second board game needed it: it is transform arithmetic, not ink.
  */
 
 const TAU = Math.PI * 2;
@@ -164,32 +165,6 @@ function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
     else ctx.lineTo(px, py);
   }
   ctx.closePath();
-}
-
-/**
- * Text at a board position, set in real pixels.
- *
- * The scale is undone for the duration, so `px` is a font size a browser can
- * hint rather than a fraction of a cell.
- */
-function label(
-  ctx: CanvasRenderingContext2D,
-  scale: number,
-  at: Vec2,
-  text: string,
-  px: number,
-  colour: string,
-  align: CanvasTextAlign = "center"
-) {
-  ctx.save();
-  ctx.translate(at.x, at.y);
-  ctx.scale(1 / scale, 1 / scale);
-  ctx.font = `600 ${px}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
-  ctx.textAlign = align;
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = colour;
-  ctx.fillText(text, 0, 0);
-  ctx.restore();
 }
 
 export function createRenderer(painter: BoardPainter): Renderer {
@@ -347,9 +322,8 @@ export function createRenderer(painter: BoardPainter): Renderer {
         const name = view.seats[s].name;
         const text =
           place >= 0 ? `${name} · ${place + 1}${ordinal(place + 1)}` : name;
-        label(
+        painter.label(
           ctx,
-          scale,
           { x: r.x + r.w / 2, y: r.y + 0.42 },
           text,
           px,
@@ -367,7 +341,7 @@ export function createRenderer(painter: BoardPainter): Renderer {
         ctx.beginPath();
         ctx.arc(p.x, p.y, 0.3, 0, TAU);
         ctx.fill();
-        label(ctx, scale, { x: p.x, y: p.y }, String(home), px * 0.85, "#ffffff");
+        painter.label(ctx, { x: p.x, y: p.y }, String(home), px * 0.85, "#ffffff");
       }
 
       ctx.restore();

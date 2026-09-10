@@ -69,8 +69,19 @@ const DRAWS: Record<string, number> = {
   arcTo: 5,
   // x, y, radius. The two angles after them are angles.
   arc: 3,
-  fillText: 2,
 };
+
+/**
+ * Text is the one thing on this board NOT drawn in board units.
+ *
+ * `painter.label` undoes the scale so a font size is a real pixel size, which
+ * means its coordinates come out multiplied by that scale — 300, not 7.5. It
+ * is checked below by dividing them back down rather than by being skipped,
+ * and that is a strictly stronger test than the one this replaced: the old
+ * helper translated to the anchor first and drew at (0, 0), so "every mark
+ * lands on the board" was passing on two zeroes for every label in the game.
+ */
+const TEXT_PLACES = 2;
 
 const input: InputState = {
   keys: {},
@@ -148,15 +159,20 @@ test("every mark lands on the board", () => {
 
   for (const frame of byFrame) {
     // The backdrop is painted in pixels, so the board-unit rule starts at this
-    // frame's `scale` — which is `painter.layout` and nothing else.
+    // frame's `scale` — which is `painter.layout` and nothing else. Its
+    // argument is also what a label's coordinates are multiplied by.
     const start = frame.findIndex((c) => c.name === "scale");
     assert.ok(start > 0, "the board was never laid out");
+    const scale = frame[start].numbers[0];
+    assert.ok(scale > 0, "the layout installed no scale");
 
     for (let i = start + 1; i < frame.length; i++) {
       const call = frame[i];
-      const places = DRAWS[call.name];
+      const text = call.name === "fillText";
+      const places = text ? TEXT_PLACES : DRAWS[call.name];
       if (places === undefined) continue;
-      for (const n of call.numbers.slice(0, places)) {
+      for (const raw of call.numbers.slice(0, places)) {
+        const n = text ? raw / scale : raw;
         assert.ok(
           n >= low && n <= high,
           `${call.name} drew at ${n.toFixed(2)}, off a ${BOARD_SIZE}-unit board`

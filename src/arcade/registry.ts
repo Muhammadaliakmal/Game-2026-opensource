@@ -93,6 +93,21 @@ export const ARCADE: ArcadeEntry[] = [
     load: () => import("./games/ludo"),
   },
   {
+    id: "snakes",
+    title: "Snakes & Ladders",
+    tagline: "The board decides. The cards are yours.",
+    hint: {
+      touch: "Tap to roll · tap a card to spend it",
+      keys: "Space to roll · 1-3 to spend a card",
+    },
+    // Between the runners and Ludo. The dice come round faster than Ludo's do
+    // — one token, no yard to wait on — and the track should keep up with the
+    // rolling rather than with the deliberating.
+    bpm: 118,
+    board: true,
+    load: () => import("./games/snakes"),
+  },
+  {
     id: "stub",
     title: "Test Pattern",
     tagline: "A square, at exactly 200 pixels a second.",

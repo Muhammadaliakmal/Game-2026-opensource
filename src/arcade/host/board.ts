@@ -123,6 +123,42 @@ export interface BoardPainter {
   drawHighlight(ctx: CanvasRenderingContext2D, cell: number, t: number): void;
 
   /**
+   * Text at a board position, set in real pixels.
+   *
+   * The scale is undone for the duration, so `px` is a font size a browser can
+   * hint rather than a fraction of a cell — 0.4 board units is a size no
+   * engine hints properly, and names on a phone are the first thing to turn to
+   * mush. It lives here rather than in a game because it is transform
+   * arithmetic, which is the one thing this file owns.
+   */
+  label(
+    ctx: CanvasRenderingContext2D,
+    at: Vec2,
+    text: string,
+    px: number,
+    colour: string,
+    align?: CanvasTextAlign
+  ): void;
+
+  /**
+   * Many labels at one size, in one `save`/`scale` pair.
+   *
+   * Snakes & Ladders numbers a hundred squares every frame. Through `label`
+   * that is six hundred canvas calls — save, translate, scale, font, fill,
+   * restore, a hundred times — for a hundred short strings. Batched it is a
+   * hundred `fillText`s and four calls of overhead, which is the difference
+   * between a board that costs nothing to draw and one that shows up on a
+   * phone as heat.
+   */
+  labels(
+    ctx: CanvasRenderingContext2D,
+    items: ReadonlyArray<{ at: Vec2; text: string }>,
+    px: number,
+    colour: string,
+    align?: CanvasTextAlign
+  ): void;
+
+  /**
    * The die.
    *
    * `progress` is 0..1 through the tumble; at 1 it shows `value` and has
@@ -306,6 +342,26 @@ export function createPainter(graph: BoardGraph): BoardPainter {
       ctx.arc(p.x, p.y, TOKEN_RADIUS + 0.12 + pulse * 0.05, 0, TAU);
       ctx.stroke();
       ctx.globalAlpha = 1;
+    },
+
+    label(ctx, at, text, px, colour, align = "center") {
+      this.labels(ctx, [{ at, text }], px, colour, align);
+    },
+
+    labels(ctx, items, px, colour, align = "center") {
+      if (items.length === 0) return;
+      ctx.save();
+      // Board space is undone once, so a board point (x, y) is at (x * scale,
+      // y * scale) inside this pass. Everything drawn here is in real pixels.
+      ctx.scale(1 / scale, 1 / scale);
+      ctx.font = `600 ${px}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
+      ctx.textAlign = align;
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = colour;
+      for (const item of items) {
+        ctx.fillText(item.text, item.at.x * scale, item.at.y * scale);
+      }
+      ctx.restore();
     },
 
     drawDie(ctx, at, value, progress, seed) {
