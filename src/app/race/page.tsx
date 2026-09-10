@@ -8,6 +8,7 @@ import { isMatchCode, makeMatchCode, normalizeMatchCode } from "@/lib/match-code
 import { multiplayerEnabled } from "@/lib/net/room";
 import { MAX_RIDERS, RACE_LAPS, RACE_TRACKS } from "@/lib/race-track";
 import { ModeCover } from "@/components/modes/ModeCover";
+import { PrefetchCanvas } from "@/components/PrefetchCanvas";
 
 /**
  * The race lobby: open a grid, or join one somebody sent you.
@@ -40,6 +41,7 @@ export default function RaceLobbyPage() {
     // Rebinds --color-accent to the racing magenta for the whole screen, the
     // same mechanism the in-game HUD uses. See globals.css.
     <PageShell mode="race" width="prose">
+        <PrefetchCanvas kind="race" />
         {/* The same cover the home page shows, at full width.
             Arriving here used to mean a heading and two sentences, which made
             the mode feel like a form to fill in — and the picture is what

@@ -9,6 +9,7 @@ import { MEDALS, MEDAL_LABELS, medalTimes } from "@/lib/medals";
 import { formatTime } from "@/components/play/course";
 import { CourseCard } from "@/components/modes/CourseCard";
 import { PageShell, PageHeader } from "@/components/PageShell";
+import { PrefetchCanvas } from "@/components/PrefetchCanvas";
 
 /**
  * The parkour ladder.
@@ -71,6 +72,7 @@ export default function ParkourPage() {
     // `mode` rebinds --color-accent to the parkour green for the whole screen,
     // the same mechanism the in-game HUD uses. See globals.css.
     <PageShell mode="parkour">
+      <PrefetchCanvas kind="world" />
       <PageHeader title="Parkour">
         <p className="text-dim max-w-xl text-sm">
           {courses.length} courses, Tutorial to Expert. The clock runs from the

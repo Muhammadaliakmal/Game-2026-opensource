@@ -11,6 +11,7 @@ import {
 import { UGC } from "@/lib/features";
 import { AdSlot } from "@/components/AdSlot";
 import { SiteFooter } from "@/components/SiteFooter";
+import { PrefetchCanvas } from "@/components/PrefetchCanvas";
 
 /**
  * The public gallery.
@@ -178,6 +179,7 @@ export default async function BrowsePage() {
 
       {/* Under the gallery, never between the cards — see lib/ads. */}
       <AdSlot placement="browse" className="mt-10" />
+      <PrefetchCanvas kind="world" />
       <SiteFooter />
     </div>
   );

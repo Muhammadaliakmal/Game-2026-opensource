@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
 import { isMatchCode, makeMatchCode, normalizeMatchCode } from "@/lib/match-code";
 import { multiplayerEnabled } from "@/lib/net/room";
+import { PrefetchCanvas } from "@/components/PrefetchCanvas";
 
 /**
  * The match lobby: open a room, or join one somebody sent you.
@@ -34,6 +35,7 @@ export default function ArenaLobbyPage() {
 
   return (
     <PageShell mode="arena" width="prose">
+        <PrefetchCanvas kind="arena" />
         <header className="flex flex-col gap-2">
           <Link href="/" className="hud-label w-fit">
             ← Blockworld

@@ -417,6 +417,67 @@ Read draw calls, triangles, geometries and programs — those are
 device-independent. fps and worst-frame only mean something on the device you
 actually care about.
 
+## Load time, and where it actually goes
+
+Measured 10 September 2026, because the standing advice for this app was to
+Draco-compress the glTFs and convert textures to KTX2, and **all of `public/`
+is 717 KB**. The largest single asset is the bike at 73 KB. That work would
+save nothing, and knowing so is worth more than doing it.
+
+What the numbers actually are:
+
+| Thing | Cost |
+|---|---|
+| Every asset in `public/` | 717 KB total |
+| World build + colliders + occlusion, worst world (Vapor Ridge, 10,762 parts) | **81 ms** |
+| The world doc a race sends over the socket | 22-29 KB gzipped |
+| three.js chunk | 886 KB raw / 232 KB gz |
+| **Rapier chunk** | **2,183 KB raw / 815 KB gz** |
+| All built static JS | 5.5 MB raw |
+
+So it is not the art, it is not the geometry, and it is not the CPU: it is
+about 1.1 MB gzipped of JavaScript, and **the order it is fetched in**.
+
+### The waterfall
+
+Every canvas mounts through `next/dynamic` with `ssr: false`, which is correct
+— an R3F tree cannot be server-rendered — and has one expensive consequence.
+The component never renders on the server, so its chunk is not in the HTML.
+Served markup for `/race/<code>` references about 880 KB of chunks and **none
+of the three big ones**, so the download that matters starts last:
+
+    html -> app js -> hydrate -> discover canvas chunk -> 1.1 MB gz -> wasm init -> join room
+
+`<PrefetchCanvas kind="...">` is the fix, and it is mounted on the pages that
+come *before* a canvas — `/`, `/browse`, `/parkour`, `/race`, `/arena`. On
+idle it fires the same dynamic import the mount will fire later, so the bytes
+are already in the HTTP cache by the time anyone presses play. Guarded by
+`lib/prefetch.ts`: Data Saver means no, and so does anything slower than 4g.
+Unknown means yes, because Safari reports nothing and that is most phones.
+
+Two rules for it. The module specifiers in `LOADERS` must stay identical to
+the ones the mounts import, or the bundler emits a second copy of three.js and
+the prefetch downloads a megabyte for nothing. And it stays on an idle
+callback: a prefetch that delays the page it was mounted on has made things
+worse in exchange for making them better later.
+
+### What is still slow, and is not this
+
+- **The room server's cold start.** Render's free tier sleeps after 15 minutes
+  and takes the better part of a minute to wake. Nothing in the bundle affects
+  it, and for `/race/<code>` it dominates everything above. `RaceCanvas`
+  already says so on the loading screen ("waking the grid") rather than
+  spinning silently. The fix is an uptime monitor, not code — see the Render
+  section.
+- **A direct `/race/<code>` link**, which has no earlier page to prefetch from.
+- **Rapier's 815 KB.** `rapier3d-compat` base64-inlines its wasm, so the bytes
+  are ~33% larger than the binary and are decoded on the main thread. Not
+  addressed; it would mean leaving `@react-three/rapier`'s default loader.
+
+Before optimising anything here again, measure it. The instrument for the
+frame is `?perf=1`; the instrument for the load is the served HTML — read
+which chunks it references, and in what order they can possibly arrive.
+
 ## Blocks that are never drawn
 
 `lib/occlusion.ts` drops every part sealed in on all six sides before

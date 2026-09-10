@@ -13,6 +13,7 @@ import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
 import { UGC } from "@/lib/features";
 import { AdSlot } from "@/components/AdSlot";
 import { SiteFooter } from "@/components/SiteFooter";
+import { PrefetchCanvas } from "@/components/PrefetchCanvas";
 
 /**
  * Home: a live world for a visitor, a world list for a player.
@@ -197,6 +198,7 @@ export default async function Home() {
 
           {/* Last thing on the page, under real content — see lib/ads. */}
           <AdSlot placement="home" />
+          <PrefetchCanvas kind="world" />
           <SiteFooter />
         </div>
       </div>
@@ -340,6 +342,7 @@ export default async function Home() {
 
       {/* Last thing on the page, under real content — see lib/ads. */}
       <AdSlot placement="home" />
+      <PrefetchCanvas kind="world" />
       <SiteFooter />
     </div>
   );
