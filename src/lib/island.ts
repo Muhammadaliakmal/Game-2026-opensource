@@ -1,3 +1,4 @@
+import { surfaceIndex } from "./surface-dressing";
 import type { PartTuple, Shape, Vec3, WorldDoc } from "./worlddoc";
 
 /**
@@ -42,6 +43,8 @@ const WHITE = 31;
 
 const MATTE = 0;
 const GLOW = 3;
+
+const BARK = surfaceIndex("bark");
 
 /**
  * Island base surface. Everything hangs below it, and nothing goes under y=0 —
@@ -93,10 +96,14 @@ export function islandParts(): PartTuple[] {
     shape: Shape,
     color: number,
     finish: number,
-    rot = 0
+    rot = 0,
+    /** A surface, where the colour alone would be dressed as something else. */
+    texture?: number
   ) => {
     if (y < 0) return;
-    cells.set(`${x},${y},${z}`, [x, y, z, shape, color, finish, rot]);
+    const part: PartTuple = [x, y, z, shape, color, finish, rot];
+    if (texture) part.push(texture);
+    cells.set(`${x},${y},${z}`, part);
   };
 
   /** Elliptical falloff: 0 at the centre, 1 at the rim, >1 outside. */
@@ -139,7 +146,9 @@ export function islandParts(): PartTuple[] {
     // Rooted on the ground that is actually there, so a tree on the headland
     // is not left standing five cells up on nothing.
     const base = surfaceY(x, z);
-    for (let i = 1; i <= height; i++) put(x, base + i, z, BLOCK, DIRT, MATTE);
+    // The same brown as the soil, so the dressing in surface-dressing.ts
+    // cannot tell them apart — the trunk says what it is itself.
+    for (let i = 1; i <= height; i++) put(x, base + i, z, BLOCK, DIRT, MATTE, 0, BARK);
 
     const crown = base + height;
     for (let dx = -2; dx <= 2; dx++) {

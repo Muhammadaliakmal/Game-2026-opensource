@@ -1,3 +1,4 @@
+import { surfaceIndex } from "./surface-dressing";
 import type { PartTuple, Shape, Vec3, WorldDoc } from "./worlddoc";
 
 /**
@@ -44,10 +45,13 @@ export function heroParts(): PartTuple[] {
     shape: Shape,
     color: number,
     finish: number,
-    rot = 0
+    rot = 0,
+    texture?: number
   ) => {
     if (y < 0) return;
-    cells.set(`${x},${y},${z}`, [x, y, z, shape, color, finish, rot]);
+    const part: PartTuple = [x, y, z, shape, color, finish, rot];
+    if (texture) part.push(texture);
+    cells.set(`${x},${y},${z}`, part);
   };
 
   // ── Island ──────────────────────────────────────────────────────────────
@@ -83,7 +87,8 @@ export function heroParts(): PartTuple[] {
   put(5, TOP + 4, 0, BLOCK, SIGNAL, GLOW);
 
   // ── A tree and a little colour ──────────────────────────────────────────
-  for (let y = 1; y <= 3; y++) put(-4, TOP + y, 2, BLOCK, DIRT, MATTE);
+  // Same brown as the soil; the trunk names its own surface. See island.ts.
+  for (let y = 1; y <= 3; y++) put(-4, TOP + y, 2, BLOCK, DIRT, MATTE, 0, surfaceIndex("bark"));
   for (let dx = -2; dx <= 2; dx++) {
     for (let dz = -2; dz <= 2; dz++) {
       for (let dy = 0; dy <= 1; dy++) {

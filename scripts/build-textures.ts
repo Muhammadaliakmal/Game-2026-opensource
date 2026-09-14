@@ -67,15 +67,16 @@ const OUT_DIR = join(process.cwd(), "public", "textures", "generated");
 /**
  * How much of the luminance variation survives, 0..1.
  *
- * A photographic albedo tinted by a saturated palette colour reads as dirty
- * when the full contrast is kept — dark cracks in stone become near-black
- * cracks in a bright green block. 0.8 keeps the structure legible and lets the
- * palette colour stay the thing you see.
+ * 1.0 is the photograph's own contrast. It was 0.8 at first, on the theory
+ * that dark cracks in a bright green block would read as dirt — and at the
+ * third-person camera's eight metres it read as nothing at all. The palette
+ * colour still owns the hue; this only decides how far the shading swings
+ * around it, and at a block per metre it needs the full swing to be seen.
  */
-const LUMA_CONTRAST = 0.8;
+const LUMA_CONTRAST = 1.0;
 
-/** Same idea for roughness — half-strength modulation around the finish. */
-const ROUGH_CONTRAST = 0.5;
+/** Roughness modulates the finish rather than replacing it, so this stays soft. */
+const ROUGH_CONTRAST = 0.6;
 
 const N = TILE * TILE;
 

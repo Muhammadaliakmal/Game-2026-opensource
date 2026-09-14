@@ -547,6 +547,17 @@ Four things about it that are not obvious from the code:
   one surface therefore tiles continuously across cells. `TEXTURE_SCALE` and
   the rest of the numbers are in `lib/textures/tuning.ts`.
 
+**The shipped worlds are dressed, not authored.** Every generator writes
+seven-number parts, so on its own nothing that ships would show a surface —
+which is exactly what happened the first time. `lib/surface-dressing.ts`
+maps palette colour → surface per world (`NATURAL`, `COTTAGE`, `NEON`,
+`TRACK`), applied in `built-in-worlds.ts` at build time to matte and metal
+blocks only; glossy is glass and emissive is a marker. Where one colour plays
+two roles (the island's soil and its tree trunks) the generator passes the
+surface itself and the dressing leaves it alone. A remix inherits the result
+as ordinary parts. `surface-dressing.test.ts` requires every built-in world
+to come out at least 30% dressed.
+
 The pipeline: `npm run textures:fetch` downloads the 1K CC0 maps from Poly
 Haven into `assets/raw-textures/` (gitignored, like every raw asset) and
 writes `public/textures/CREDITS.md`; `npm run textures` builds the strips in

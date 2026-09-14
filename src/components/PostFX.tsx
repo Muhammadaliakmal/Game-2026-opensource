@@ -57,12 +57,17 @@ function FrameTotals() {
  */
 export function PostFX() {
   const quality = useRenderQuality();
+  // The pixel ratio actually in force, after the tier's cap. At 1.5× and up
+  // the frame is already supersampled past where 4× MSAA on top of it is
+  // visible, and on a voxel world that MSAA is the most expensive thing in
+  // the post chain — four samples per fragment over a 2× screen.
+  const dpr = useThree((s) => s.viewport.dpr);
   if (!quality.post) return null;
 
   return (
     <>
       <FrameTotals />
-      <EffectComposer multisampling={quality.antialias ? 4 : 0}>
+      <EffectComposer multisampling={quality.antialias && dpr < 1.5 ? 4 : 0}>
         <Bloom
           intensity={0.55}
           luminanceThreshold={0.75}

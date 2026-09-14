@@ -6,6 +6,7 @@ import { circuitWorldDoc } from "./circuit";
 import { vaporRidgeWorldDoc } from "./vapor-ridge";
 import { TIERED_COURSES } from "./courses";
 import type { Tier } from "./course-kit";
+import { COTTAGE, NATURAL, NEON, TRACK, dressDoc } from "./surface-dressing";
 
 /**
  * Worlds that ship with the game.
@@ -40,29 +41,31 @@ export const BUILT_IN_WORLDS: BuiltInWorld[] = [
     name: "Neon Run",
     tier: "Tutorial",
     blurb: "A forgiving obstacle course. Stones, a walkway, floating islands.",
-    build: (ownerId) => parkourWorldDoc("parkour", ownerId, "Neon Run"),
+    build: (ownerId) => dressDoc(parkourWorldDoc("parkour", ownerId, "Neon Run"), NEON),
   },
   // The rest of the ladder. Kept in `courses.ts` rather than inlined here so
   // the difficulty design and the registry stay separable — this file decides
   // what ships, that one decides what the maps are.
-  ...TIERED_COURSES,
+  // Dressed here rather than in courses.ts for the same reason: what a
+  // course is made of is a shipping decision, not a difficulty one.
+  ...TIERED_COURSES.map((c) => ({ ...c, build: (ownerId: string) => dressDoc(c.build(ownerId), NEON) })),
   {
     slug: "island",
     name: "Sky Yard",
     blurb: "An island in the void. Trees, an arch, a lantern path. No goal.",
-    build: (ownerId) => islandWorldDoc("island", ownerId, "Sky Yard"),
+    build: (ownerId) => dressDoc(islandWorldDoc("island", ownerId, "Sky Yard"), NATURAL),
   },
   {
     slug: "cottage",
     name: "The Cottage",
     blurb: "A house you can walk into — and the clearest thing here to remix.",
-    build: (ownerId) => cottageWorldDoc("cottage", ownerId, "The Cottage"),
+    build: (ownerId) => dressDoc(cottageWorldDoc("cottage", ownerId, "The Cottage"), COTTAGE),
   },
   {
     slug: "circuit",
     name: "Neon Circuit",
     blurb: "A railed loop with nothing to fall off. Hold sprint and go.",
-    build: (ownerId) => circuitWorldDoc("circuit", ownerId, "Neon Circuit"),
+    build: (ownerId) => dressDoc(circuitWorldDoc("circuit", ownerId, "Neon Circuit"), TRACK),
   },
   {
     slug: "ridge",
@@ -70,7 +73,7 @@ export const BUILT_IN_WORLDS: BuiltInWorld[] = [
     blurb:
       "The circuit's shape, up on stilts. A hill on the right, and a crest on " +
       "the back straight that throws you off the end of it.",
-    build: (ownerId) => vaporRidgeWorldDoc("ridge", ownerId, "Vapor Ridge"),
+    build: (ownerId) => dressDoc(vaporRidgeWorldDoc("ridge", ownerId, "Vapor Ridge"), TRACK),
   },
 ];
 

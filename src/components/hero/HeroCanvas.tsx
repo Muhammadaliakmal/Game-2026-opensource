@@ -11,6 +11,7 @@ import { BlockSurfaces } from "@/components/BlockSurfaces";
 import { FollowSun } from "@/components/FollowSun";
 import { cellFromHit } from "@/lib/grid";
 import { PALETTE, type PartTuple } from "@/lib/worlddoc";
+import { NATURAL, dressParts } from "@/lib/surface-dressing";
 import { heroParts, heroWorldDoc } from "@/lib/hero-world";
 import { DRAFT_ID, hasDraft, saveDraft } from "@/lib/draft";
 import { sfxPlace } from "@/lib/audio";
@@ -43,7 +44,7 @@ const CLICK_SLOP_PX = 6;
 
 export default function HeroCanvas() {
   const router = useRouter();
-  const [parts, setParts] = useState<PartTuple[]>(() => heroParts());
+  const [parts, setParts] = useState<PartTuple[]>(() => dressParts(heroParts(), NATURAL));
   const [placed, setPlaced] = useState(0);
 
   // Where the pointer went down, to tell a click from an orbit drag. In a ref

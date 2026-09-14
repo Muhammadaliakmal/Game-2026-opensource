@@ -30,11 +30,13 @@ export const TRIPLANAR_SHARPNESS = 8.0;
 /**
  * Strength of the normal map, as a multiplier on the tangent-space slope.
  *
- * 1.0 is the map as authored. Photographic normals from a 1K source read
- * slightly strong once shrunk to 256px — the fine relief survives, the gentle
- * undulation is averaged away — so this is pulled back a touch.
+ * 1.0 is the map as authored. Shrinking a 1K source to 256px averages the
+ * gentle undulation away and keeps only the fine relief, which then reads
+ * weaker than the original at the camera's usual eight metres — so this is
+ * pushed a little past authored to bring the mortar lines and plate ridges
+ * back to where the full-size map put them.
  */
-export const NORMAL_STRENGTH = 0.85;
+export const NORMAL_STRENGTH = 1.25;
 
 /**
  * Part 8 — the close-up detail pass.
@@ -47,7 +49,7 @@ export const DETAIL = {
   /** Tiles per world unit. */
   scale: 24.0,
   /** 0 = off, 1 = heavy grain. The spec's sweet spot is 0.3–0.4. */
-  strength: 0.3,
+  strength: 0.35,
   /** Metres. Full strength inside this. */
   fadeStart: 8,
   /** Metres. Zero past this. */
