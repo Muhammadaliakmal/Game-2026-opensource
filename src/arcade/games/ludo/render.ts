@@ -18,6 +18,7 @@ import {
   yardCell,
 } from "./board";
 import type { LudoMove, LudoState } from "./rules";
+import { grainOverlay, paperTexture, woodTexture } from "@/arcade/host/texture";
 
 /**
  * Ludo's own furniture.
@@ -45,6 +46,11 @@ const TAU = Math.PI * 2;
 
 /** The felt the board is printed on. */
 const BOARD = "#F3F1EA";
+
+/** The frame, the sheet and the grain. Module tiles, painted once. */
+const WOOD = woodTexture(31);
+const PAPER = paperTexture(BOARD, 32);
+const GRAIN = grainOverlay(33, 0.09);
 const TRACK = "#FFFFFF";
 const INK = "#12151C";
 const LINE = "rgba(18,21,28,0.35)";
@@ -187,8 +193,16 @@ export function createRenderer(painter: BoardPainter): Renderer {
       const { state } = view;
       const tokens = state.settings.tokens;
 
-      // ── The board itself ──
-      ctx.fillStyle = BOARD;
+      // ── The frame, and the board itself ──
+      // A wooden frame under a printed sheet. The frame sits in the margin
+      // the host leaves around the board, so nothing here moves.
+      ctx.fillStyle = WOOD.fill(ctx, 3);
+      roundRect(ctx, -0.42, -0.42, BOARD_SIZE + 0.84, BOARD_SIZE + 0.84, 0.7);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 0.06;
+      ctx.stroke();
+      ctx.fillStyle = PAPER.fill(ctx, 2.4);
       roundRect(ctx, 0, 0, BOARD_SIZE, BOARD_SIZE, 0.5);
       ctx.fill();
 
@@ -253,6 +267,13 @@ export function createRenderer(painter: BoardPainter): Renderer {
       ctx.lineWidth = 0.05;
       ctx.strokeStyle = LINE;
       ctx.strokeRect(6, 6, 3, 3);
+
+      // The grain over everything printed, before anything that stands on
+      // it: cells, yards and lanes are opaque colour, and this is what makes
+      // them one sheet rather than three kinds of paint.
+      ctx.fillStyle = GRAIN.fill(ctx, 2);
+      roundRect(ctx, 0, 0, BOARD_SIZE, BOARD_SIZE, 0.5);
+      ctx.fill();
 
       // ── What can be tapped ──
       // Only ever the local player's own moves. Drawing the highlights on a

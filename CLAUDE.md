@@ -624,6 +624,30 @@ inside a branch has undefined derivatives where a quad diverges, which is a
 sparkle along every block edge on some GPUs. The detail pass is skipped
 entirely past `DETAIL.fadeEnd`, which is most of any world.
 
+## Arcade surfaces
+
+The cabinets are 2D canvas, and "texture" there is `arcade/host/texture.ts`:
+small procedural tiles (grain, paper, wood, riveted plate) painted ONCE into
+offscreen canvases and used as `CanvasPattern`s, so a textured rect costs
+one `fillRect` like a flat one. Nothing is downloaded — a cabinet loads
+lazily for a ninety-second game — and every tile is seeded, so it is the
+same tile in every screenshot. Three rules:
+
+- **A pattern tiles from the origin of user space.** Translate to the shape's
+  own corner before filling it, or the seams land wherever the tile falls —
+  the tower's 28px rows over a 26px panel drift two pixels a row. `block()`
+  in tower-stack's renderer is the example.
+- **Board games pass the tile size in board units** (`fill(ctx, 2)` is two
+  cells per tile); pixel-space games pass the tile's own pixel size. The
+  pattern's transform is set from that, because a 64px tile under a 40×
+  board scale would otherwise repeat once per board.
+- **Every helper returns a plain colour when there is no canvas** —
+  `render.test.ts` drives the renderers through a recording Proxy with no
+  `document` — so a renderer asks for a fill and never checks what came back.
+
+Still no `shadowBlur`, still no gradient per row, still no allocation in
+`draw`: the one gradient a sky needs is made once per context in a WeakMap.
+
 ## Frame rate
 
 Every continuously-animating canvas runs `frameloop="never"` with a

@@ -1,5 +1,10 @@
 import * as T from "./tuning";
 import { surfaceY, type Sim } from "./sim";
+import { bevelRect, grainOverlay, plateOverlay } from "@/arcade/host/texture";
+
+/** Platform plating and grain: module tiles, painted once, shared by runs. */
+const PLATE = plateOverlay(21);
+const GRAIN = grainOverlay(22, 0.12);
 
 /**
  * Chunk Runner's drawing, and nothing else.
@@ -22,6 +27,14 @@ import { surfaceY, type Sim } from "./sim";
  *
  * The particle pool, the gradients and the strips are all made in
  * `createRenderer`. `draw` assigns numbers and calls canvas methods.
+ *
+ * ── Surfaces ─────────────────────────────────────────────────────────────
+ *
+ * The sky is a gradient with a field of stars, pre-rendered into the slowest
+ * strip so it parallaxes with the skyline. Platforms are their colour, a
+ * riveted-plate tile and a grain tile over it — three `fillRect`s where
+ * there was one — and the lit lip stays exactly as bright as it was, because
+ * it is the one edge the game is about. See host/texture.ts.
  */
 
 /** Width of one repeating background strip, in pixels. */
@@ -96,8 +109,38 @@ export function createRenderer(rng: () => number): Renderer {
     return c;
   }
 
+  /**
+   * The sky: a gradient from near-black at the top to the skyline's own blue
+   * at the horizon, with stars that thin out toward it — the same fade the
+   * world's night sky applies, for the same reason. Opaque, so it is the
+   * first strip and the flat backdrop under it is only ever seen for the
+   * frame a shake exposes an edge.
+   */
+  function sky() {
+    const c = document.createElement("canvas");
+    c.width = STRIP_W;
+    c.height = h;
+    const g = c.getContext("2d");
+    if (!g) return c;
+    const grad = g.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, "#04061a");
+    grad.addColorStop(0.6, "#0a0f2e");
+    grad.addColorStop(1, "#141b4a");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, STRIP_W, h);
+    for (let i = 0; i < 90; i++) {
+      const t = rng();
+      const y = rng() * rng() * h * 0.7;
+      const r = t > 0.92 ? 2 : 1;
+      g.fillStyle = `rgba(255,255,255,${0.25 + rng() * 0.6})`;
+      g.fillRect(Math.floor(rng() * STRIP_W), Math.floor(y), r, r);
+    }
+    return c;
+  }
+
   const base = h - T.GROUND_Y;
   let layers: Layer[] = [
+    { canvas: sky(), factor: 0.04 },
     { canvas: strip(base - 40, "#131a3c", 60, 190), factor: 0.15 },
     { canvas: strip(base - 12, "#1b2452", 40, 130), factor: 0.35 },
     { canvas: strip(base + 4, "#232e63", 20, 70), factor: 0.6 },
@@ -168,9 +211,21 @@ export function createRenderer(rng: () => number): Renderer {
         );
       }
 
-      ctx.fillStyle = "#080c22";
+      ctx.fillStyle = "#04061a";
       ctx.fillRect(-16, -16, w + 32, h + 32);
       for (let i = 0; i < layers.length; i++) drawLayer(ctx, layers[i], camX);
+
+      // The moon, drawn here and not in the sky strip: a strip repeats every
+      // 512px and a moon in it is two moons on a 960px view. It is at
+      // infinity, so it does not scroll at all. Two arcs.
+      ctx.fillStyle = "rgba(200,214,255,0.12)";
+      ctx.beginPath();
+      ctx.arc(150, 84, 34, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#e6ebff";
+      ctx.beginPath();
+      ctx.arc(150, 84, 13, 0, Math.PI * 2);
+      ctx.fill();
 
       // ── Platforms ──
       for (let i = 0; i < sim.chunks.length; i++) {
@@ -178,12 +233,24 @@ export function createRenderer(rng: () => number): Renderer {
         const x = Math.round(c.x - camX);
         if (x > w || x + c.w < 0) continue;
         const sy = Math.round(surfaceY(h, c.h));
+        const cw = Math.round(c.w);
         ctx.fillStyle = "#2f3a7a";
-        ctx.fillRect(x, sy, Math.round(c.w), h - sy);
+        ctx.fillRect(x, sy, cw, h - sy);
+        // The plating, anchored to the platform's own corner so the seams
+        // stay put on it as it scrolls rather than sliding across it.
+        ctx.translate(x, sy);
+        ctx.fillStyle = PLATE.fill(ctx, 48);
+        ctx.fillRect(0, 0, cw, h - sy);
+        ctx.fillStyle = GRAIN.fill(ctx, 64);
+        ctx.fillRect(0, 0, cw, h - sy);
+        ctx.translate(-x, -sy);
+        // A dark underside below the lip, so the top face reads as a face.
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.fillRect(x, sy + 3, cw, 4);
         // A lit lip, so the surface you have to land on is the brightest edge
         // on screen. In a one-input game that edge is the only information.
         ctx.fillStyle = "#67e8f9";
-        ctx.fillRect(x, sy, Math.round(c.w), 3);
+        ctx.fillRect(x, sy, cw, 3);
       }
 
       // ── Spikes ──
@@ -203,18 +270,25 @@ export function createRenderer(rng: () => number): Renderer {
       }
 
       // ── Gold ──
-      ctx.fillStyle = "#fbbf24";
+      // A disc with a rim and a glint, so it reads as a coin and not a
+      // yellow tile. Two arcs and a rect; the disc is the expensive one and
+      // there are at most a dozen on screen.
       for (let i = 0; i < sim.coinPool.length; i++) {
         const coin = sim.coinPool[i];
         if (!coin.live) continue;
         const x = Math.round(coin.x - camX);
         if (x > w || x < -T.COIN_R * 2) continue;
-        ctx.fillRect(
-          x - T.COIN_R,
-          Math.round(coin.y) - T.COIN_R,
-          T.COIN_R * 2,
-          T.COIN_R * 2
-        );
+        const y = Math.round(coin.y);
+        ctx.fillStyle = "#b45309";
+        ctx.beginPath();
+        ctx.arc(x, y, T.COIN_R, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fbbf24";
+        ctx.beginPath();
+        ctx.arc(x, y, T.COIN_R - 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fef3c7";
+        ctx.fillRect(x - 3, y - 4, 3, 3);
       }
 
       // ── Dust ──
@@ -230,8 +304,7 @@ export function createRenderer(rng: () => number): Renderer {
       // ── The runner ──
       const rx = Math.round(px - camX);
       const ry = Math.round(py);
-      ctx.fillStyle = sim.dead ? "#f43f5e" : "#22d3ee";
-      ctx.fillRect(rx, ry, T.PLAYER_W, T.PLAYER_H);
+      bevelRect(ctx, rx, ry, T.PLAYER_W, T.PLAYER_H, sim.dead ? "#f43f5e" : "#22d3ee", 3);
       // A visor, so which way it faces is legible at a glance and the box
       // reads as a character rather than as a bug.
       ctx.fillStyle = "#0f172a";

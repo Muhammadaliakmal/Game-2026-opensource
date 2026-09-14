@@ -1,3 +1,4 @@
+import { grainOverlay, paperTexture, woodTexture } from "@/arcade/host/texture";
 import type { TokenView, Vec2 } from "@/arcade/host/anim";
 import type { BoardPainter } from "@/arcade/host/board";
 import { SEAT_COLOURS } from "@/arcade/host/board";
@@ -55,6 +56,12 @@ const BOARD = "#F3F1EA";
 const INK = "#12151C";
 const LINE = "rgba(18,21,28,0.28)";
 const BACKDROP = "#0B0F18";
+
+/** The frame, the sheet and the grain — the same tiles Ludo uses, so the two
+ *  boards look like they came out of the same box. Painted once. */
+const WOOD = woodTexture(31);
+const PAPER = paperTexture(BOARD, 32);
+const GRAIN = grainOverlay(33, 0.09);
 /** The two square tints of the checker. Low contrast: numbers sit on them. */
 const LIGHT = "#FFFFFF";
 const DARK = "#E7E3D6";
@@ -252,7 +259,14 @@ export function createRenderer(painter: BoardPainter): Renderer {
       const px = Math.max(8, Math.min(15, scale * 0.3));
       const { state } = view;
 
-      ctx.fillStyle = BOARD;
+      // ── The frame, and the board itself ──
+      ctx.fillStyle = WOOD.fill(ctx, 3);
+      roundRect(ctx, -0.42, -0.42, BOARD_SIZE + 0.84, BOARD_SIZE + 0.84, 0.7);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.lineWidth = 0.06;
+      ctx.stroke();
+      ctx.fillStyle = PAPER.fill(ctx, 2.4);
       roundRect(ctx, 0, 0, BOARD_SIZE, BOARD_SIZE, 0.5);
       ctx.fill();
 
@@ -326,6 +340,11 @@ export function createRenderer(painter: BoardPainter): Renderer {
           );
         }
       }
+
+      // The grain, over the printed board and under anything standing on it.
+      ctx.fillStyle = GRAIN.fill(ctx, 2);
+      roundRect(ctx, 0, 0, BOARD_SIZE, BOARD_SIZE, 0.5);
+      ctx.fill();
 
       // ── The snake that let go ──
       if (view.held && view.held.left > 0) {

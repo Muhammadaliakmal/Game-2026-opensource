@@ -1,5 +1,6 @@
 import * as T from "./tuning";
 import type { Sim } from "./sim";
+import { bevelRect, grainOverlay, plateOverlay } from "@/arcade/host/texture";
 
 /**
  * Tower Stack's drawing.
@@ -16,6 +17,11 @@ import type { Sim } from "./sim";
  * No shadows, no gradients per row, no `shadowBlur`. A blurred shadow is the
  * single most expensive thing canvas 2D offers and it would be paid twenty-six
  * times a frame here for an effect nobody would name if it vanished.
+ *
+ * The surfaces are rectangles too. A row is its colour, a light top edge, a
+ * dark bottom edge, and one `fillRect` of a riveted-plate tile that was
+ * painted once at load (host/texture.ts) — four rects, and the flat bar
+ * reads as a steel block. The sky is one gradient, made once per context.
  */
 
 const rowColour = (index: number) =>
@@ -34,9 +40,32 @@ export interface Renderer {
   destroy(): void;
 }
 
+/** The plate seams, sized so each row is exactly one course of panels. */
+const PLATE = plateOverlay(5);
+const GRAIN = grainOverlay(9, 0.14);
+
 export function createRenderer(): Renderer {
   const w = T.VIEW_W;
   const h = T.VIEW_H;
+  const rowH = T.ROW_H - 2;
+
+  // One gradient per context, not per frame. Contexts are stable for the
+  // life of a run, so this is made once.
+  const skies = new WeakMap<CanvasRenderingContext2D, CanvasGradient>();
+  const skyFor = (ctx: CanvasRenderingContext2D) => {
+    let g = skies.get(ctx);
+    if (g) return g;
+    try {
+      g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, "#070a1e");
+      g.addColorStop(0.55, "#0b1030");
+      g.addColorStop(1, "#141b4a");
+    } catch {
+      return null;
+    }
+    if (g) skies.set(ctx, g);
+    return g ?? null;
+  };
 
   return {
     draw(ctx, sim, alpha, canvasW, canvasH, flash, comboAge) {
@@ -54,7 +83,7 @@ export function createRenderer(): Renderer {
       ctx.rect(0, 0, w, h);
       ctx.clip();
 
-      ctx.fillStyle = "#0b1030";
+      ctx.fillStyle = skyFor(ctx) ?? "#0b1030";
       ctx.fillRect(0, 0, w, h);
 
       // ── The ground ──
@@ -62,6 +91,8 @@ export function createRenderer(): Renderer {
       // hangs in the middle of an empty field and the game reads as unfinished
       // before the player has pressed anything.
       ctx.fillStyle = "#141a3d";
+      ctx.fillRect(0, T.FLOOR_Y, w, h - T.FLOOR_Y);
+      ctx.fillStyle = PLATE.fill(ctx, 48);
       ctx.fillRect(0, T.FLOOR_Y, w, h - T.FLOOR_Y);
       ctx.fillStyle = "#2b3570";
       ctx.fillRect(0, T.FLOOR_Y, w, 2);
@@ -78,8 +109,7 @@ export function createRenderer(): Renderer {
         const y = sim.rowY(sim.placed - 1 - i);
         // Off the bottom: everything below is further off it still.
         if (y > h) break;
-        ctx.fillStyle = rowColour(sim.placed - 1 - i);
-        ctx.fillRect(Math.round(row.x), Math.round(y), Math.round(row.w), T.ROW_H - 2);
+        block(ctx, Math.round(row.x), Math.round(y), Math.round(row.w), rowH, rowColour(sim.placed - 1 - i));
       }
 
       // ── The block in play ──
@@ -88,13 +118,7 @@ export function createRenderer(): Renderer {
       const landY = sim.rowY(sim.placed - 1);
       if (!sim.dead) {
         const x = sim.prevX + (sim.curX - sim.prevX) * alpha;
-        ctx.fillStyle = rowColour(sim.placed);
-        ctx.fillRect(
-          Math.round(x),
-          Math.round(activeY),
-          Math.round(sim.curW),
-          T.ROW_H - 2
-        );
+        block(ctx, Math.round(x), Math.round(activeY), Math.round(sim.curW), rowH, rowColour(sim.placed));
         // A one-pixel guide from the block's left edge across the row it is
         // about to land on. In a timing game the only information that matters
         // is where the two edges line up, and this is what makes that readable
@@ -108,12 +132,11 @@ export function createRenderer(): Renderer {
       }
 
       // ── Sliced pieces ──
-      ctx.fillStyle = "#64748b";
       for (let i = 0; i < sim.slices.length; i++) {
         const sl = sim.slices[i];
         if (sl.life <= 0) continue;
         ctx.globalAlpha = Math.min(1, sl.life);
-        ctx.fillRect(Math.round(sl.x), Math.round(sl.y), Math.round(sl.w), T.ROW_H - 2);
+        block(ctx, Math.round(sl.x), Math.round(sl.y), Math.round(sl.w), rowH, "#64748b");
       }
       ctx.globalAlpha = 1;
 
@@ -149,7 +172,26 @@ export function createRenderer(): Renderer {
     },
 
     destroy() {
-      // Nothing retained: this renderer holds no canvases, images or nodes.
+      // The sky gradients die with their contexts (WeakMap); the plate and
+      // grain tiles are module singletons shared by every run.
     },
   };
+}
+
+/**
+ * One block of the tower: bevelled, plated, grained. Six rects.
+ *
+ * A pattern tiles from the origin of user space, so the plate is drawn with
+ * the origin moved to the block's corner — otherwise the seams sit wherever
+ * the tile happens to fall and a row of 28 with a panel of 26 drifts two
+ * pixels per row until the seams are halfway up a block.
+ */
+function block(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, colour: string) {
+  bevelRect(ctx, x, y, w, h, colour, 2);
+  ctx.translate(x, y);
+  ctx.fillStyle = PLATE.fill(ctx, h * 2);
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = GRAIN.fill(ctx, 64);
+  ctx.fillRect(0, 0, w, h);
+  ctx.translate(-x, -y);
 }

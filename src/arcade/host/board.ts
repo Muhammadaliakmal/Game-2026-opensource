@@ -177,6 +177,20 @@ export interface BoardPainter {
 
 const TAU = Math.PI * 2;
 
+/** The die's outline: a square with rounded corners, via arcTo — not
+ *  `ctx.roundRect`, which is missing from the browsers a year or two back. */
+function dieFace(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  const w = r * 2;
+  const c = r * 0.22;
+  ctx.beginPath();
+  ctx.moveTo(x + c, y);
+  ctx.arcTo(x + w, y, x + w, y + w, c);
+  ctx.arcTo(x + w, y + w, x, y + w, c);
+  ctx.arcTo(x, y + w, x, y, c);
+  ctx.arcTo(x, y, x + w, y, c);
+  ctx.closePath();
+}
+
 function shapePath(
   ctx: CanvasRenderingContext2D,
   shape: TokenShape,
@@ -319,6 +333,19 @@ export function createPainter(graph: BoardGraph): BoardPainter {
       ctx.strokeStyle = "rgba(18,21,28,0.55)";
       ctx.stroke();
 
+      // The bead: a darker lower half and a glint up-left, which is what
+      // turns a flat disc of colour into something with a surface. Two more
+      // fills of the same path, no gradient, no allocation.
+      ctx.save();
+      shapePath(ctx, shape, x, y, TOKEN_RADIUS);
+      ctx.clip();
+      ctx.fillStyle = "rgba(18,21,28,0.22)";
+      ctx.fillRect(x - TOKEN_RADIUS, y + TOKEN_RADIUS * 0.25, TOKEN_RADIUS * 2, TOKEN_RADIUS);
+      ctx.restore();
+      ctx.fillStyle = "rgba(255,255,255,0.38)";
+      shapePath(ctx, shape, x - TOKEN_RADIUS * 0.22, y - TOKEN_RADIUS * 0.26, TOKEN_RADIUS * 0.42);
+      ctx.fill();
+
       if (view.flash > 0) {
         ctx.globalAlpha = Math.min(1, view.flash / 12);
         ctx.fillStyle = "#ffffff";
@@ -383,10 +410,21 @@ export function createPainter(graph: BoardGraph): BoardPainter {
       // Spins down to square rather than stopping at an angle.
       ctx.rotate(settled ? 0 : (1 - progress) * 1.7);
 
-      ctx.fillStyle = "#F5F7FA";
-      ctx.beginPath();
-      ctx.rect(-r, -r, r * 2, r * 2);
+      // A cast die rather than a white square: rounded, a lit top edge, a
+      // shaded bottom edge, and a soft shadow under it on the board.
+      ctx.fillStyle = "rgba(18,21,28,0.18)";
+      dieFace(ctx, -r + 0.05, -r + 0.09, r);
       ctx.fill();
+      ctx.fillStyle = "#F5F7FA";
+      dieFace(ctx, -r, -r, r);
+      ctx.fill();
+      ctx.save();
+      ctx.clip();
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.fillRect(-r, -r, r * 2, r * 0.18);
+      ctx.fillStyle = "rgba(18,21,28,0.13)";
+      ctx.fillRect(-r, r * 0.7, r * 2, r * 0.3);
+      ctx.restore();
       ctx.lineWidth = 0.05;
       ctx.strokeStyle = "rgba(18,21,28,0.35)";
       ctx.stroke();
