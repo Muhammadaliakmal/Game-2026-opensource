@@ -12,6 +12,9 @@ import { occlusionIndex } from "@/lib/occlusion";
 import { punches } from "./punch";
 import { createFinishMaterial, shapeGeometries } from "./shapes";
 import { useRenderQuality } from "@/lib/quality";
+import { useBlockArrays } from "@/lib/textures/block-arrays";
+import { ownedGeometry, writeInstanceTextures } from "@/lib/textures/instance-texture";
+import type { TextureMode } from "@/lib/textures/block-shader";
 
 const dummy = new THREE.Object3D();
 const col = new THREE.Color();
@@ -84,6 +87,7 @@ function Bucket({
   parts: mine,
   castShadow = true,
   detail = 2,
+  textures = "flat",
   cullable = false,
 }: {
   shape: number;
@@ -93,6 +97,8 @@ function Bucket({
   /** See the `groundY` note on <InstancedParts>. */
   castShadow?: boolean;
   detail?: 1 | 2;
+  /** What the material samples — see lib/quality.ts. */
+  textures?: TextureMode;
   /**
    * Whether this bucket is small enough in space to be worth culling.
    *
@@ -114,12 +120,27 @@ function Bucket({
   // power of two keeps the remount (which reallocates the buffers) rare.
   const capacity = useMemo(() => capacityFor(mine.length), [mine.length]);
 
-  const material = useMemo(() => createFinishMaterial(finish), [finish]);
-  const geometry = useMemo(() => shapeGeometries(detail), [detail]);
+  // Null until the strip has downloaded, and the material is rebuilt exactly
+  // once when it arrives. Before that, and forever if it fails, this is the
+  // plain material it always was.
+  const arrays = useBlockArrays();
+  const material = useMemo(
+    () => createFinishMaterial(finish, arrays, textures),
+    [finish, arrays, textures]
+  );
+  // This bucket's own copy of the shape, carrying its instances' surface
+  // indices. Cloned rather than shared because the attribute is per bucket —
+  // see lib/textures/instance-texture.ts.
+  const geometry = useMemo(
+    () => ownedGeometry(shapeGeometries(detail)[shape], capacity),
+    [detail, shape, capacity]
+  );
 
-  // Dispose the material when this bucket unmounts — R3F only auto-disposes
-  // what it created declaratively, not objects built in a useMemo.
+  // Dispose the material and the owned geometry when this bucket unmounts —
+  // R3F only auto-disposes what it created declaratively, not objects built
+  // in a useMemo.
   useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   useEffect(() => {
     const mesh = ref.current;
@@ -141,6 +162,7 @@ function Bucket({
       col.set(PALETTE[p[4]]);
       mesh.setColorAt(i, col);
     }
+    writeInstanceTextures(geometry, mine);
 
     mesh.count = mine.length;
     mesh.instanceMatrix.needsUpdate = true;
@@ -148,7 +170,7 @@ function Bucket({
     // Required after moving instances, or the raycaster silently misses them.
     mesh.computeBoundingSphere();
     invalidate();
-  }, [mine, shape, finish, capacity, material, invalidate]);
+  }, [mine, shape, finish, capacity, material, geometry, invalidate]);
 
   // Placement punch: a fresh block scales in from `placePunchScale` down to 1.
   // Runs only while something is animating, and only touches those instances —
@@ -209,7 +231,7 @@ function Bucket({
       // Remounting on capacity change reallocates the underlying buffers.
       key={capacity}
       ref={ref}
-      args={[geometry[shape], material, capacity]}
+      args={[geometry, material, capacity]}
       // Culled only when the bucket is a chunk of the world rather than all of
       // it. `computeBoundingSphere` runs after the matrices are written below,
       // so a chunk's bounds are tight around the blocks it actually holds and
@@ -311,6 +333,7 @@ export function InstancedParts({
           parts={parts}
           castShadow={casts}
           detail={quality.blockDetail}
+          textures={quality.textures}
           cullable={chunked}
         />
       ))}

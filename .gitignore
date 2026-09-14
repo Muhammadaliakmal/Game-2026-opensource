@@ -56,3 +56,8 @@ next-env.d.ts
 # came in) that `npm run bike:import` reads; public/bikes/ is the 20k-triangle,
 # five-material GLB it produces, and that is what ships.
 /assets/raw-bikes/
+
+# And for block surfaces: assets/raw-textures/ holds the 1K Poly Haven maps
+# that `npm run textures:fetch` downloads and `npm run textures` reads;
+# public/textures/generated/ is the 256px strip it produces, and that ships.
+/assets/raw-textures/

@@ -3,7 +3,10 @@
 import * as THREE from "three";
 import { useEffect, useMemo, useRef } from "react";
 import { PALETTE, type PartTuple } from "@/lib/worlddoc";
-import { SHAPE_GEOMETRIES, createFinishMaterial } from "@/components/editor/shapes";
+import { createFinishMaterial, shapeGeometries } from "@/components/editor/shapes";
+import { useRenderQuality } from "@/lib/quality";
+import { useBlockArrays } from "@/lib/textures/block-arrays";
+import { ownedGeometry, writeInstanceTextures } from "@/lib/textures/instance-texture";
 
 const dummy = new THREE.Object3D();
 const col = new THREE.Color();
@@ -25,10 +28,24 @@ function Bucket({
   parts: PartTuple[];
 }) {
   const ref = useRef<THREE.InstancedMesh>(null!);
+  const quality = useRenderQuality();
 
-  const material = useMemo(() => createFinishMaterial(finish), [finish]);
+  // Same shape as the editor's Bucket: the plain material until the arrays
+  // arrive, rebuilt once when they do, and an owned geometry carrying this
+  // bucket's surface indices. See lib/textures/instance-texture.ts.
+  const arrays = useBlockArrays();
+  const material = useMemo(
+    () => createFinishMaterial(finish, arrays, quality.textures),
+    [finish, arrays, quality.textures]
+  );
+  const capacity = Math.max(parts.length, 1);
+  const geometry = useMemo(
+    () => ownedGeometry(shapeGeometries(quality.blockDetail)[shape], capacity),
+    [quality.blockDetail, shape, capacity]
+  );
 
   useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   useEffect(() => {
     const mesh = ref.current;
@@ -44,17 +61,21 @@ function Bucket({
       col.set(PALETTE[p[4]]);
       mesh.setColorAt(i, col);
     }
+    writeInstanceTextures(geometry, parts);
 
     mesh.count = parts.length;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
-  }, [parts, material]);
+  }, [parts, material, geometry]);
 
   return (
     <instancedMesh
+      // Remount when the geometry changes: `args` are constructor arguments
+      // and R3F does not swap them on a live object.
+      key={geometry.uuid}
       ref={ref}
-      args={[SHAPE_GEOMETRIES[shape], material, Math.max(parts.length, 1)]}
+      args={[geometry, material, capacity]}
       frustumCulled={false}
       castShadow
       receiveShadow

@@ -61,6 +61,8 @@ import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
 import { PlayHud } from "./PlayHud";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
+import { BlockSurfaces } from "@/components/BlockSurfaces";
+import { PostFX } from "@/components/PostFX";
 import { FootKeyboard } from "@/components/play/FootKeyboard";
 import { useRenderQuality } from "@/lib/quality";
 import { SANDBOX_WORLDS } from "@/lib/built-in-worlds";
@@ -634,6 +636,14 @@ export default function WorldCanvas({
         {/* One renderer for both modes: the world can never flash or disagree
             with itself on the way through the transition. */}
         <InstancedParts />
+        {/* The surface arrays, anisotropy, and — playing only — the shader
+            precompile and the adaptive tier monitor. Build renders on demand,
+            where a slow frame means nothing. */}
+        <BlockSurfaces precompile={playing} adaptive={playing} />
+        {/* Bloom on the emissive finish and a vignette, playing only: the
+            editor is where a colour is judged, on a frame nothing has
+            graded. See components/PostFX.tsx. */}
+        {playing && <PostFX />}
         {/* Play mode's read-only view of the same props Build edits live —
             colliders for these are the PropColliders inside <Physics> below. */}
         {playing && snapshot && <PlacedProps props={snapshot.props} />}

@@ -1,5 +1,11 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import type { BlockArrays } from "@/lib/textures/block-arrays";
+import {
+  applyBlockTextures,
+  textureCacheKey,
+  type TextureMode,
+} from "@/lib/textures/block-shader";
 
 /**
  * The four buildable shapes, as geometries centred on the cell origin so each
@@ -210,6 +216,11 @@ export const FINISH_PARAMS: Array<{
  * Each caller owns the returned material and must dispose it on unmount —
  * R3F only auto-disposes what it created declaratively.
  *
+ * `arrays` and `mode` say whether it samples the block surface textures. With
+ * no arrays (still loading, failed, or a tier that turned them off) this is
+ * exactly the material it was before surfaces existed, and a textured part
+ * simply renders as its palette colour. See lib/textures/block-shader.ts.
+ *
  * The emissive patch is the interesting part. An InstancedMesh carries ONE
  * material and varies colour per instance through `instanceColor`, which three
  * wires into the diffuse term only — `material.emissive` stays a single
@@ -218,7 +229,11 @@ export const FINISH_PARAMS: Array<{
  * last. Multiplying the emissive term by the instance colour in the shader is
  * what lets each block glow in its own colour.
  */
-export function createFinishMaterial(finish: number): THREE.MeshStandardMaterial {
+export function createFinishMaterial(
+  finish: number,
+  arrays: BlockArrays | null = null,
+  mode: TextureMode = "flat"
+): THREE.MeshStandardMaterial {
   const p = FINISH_PARAMS[finish];
   const material = new THREE.MeshStandardMaterial({
     roughness: p.roughness,
@@ -249,10 +264,19 @@ export function createFinishMaterial(finish: number): THREE.MeshStandardMaterial
         #endif`
       );
     };
-    // A patched shader must not be served a cached program compiled from the
-    // unpatched source.
-    material.customProgramCacheKey = () => "blockworld-emissive-instanced";
   }
+
+  const textured = arrays !== null && mode !== "flat";
+  if (textured) applyBlockTextures(material, arrays, mode);
+
+  // A patched shader must not be served a cached program compiled from a
+  // differently-patched source, and three keys its program cache on the
+  // material's own parameters plus this string. Every combination that
+  // produces different GLSL — emissive or not, and which texture mode — has
+  // to spell itself out here.
+  const emissive = finish === EMISSIVE_FINISH ? "emissive" : "lit";
+  const key = `blockworld-${emissive}-${textured ? textureCacheKey(mode) : "tex-flat"}`;
+  material.customProgramCacheKey = () => key;
 
   return material;
 }

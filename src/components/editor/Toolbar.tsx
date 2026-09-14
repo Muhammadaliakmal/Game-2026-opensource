@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEditorStore, type Tool } from "@/stores/editor-store";
-import { PALETTE, FINISHES, type Shape } from "@/lib/worlddoc";
+import { PALETTE, FINISHES, TEXTURES, type Shape } from "@/lib/worlddoc";
 import { SHAPE_NAMES } from "./shapes";
 import { PropBrowser } from "./PropBrowser";
 import { CoursePanel } from "./CoursePanel";
@@ -259,6 +259,7 @@ export function Toolbar({
   const shape = useEditorStore((s) => s.shape);
   const colorIndex = useEditorStore((s) => s.colorIndex);
   const finish = useEditorStore((s) => s.finish);
+  const texture = useEditorStore((s) => s.texture);
   const rot = useEditorStore((s) => s.rot);
   const tool = useEditorStore((s) => s.tool);
   const name = useEditorStore((s) => s.name);
@@ -511,6 +512,28 @@ export function Toolbar({
                       {i + 1}
                     </span>
                   )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Surface: the texture a block wears under its colour. A row of
+              its own rather than more chips in the brush panel below, which
+              is already at the width a phone can show; and under the palette
+              because the two are read together — the colour is the hue, the
+              surface is what the light does across it. Plain first, because
+              it is what every block was until surfaces existed. */}
+          {tool !== "prop" && tool !== "goal" && tool !== "checkpoint" && (
+            <div className="hud-panel hud-scroll pointer-events-auto flex max-w-[min(100%,32rem)] flex-nowrap gap-1 overflow-x-auto p-1 sm:flex-wrap">
+              {TEXTURES.map((t, i) => (
+                <button
+                  key={t.name}
+                  onClick={() => useEditorStore.getState().setTexture(i)}
+                  className={`hud-chip ${texture === i ? "is-active" : ""}`}
+                  title={`${t.label} surface`}
+                  aria-pressed={texture === i}
+                >
+                  {t.label}
                 </button>
               ))}
             </div>

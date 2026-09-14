@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { InstancedWorld } from "@/components/play/InstancedWorld";
+import { BlockSurfaces } from "@/components/BlockSurfaces";
 import { FollowSun } from "@/components/FollowSun";
 import { cellFromHit } from "@/lib/grid";
 import { PALETTE, type PartTuple } from "@/lib/worlddoc";
@@ -120,6 +121,7 @@ export default function HeroCanvas() {
         <group onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
           <InstancedWorld parts={parts} />
         </group>
+        <BlockSurfaces />
 
         <OrbitControls
           makeDefault

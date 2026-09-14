@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { setOpSink, useEditorStore } from "./editor-store";
 import { parseOp, type Op } from "@/lib/ops";
 import { parkourWorldDoc } from "@/lib/parkour";
-import { MAX_CHECKPOINTS, parseWorldDoc, type WorldDoc } from "@/lib/worlddoc";
+import { MAX_CHECKPOINTS, parseWorldDoc, textureOf, type WorldDoc } from "@/lib/worlddoc";
 
 function freshDoc(): WorldDoc {
   const doc = parkourWorldDoc("11111111-1111-1111-1111-111111111111", "user_1");
@@ -398,4 +398,70 @@ test("a course edit is emitted to peers as a serializable op", () => {
   for (const op of seen) assert.doesNotThrow(() => parseOp(JSON.parse(JSON.stringify(op))));
   assert.equal(seen[0].t, "cp-add");
   assert.equal(seen[1].t, "goal");
+});
+
+test("the surface brush is carried by place, compared by paint and adopted by pick", () => {
+  const s = useEditorStore.getState();
+  s.loadDoc(freshDoc());
+  s.setReadOnly(false);
+
+  // Plain is the ABSENT field, not a stored zero — a world that never uses
+  // surfaces must save the same bytes it did before they existed.
+  s.setTexture(0);
+  s.place([0, 40, 0]);
+  assert.equal(useEditorStore.getState().parts.get("0,40,0")!.length, 7);
+
+  s.setTexture(3);
+  s.place([1, 40, 0]);
+  const placed = useEditorStore.getState().parts.get("1,40,0")!;
+  assert.equal(placed.length, 8);
+  assert.equal(textureOf(placed), 3);
+
+  // Painting the same colour, finish and surface is a no-op; a new surface
+  // is a repaint that keeps the shape and rotation.
+  const tick = useEditorStore.getState().dirtyTick;
+  s.paint([1, 40, 0]);
+  assert.equal(useEditorStore.getState().dirtyTick, tick);
+  s.setTexture(5);
+  s.paint([1, 40, 0]);
+  const painted = useEditorStore.getState().parts.get("1,40,0")!;
+  assert.equal(textureOf(painted), 5);
+  assert.equal(painted[3], placed[3]);
+  assert.equal(painted[6], placed[6]);
+
+  // Painting back to plain drops the field rather than writing a 0.
+  s.setTexture(0);
+  s.paint([1, 40, 0]);
+  assert.equal(useEditorStore.getState().parts.get("1,40,0")!.length, 7);
+
+  // The eyedropper reads it back.
+  s.setTexture(2);
+  s.paint([1, 40, 0]);
+  s.setTexture(0);
+  s.pick([1, 40, 0]);
+  assert.equal(useEditorStore.getState().texture, 2);
+  s.pick([0, 40, 0]);
+  assert.equal(useEditorStore.getState().texture, 0);
+});
+
+test("a textured part survives the save round trip and the op schema", () => {
+  const s = useEditorStore.getState();
+  s.loadDoc(freshDoc());
+  s.setReadOnly(false);
+  s.setTexture(4);
+  s.place([2, 40, 0]);
+  const saved = s.toDoc("user_1");
+  const parsed = parseWorldDoc(saved);
+  const part = parsed.parts.find((p) => p[0] === 2 && p[1] === 40 && p[2] === 0)!;
+  assert.equal(textureOf(part), 4);
+
+  // And on the wire: the op a peer receives carries the surface too.
+  const ops: Op[] = [];
+  setOpSink((op) => ops.push(op));
+  s.setTexture(6);
+  s.place([3, 40, 0]);
+  setOpSink(null);
+  const op = parseOp(ops.at(-1)!);
+  assert.equal(op.t, "place");
+  if (op.t === "place") assert.equal(textureOf(op.part), 6);
 });

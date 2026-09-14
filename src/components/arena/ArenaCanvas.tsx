@@ -22,6 +22,7 @@ import { FootKeyboard } from "@/components/play/FootKeyboard";
 import { playerFocus } from "@/components/play/camera-rig";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
+import { BlockSurfaces } from "@/components/BlockSurfaces";
 import { ArenaHud } from "./ArenaHud";
 import { PerfProbe } from "@/components/perf/PerfProbe";
 import { PerfPanel } from "@/components/perf/PerfPanel";
@@ -139,6 +140,7 @@ export default function ArenaCanvas({
         <FollowSun extent={34} getFocus={getFocus} />
 
         <InstancedParts />
+        <BlockSurfaces precompile adaptive />
         {snapshot && <PlacedProps props={snapshot.props} />}
         <Peers />
 

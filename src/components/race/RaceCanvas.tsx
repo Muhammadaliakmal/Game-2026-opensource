@@ -18,6 +18,8 @@ import { WorldColliders } from "@/components/play/WorldColliders";
 import { PropColliders } from "@/components/play/PropColliders";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
+import { BlockSurfaces } from "@/components/BlockSurfaces";
+import { PostFX } from "@/components/PostFX";
 import { SunsetSky } from "@/components/sky/SunsetSky";
 import { NightSky } from "@/components/sky/NightSky";
 import { PerfProbe } from "@/components/perf/PerfProbe";
@@ -249,6 +251,9 @@ export default function RaceCanvas({
             </>
           )}
         </Physics>
+
+        <BlockSurfaces precompile adaptive />
+        <PostFX />
 
         {/* Last, so it reads the frame everything above it just drew. Costs a
             boolean check per frame when ?perf=1 is absent. */}

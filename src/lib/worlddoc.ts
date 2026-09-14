@@ -1,9 +1,23 @@
 import { z } from "zod";
+import { MAX_TEXTURE, TEXTURES } from "./texture-list";
 
 export type Shape = 0 | 1 | 2 | 3; // 0=block, 1=slab, 2=ramp, 3=wedge
 export type Vec3 = [number, number, number];
-// tuple: [x, y, z, shape, colorIndex, finish, rot]  (rot 0..3 = 90° yaw steps)
-export type PartTuple = [number, number, number, Shape, number, number, number];
+/**
+ * tuple: [x, y, z, shape, colorIndex, finish, rot, texture?]
+ * (rot 0..3 = 90° yaw steps; texture indexes TEXTURES, absent = 0 = plain)
+ *
+ * The eighth field is optional so that every seven-number part — every world
+ * saved before surfaces existed, every shipped course, every op a peer on an
+ * older build sends — stays valid without a migration. Read it with
+ * `textureOf`, never `p[7]` directly.
+ */
+export type PartTuple = [number, number, number, Shape, number, number, number, number?];
+
+/** The surface index of a part, treating a missing field as plain. */
+export const textureOf = (p: PartTuple): number => p[7] ?? 0;
+
+export { TEXTURES, MAX_TEXTURE };
 export interface PropInstance {
   assetId: string;
   pos: Vec3;
@@ -110,6 +124,7 @@ export const partTuple = z.tuple([
   z.number().int().min(0).max(31), // color index
   z.number().int().min(0).max(3), // finish
   z.number().int().min(0).max(3), // rot
+  z.number().int().min(0).max(MAX_TEXTURE).optional(), // texture (see PartTuple)
 ]);
 export const propInstance = z.object({
   assetId: z.string(),

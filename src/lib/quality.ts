@@ -2,6 +2,7 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { useCoarsePointer } from "./use-media-query";
+import type { TextureMode } from "./textures/block-shader";
 
 /**
  * Render quality tiers.
@@ -76,6 +77,25 @@ export interface RenderQuality {
   groundCastsShadow: boolean;
   /** Corner segments on the chamfered block: 2 is the original, 1 is cheaper. */
   blockDetail: 1 | 2;
+  /**
+   * What a block material samples from the surface arrays. `surface` is one
+   * array read (tint + roughness); `full` adds the normal array and the
+   * close-up detail pass, which together triple the texture fetches per
+   * fragment. See lib/textures/block-shader.ts.
+   */
+  textures: TextureMode;
+  /**
+   * Anisotropic filtering on the block arrays. Clamped to what the GPU
+   * offers. The spec's "cheapest visual upgrade in 3D", and on a voxel floor
+   * seen at a glancing angle it is: 1 smears past a few metres, 8 is sharp to
+   * the horizon.
+   */
+  anisotropy: number;
+  /**
+   * The post-processing chain — bloom on the emissive finish and a vignette.
+   * Off on low: it is a second full-screen pass on a fragment-bound device.
+   */
+  post: boolean;
 }
 
 const TIERS: Record<Tier, Omit<RenderQuality, "tier">> = {
@@ -88,6 +108,9 @@ const TIERS: Record<Tier, Omit<RenderQuality, "tier">> = {
     antialias: false,
     groundCastsShadow: false,
     blockDetail: 1,
+    textures: "surface",
+    anisotropy: 1,
+    post: false,
   },
   medium: {
     dpr: [1, 1.5],
@@ -95,6 +118,9 @@ const TIERS: Record<Tier, Omit<RenderQuality, "tier">> = {
     antialias: false,
     groundCastsShadow: false,
     blockDetail: 1,
+    textures: "full",
+    anisotropy: 4,
+    post: true,
   },
   high: {
     dpr: [1, 2],
@@ -102,8 +128,32 @@ const TIERS: Record<Tier, Omit<RenderQuality, "tier">> = {
     antialias: true,
     groundCastsShadow: false,
     blockDetail: 2,
+    textures: "full",
+    anisotropy: 8,
+    post: true,
   },
 };
+
+const ORDER: Tier[] = ["low", "medium", "high"];
+
+/**
+ * A ceiling the frame monitor has lowered this session, or null.
+ *
+ * ── Why it is a ceiling on the detected tier and not an override ─────────
+ *
+ * The player's explicit choice always wins. Somebody who opened the settings
+ * and picked High knows what they asked for, and a game that quietly undoes
+ * that after a stutter is a game whose settings lie. The drop only applies
+ * to a tier the code GUESSED — `detectTier` is deliberately crude and this is
+ * the correction for when the guess was optimistic.
+ *
+ * Session-only, on purpose. A tab that was throttled while another app
+ * updated in the background should not start Low forever.
+ */
+let autoCeiling: Tier | null = null;
+
+const lowerOf = (a: Tier, b: Tier): Tier =>
+  ORDER.indexOf(a) <= ORDER.indexOf(b) ? a : b;
 
 const OVERRIDE_KEY = "render_tier_v1";
 
@@ -155,6 +205,28 @@ function subscribeOverride(cb: () => void) {
   };
 }
 
+/**
+ * Feed one frame's duration. Part 12 of the texture spec: sixty slow frames
+ * in a row (net of fast ones) drop the detected tier by one step, then the
+ * count resets so a second drop takes another sixty. Call it from a
+ * `useFrame`, with `dt` in seconds.
+ *
+ * 20 ms is a 50 fps frame — a miss at 60 that is still well above the 30 the
+ * low tier targets, so a phone that genuinely cannot hold 60 drops early
+ * rather than after the player has already noticed.
+ */
+let slowFrames = 0;
+export function monitorFrame(dtSeconds: number, current: Tier) {
+  if (dtSeconds > 0.02) slowFrames++;
+  else slowFrames = Math.max(0, slowFrames - 1);
+  if (slowFrames <= 60) return;
+  slowFrames = 0;
+  const i = ORDER.indexOf(current);
+  if (i === 0) return;
+  autoCeiling = ORDER[i - 1];
+  for (const fn of overrideListeners) fn();
+}
+
 /** Set or clear the player's explicit choice. Pass null to go back to auto. */
 export function setTierOverride(tier: Tier | null) {
   try {
@@ -179,10 +251,19 @@ export function useRenderQuality(): RenderQuality {
     () => null
   );
 
+  // The ceiling lives outside React too, and changes through the same
+  // listener set, so one subscription covers both.
+  const ceiling = useSyncExternalStore(
+    subscribeOverride,
+    () => autoCeiling,
+    () => null
+  );
+
   return useMemo(() => {
-    const tier = override ?? detectTier(coarse);
+    const detected = detectTier(coarse);
+    const tier = override ?? (ceiling ? lowerOf(detected, ceiling) : detected);
     return { tier, ...TIERS[tier] };
-  }, [override, coarse]);
+  }, [override, ceiling, coarse]);
 }
 
 /** The tiers, for a settings UI to enumerate. */

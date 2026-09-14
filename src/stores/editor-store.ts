@@ -7,6 +7,7 @@ import {
   type Shape,
   type WorldDoc,
   type Vec3,
+  textureOf,
 } from "@/lib/worlddoc";
 import {
   CommandBus,
@@ -41,6 +42,21 @@ const markerPos = (cell: [number, number, number]): Vec3 => [
   cell[1],
   cell[2] + 0.5,
 ];
+
+/**
+ * Field-by-field equality that treats a missing surface as plain, so a
+ * seven-number part and the same part written as eight with a trailing 0
+ * compare equal — they render identically and one should not undo the other.
+ */
+const samePart = (a: PartTuple, b: PartTuple): boolean =>
+  a[0] === b[0] &&
+  a[1] === b[1] &&
+  a[2] === b[2] &&
+  a[3] === b[3] &&
+  a[4] === b[4] &&
+  a[5] === b[5] &&
+  a[6] === b[6] &&
+  textureOf(a) === textureOf(b);
 
 /**
  * Build and erase are the two that mutate geometry. Paint recolours a block
@@ -124,6 +140,8 @@ interface EditorState {
   shape: Shape;
   colorIndex: number;
   finish: number;
+  /** Surface index into TEXTURES. 0 is plain — the colour on its own. */
+  texture: number;
   rot: number;
   tool: Tool;
 
@@ -141,6 +159,7 @@ interface EditorState {
   setShape(s: Shape): void;
   setColorIndex(i: number): void;
   setFinish(f: number): void;
+  setTexture(t: number): void;
   rotateBrush(): void;
   setTool(t: Tool): void;
   setHoverCell(c: [number, number, number] | null): void;
@@ -268,6 +287,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
   shape: 0,
   colorIndex: 19,
   finish: 0,
+  texture: 0,
   rot: 0,
   tool: "place",
 
@@ -286,6 +306,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
   setShape: (shape) => set({ shape }),
   setColorIndex: (colorIndex) => set({ colorIndex }),
   setFinish: (finish) => set({ finish }),
+  setTexture: (texture) => set({ texture }),
   rotateBrush: () => set((s) => ({ rot: (s.rot + 1) % 4 })),
   setTool: (tool) =>
     // Leaving the prop tool drops the PivotControls selection — otherwise a
@@ -399,9 +420,12 @@ export const useEditorStore = create<EditorState>((set, get) => {
       s.finish,
       s.rot,
     ];
+    // Plain is the absent field, not a stored zero: a world that never
+    // touches surfaces saves exactly the bytes it did before they existed.
+    if (s.texture !== 0) part.push(s.texture);
     const prev = s.parts.get(key);
     // Placing an identical part is a no-op — don't pollute the undo stack.
-    if (prev && prev.every((v, i) => v === part[i])) return;
+    if (prev && samePart(prev, part)) return;
 
     dispatch(prev ? { t: "replace", key, next: part, prev } : { t: "place", key, part });
   },
@@ -424,7 +448,13 @@ export const useEditorStore = create<EditorState>((set, get) => {
     const prev = s.parts.get(key);
     // Nothing to recolour: painting empty space would be a surprise placement.
     if (!prev) return;
-    if (prev[4] === s.colorIndex && prev[5] === s.finish) return;
+    if (
+      prev[4] === s.colorIndex &&
+      prev[5] === s.finish &&
+      textureOf(prev) === s.texture
+    ) {
+      return;
+    }
 
     const next: PartTuple = [
       prev[0], prev[1], prev[2],
@@ -433,6 +463,7 @@ export const useEditorStore = create<EditorState>((set, get) => {
       s.finish,
       prev[6],
     ];
+    if (s.texture !== 0) next.push(s.texture);
     dispatch({ t: "replace", key, next, prev });
   },
 
@@ -441,7 +472,13 @@ export const useEditorStore = create<EditorState>((set, get) => {
     if (!part) return;
     // Picking is a read, so it is not an undoable edit and never marks the
     // world dirty — it only moves the brush.
-    set({ shape: part[3], colorIndex: part[4], finish: part[5], rot: part[6] });
+    set({
+      shape: part[3],
+      colorIndex: part[4],
+      finish: part[5],
+      texture: textureOf(part),
+      rot: part[6],
+    });
   },
 
   beginStroke: () => {
