@@ -68,6 +68,7 @@ import { useRenderQuality } from "@/lib/quality";
 import { SANDBOX_WORLDS } from "@/lib/built-in-worlds";
 import { useArcade } from "@/arcade/store";
 import { ArcadeCabinets } from "@/components/arcade/ArcadeCabinets";
+import { ContextGuard, ContextLostNotice } from "@/components/ContextGuard";
 
 /**
  * Build and Play, on one canvas.
@@ -617,7 +618,8 @@ export default function WorldCanvas({
             the editor is idle — a limiter there would be a loop whose whole job
             is to not run. Mounted first so the loop exists before anything
             below it has a frame to be rendered in. */}
-        {playing && <FrameLimiter fps={60} />}
+        {playing && <FrameLimiter fps={60} pauseForArcade />}
+        <ContextGuard />
 
         {/* Build keeps the neutral studio fill it has always had. Play gets
             the night sky instead, which brings its own fill, fog, background
@@ -781,6 +783,10 @@ export default function WorldCanvas({
             not advice you can follow on a canvas with no instrument. */}
         <PerfProbe />
       </Canvas>
+
+      {/* Outside the canvas on purpose: when the context is gone, a DOM
+          overlay is the only thing left that can be drawn. */}
+      <ContextLostNotice />
 
       <PerfPanel />
 

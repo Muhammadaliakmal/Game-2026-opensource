@@ -271,6 +271,47 @@ Rivals get theirs from `peer.character`, which is already on the wire.
 - Lean and tuck constants live in `race/ride.ts` because there are two kinds of
   rider drawn by different code, for the same reason `gait.ts` exists.
 
+### The hands are solved, not posed
+
+**`VoxelRider` is the rider everyone actually sees.** Every `Character.url` is
+null — the GLBs went when their licence could not be produced — so `Rider`
+always takes the voxel branch and `RiderRig` is dead until a licensed model
+comes back. That is also why `character-rig.test.ts` reports four SKIPPED
+tests: they walk `RIGGED`, which is empty. Do not read a green suite there as
+"the seated pose is checked".
+
+The hands and feet are an IK solve onto the bike's own anchors, not angles:
+
+- `race/arm-ik.ts` is the two-bone solver. `race/bike-anchors.ts` holds
+  `SADDLE`, `BARS`, `PEGS`, `BIKE_DROP`, and `race/rider-pose.ts` the segment
+  lengths and joint offsets. Both are **pure and import nothing**, for the
+  reason `lib/sky-stops.ts` is pure: proving the bars are reachable must not
+  need drei, three, or a GPU. `BikeModel.tsx` re-exports the anchors.
+- **A limb is sized against the WORST pose, not the resting one.** Leaning into
+  a corner rolls the shoulder away from the grip and adds about 30mm of reach;
+  the first version of these numbers was fitted at lean zero and pulled both
+  hands off the bars at full lock. `rider-pose.test.ts` walks rest and full
+  tuck against both lean extremes.
+- The two tests divide the claim: `arm-ik.test.ts` proves a reachable target
+  is hit exactly, `rider-pose.test.ts` proves the target is reachable in every
+  pose. Neither alone is "the hands are on the bars".
+- Anything that moves the rider on the seat (`ROOT_Z`), retunes `TORSO_PITCH`,
+  or changes `LEAN`/`TUCK` can break reachability. The test is what tells you.
+
+What went wrong before, because it is the shape of the next bug: the arm
+rotation was **+1.15**, and a positive rotation about X carries a *hanging*
+limb's far end toward -Z — backwards for these models. The torso's +0.42 is
+correct because a torso's mass is above its pivot. `SEATED.arm` in the GLB rig
+is -0.95, right all along, and never ran. The hands finished 0.77 behind the
+bars, and the arm was too short to have reached anyway.
+
+Character materials carry a procedural weave now — one 128² normal and
+roughness tile painted once at module scope in `play/block-materials.ts`,
+shared by every character material. The roughness map is centred near **255,
+not mid-grey**: three MULTIPLIES `roughness` by that channel, so a 0.5 map
+silently halves every roughness in the file. `solid(..., textured = false)` is
+the opt-out, for a visor.
+
 ## Race tracks
 
 **Every race track shares one XZ footprint** — the rounded box in
@@ -692,6 +733,32 @@ Editing stays on `"demand"` (an idle editor should render nothing), so
 `FrameLimiter` mounts only when playing. The scheduling itself is
 `lib/frame-cap.ts` — pure, and tested to produce exactly 60 on 60/75/90/120/
 144/165/240Hz panels.
+
+### Two ways to get a black screen, and what stops each
+
+Both were live, and neither raised anything — a canvas in `"never"` mode that
+is not being advanced is a black rectangle with no error anywhere.
+
+- **`FrameLimiter`'s arcade bridge is opt-in.** It drops the whole rAF loop
+  while a cabinet is open, which is right for the one canvas a cabinet can
+  open over and catastrophic anywhere else. `useArcade` is a module singleton
+  and `close()` is only called by the overlay's own Escape or close button, so
+  an open `activeGame` outlived a client-side navigation — and the race, the
+  arena and the shop's character preview all mounted a limiter that consulted
+  it. Open a cabinet, jump to a race, black screen. **Only `WorldCanvas`
+  passes `pauseForArcade`.** `ArcadeOverlay` also closes on a route change,
+  compared against the path it opened on rather than run as an unmount
+  cleanup — React double-invokes effects in development and a cleanup would
+  close the cabinet on the tick it opened.
+- **The GPU can take the context away at any time.** three calls
+  `preventDefault` and rebuilds its own state on restore, but tells nobody:
+  `render()` returns early while it is gone, so the canvas holds the last
+  frame — nothing, on a fresh mount. `<ContextGuard />` goes inside each
+  canvas and `<ContextLostNotice />` outside it, because a DOM overlay is the
+  only thing drawable when there is no context. `lib/gl-context.ts` is the
+  flag, read with `useSyncExternalStore`. There is no retry button: nothing
+  the page can do makes a browser hand the context back, so it offers a
+  reload and removes itself if the browser restores on its own.
 
 ## Installing (PWA and the Android APK)
 

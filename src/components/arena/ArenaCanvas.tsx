@@ -27,6 +27,7 @@ import { ArenaHud } from "./ArenaHud";
 import { PerfProbe } from "@/components/perf/PerfProbe";
 import { PerfPanel } from "@/components/perf/PerfPanel";
 import { useRenderQuality } from "@/lib/quality";
+import { ContextGuard, ContextLostNotice } from "@/components/ContextGuard";
 
 /**
  * A match: the play half of WorldCanvas with the editor taken out.
@@ -135,6 +136,7 @@ export default function ArenaCanvas({
         {/* First child, so the loop is running before anything below it has a
             frame to be rendered in. */}
         <FrameLimiter fps={60} />
+        <ContextGuard />
 
         <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
         <FollowSun extent={34} getFocus={getFocus} />
@@ -159,6 +161,10 @@ export default function ArenaCanvas({
             inert unless ?perf=1 is on the URL. */}
         <PerfProbe />
       </Canvas>
+
+      {/* Outside the canvas on purpose: when the context is gone, a DOM
+          overlay is the only thing left that can be drawn. */}
+      <ContextLostNotice />
 
       <PerfPanel />
       <ArenaHud code={code} onAttack={attack} />

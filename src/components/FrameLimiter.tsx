@@ -62,8 +62,36 @@ import { useArcade } from "@/arcade/store";
  * merely refusing to draw inside it: no gate arithmetic, no `advance`, no
  * `useFrame` in the tree, and no physics step — Rapier steps inside a
  * `useFrame` too. The world resumes on exactly the frame the overlay closes.
+ *
+ * It is opt-in per canvas, and `pauseForArcade` below says why at length.
+ * The short version: a bridge that drops the render loop is a black screen
+ * for anything that reaches it by mistake.
  */
-export function FrameLimiter({ fps = 60 }: { fps?: number }) {
+export function FrameLimiter({
+  fps = 60,
+  /**
+   * Stop the loop entirely while an arcade cabinet is open.
+   *
+   * ── Why this is a prop and not just read from the store ──────────────
+   *
+   * It used to be read unconditionally, and that was a black screen waiting
+   * to happen. `useArcade` is a module singleton, so `activeGame` outlives a
+   * client-side navigation; `close()` is only ever called by the overlay's
+   * own Escape key or close button; and every canvas in the app mounted a
+   * limiter that consulted it. Leave a cabinet open, press Back or use the
+   * search box to jump straight into a race, and the race's limiter refused
+   * to schedule a single frame — a canvas in `"never"` mode with nothing
+   * driving it, which is a black rectangle and no error anywhere.
+   *
+   * The arena and the shop's character preview had it too. Exactly one
+   * surface in the app can have a cabinet over it, and that is the world
+   * canvas, so exactly one passes this.
+   */
+  pauseForArcade = false,
+}: {
+  fps?: number;
+  pauseForArcade?: boolean;
+}) {
   const advance = useThree((s) => s.advance);
   const invalidate = useThree((s) => s.invalidate);
   const frameloop = useThree((s) => s.frameloop);
@@ -87,8 +115,9 @@ export function FrameLimiter({ fps = 60 }: { fps?: number }) {
     }
     if (frameloop !== "never") return;
     // The bridge. Returning before a single frame is scheduled is what makes
-    // "only one loop at a time" a fact rather than an intention.
-    if (arcadeOpen) return;
+    // "only one loop at a time" a fact rather than an intention — for the one
+    // canvas a cabinet can actually open over. See `pauseForArcade`.
+    if (pauseForArcade && arcadeOpen) return;
 
     // Which ticks get through, and the seconds to advance with, are decided by
     // lib/frame-cap.ts — a pure function so the cadence can actually be
@@ -117,7 +146,7 @@ export function FrameLimiter({ fps = 60 }: { fps?: number }) {
       // is free; a frozen editor is not.
       queueMicrotask(() => invalidate());
     };
-  }, [advance, invalidate, frameloop, fps, arcadeOpen]);
+  }, [advance, invalidate, frameloop, fps, arcadeOpen, pauseForArcade]);
 
   return null;
 }

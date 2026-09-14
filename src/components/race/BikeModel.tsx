@@ -9,44 +9,13 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 const BIKE_URL = "/bikes/scifi.glb";
 
 /**
- * Where a rider meets the bike, in body space.
- *
- * Measured off the imported model rather than guessed — `npm run bike:preview`
- * prints the top-surface profile, and the saddle is the dip in it: the top line
- * falls from 0.54 at the tail to 0.35 at z -0.35 and climbs again to 0.55 over
- * the tank. The bars are the widest part of the upper body, which the same
- * probe puts at z +0.4.
- *
- * They live here, next to both bikes, because `Rider.tsx` has to be fitted to
- * whichever one is drawn and the procedural fallback is built to the same two
- * numbers (its own saddle sits at 0.22 against the import's 0.23 — a centimetre
- * apart, which is under the thickness of the seat). A rider posed against one
- * bike and drawn on the other sits in the engine.
+ * The anchors live in `bike-anchors.ts` — plain numbers, no imports — so a
+ * test or anything else headless can read them without pulling in drei and
+ * three. Re-exported here because this is still where you would look for
+ * them, and every existing import already says so.
  */
-export const SADDLE = { y: 0.23, z: -0.35 } as const;
-export const BARS = { y: 0.23, z: 0.4 } as const;
-
-/**
- * Where the feet go. Beside the chassis, a little ahead of the hips.
- *
- * Added with the rider's IK, which needs a target for the legs for the same
- * reason it needs one for the arms: a foot placed by a hand-tuned angle is a
- * foot that drifts the moment anything above it moves.
- */
-export const PEGS = { y: -0.02, z: 0.1, x: 0.19 } as const;
-
-/**
- * How far the whole bike is dropped so its wheels meet the ground.
- *
- * The vehicle's origin is at axle height and the wheels have radius 0.33, so
- * the body hangs below its own origin by this much. It is a named constant
- * because the anchors above are in BODY space while the meshes below are in
- * the dropped group's space, and every conversion between the two is this
- * number. Writing it inline three times is how the procedural bike's
- * handlebar came to sit 0.12 away from `BARS` while the comment above claimed
- * the two bikes were built to the same anchors.
- */
-export const BIKE_DROP = 0.12;
+export { SADDLE, BARS, PEGS, BIKE_DROP } from "./bike-anchors";
+import { BARS, BIKE_DROP } from "./bike-anchors";
 
 /**
  * The bike, as geometry only.

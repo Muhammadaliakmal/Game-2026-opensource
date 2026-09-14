@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { MuteButton } from "@/components/MuteButton";
 import { ControlsHint, Hotkey } from "@/components/hud/Hotkey";
 import { RewardBurst } from "@/components/hud/RewardBurst";
@@ -42,6 +43,26 @@ export default function ArcadeOverlay() {
   const coins = useShop((s) => s.coins);
 
   const entry = gameId ? entryFor(gameId) : undefined;
+
+  /**
+   * A cabinet does not follow you off the page it was opened on.
+   *
+   * `useArcade` is a module singleton and survives client-side navigation, so
+   * without this an open `activeGame` outlived the route that hosted it —
+   * and it is read all over the app. It used to black out the race, the arena
+   * and the shop's preview through FrameLimiter's bridge (fixed there too,
+   * properly), and it would still re-open the cabinet over the next world you
+   * loaded.
+   *
+   * Compared against the path it opened on rather than run as an unmount
+   * cleanup, because React double-invokes effects in development: a cleanup
+   * would close the cabinet on the same tick it was opened.
+   */
+  const pathname = usePathname();
+  const openedOn = useRef(pathname);
+  useEffect(() => {
+    if (pathname !== openedOn.current) useArcade.getState().close();
+  }, [pathname]);
 
   // Keys. Bound while the overlay is up and gone the moment it is not, so the
   // world never sees an `R` meant for a cabinet.

@@ -41,6 +41,7 @@ import { RaceHud } from "./RaceHud";
 import { RaceTouchControls } from "./RaceTouchControls";
 import { RideKeyboard } from "./RideKeyboard";
 import { useRenderQuality } from "@/lib/quality";
+import { ContextGuard, ContextLostNotice } from "@/components/ContextGuard";
 
 /**
  * The race canvas.
@@ -185,6 +186,7 @@ export default function RaceCanvas({
         {/* First child, so the loop is running before anything below it has a
             frame to be rendered in. */}
         <FrameLimiter fps={60} />
+        <ContextGuard />
 
         {/* Night is the look. The sky owns the fill, the ambient, the fog and
             everything visible, so there is no second hemisphere light here —
@@ -259,6 +261,10 @@ export default function RaceCanvas({
             boolean check per frame when ?perf=1 is absent. */}
         <PerfProbe />
       </Canvas>
+
+      {/* Outside the canvas on purpose: when the context is gone, a DOM
+          overlay is the only thing left that can be drawn. */}
+      <ContextLostNotice />
 
       <RaceHud code={code} />
       <PerfPanel />
