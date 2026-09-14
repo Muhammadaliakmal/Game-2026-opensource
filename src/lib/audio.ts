@@ -194,3 +194,61 @@ export function sfxSpawn() {
   toneHit(520, 0.09, 0.13, "sine");
   window.setTimeout(() => toneHit(780, 0.11, 0.11, "sine"), 70);
 }
+
+/*
+ * ── Interface cues ─────────────────────────────────────────────────────────
+ *
+ * The UI spec's Part 7: a sound on hover, press, confirm, open, close and
+ * reject is what separates "a web page" from "a game" more than any visual,
+ * and it is a few dozen lines. Synthesised on the same graph as everything
+ * else — so the one mute button silences them and a tab with WebAudio blocked
+ * plays nothing rather than erroring — and shaped to the spec's table:
+ * hover very quiet and high, press a low thunk, confirm a rising two-tone,
+ * back/close the same falling, reject dull and low.
+ *
+ * `sfxUiHover` plays hundreds of times a session. If a player can pick out
+ * one instance of it, it is too loud; the gain here is a tenth of a placement.
+ */
+let lastHover = 0;
+export function sfxUiHover() {
+  const now = performance.now();
+  if (now - lastHover < 60) return;
+  lastHover = now;
+  toneHit(1500, 0.03, 0.018, "sine");
+}
+
+export function sfxUiPress() {
+  noiseHit(0.05, 380, 0.11);
+  toneHit(180, 0.06, 0.07, "sine");
+}
+
+export function sfxUiConfirm() {
+  toneHit(560, 0.07, 0.09, "triangle");
+  window.setTimeout(() => toneHit(840, 0.1, 0.08, "triangle"), 55);
+}
+
+export function sfxUiBack() {
+  toneHit(700, 0.07, 0.07, "triangle");
+  window.setTimeout(() => toneHit(470, 0.1, 0.06, "triangle"), 55);
+}
+
+export function sfxUiOpen() {
+  toneHit(420, 0.05, 0.07, "sine");
+  window.setTimeout(() => toneHit(640, 0.09, 0.07, "sine"), 40);
+}
+
+export function sfxUiClose() {
+  toneHit(640, 0.05, 0.06, "sine");
+  window.setTimeout(() => toneHit(420, 0.09, 0.05, "sine"), 40);
+}
+
+/** Dull, low and slightly buzzy: it has to feel wrong, not merely quiet. */
+export function sfxUiReject() {
+  toneHit(160, 0.12, 0.09, "square");
+  noiseHit(0.08, 300, 0.05);
+}
+
+/** A soft tick for a slider notch or a counting number. */
+export function sfxUiTick() {
+  toneHit(1100, 0.025, 0.03, "sine");
+}

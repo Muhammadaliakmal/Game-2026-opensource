@@ -5,6 +5,8 @@ import { Orbitron, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import { RoomAuth } from "@/components/RoomAuth";
 import { SiteNav } from "@/components/SiteNav";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
+import { UiSounds } from "@/components/UiSounds";
+import { InstallToast } from "@/components/InstallToast";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import { AD_CLIENT } from "@/lib/ads";
 import { SITE_URL } from "@/lib/site";
@@ -142,6 +144,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <RoomAuth />
           {/* Also renders nothing. Production only — see the component. */}
           <ServiceWorkerRegistrar />
+          {/* Renders nothing: every control on the site gets a press, a
+              confirm and a hover cue from one delegated listener. */}
+          <UiSounds />
           {/* `relative` is what the mobile menu panel anchors to: it opens
               full-width under the header rather than under the 28px button
               that toggles it. `min-w-0` lets the wordmark truncate instead of
@@ -175,6 +180,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <main className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
             {children}
           </main>
+          {/* The one popup the site has: install, offered once somebody has
+              played something. See the component for when it may appear. */}
+          <InstallToast />
         </ClerkProvider>
       </body>
     </html>

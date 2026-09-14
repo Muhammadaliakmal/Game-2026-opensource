@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ModeCard } from "./ModeCard";
 import { ContinueChip } from "./ContinueChip";
+import { GameSearch } from "./GameSearch";
 import { CabinetPreview } from "@/components/arcade/CabinetPreview";
 import { CABINETS } from "@/arcade/registry";
 import { PARKOUR_COURSES, SANDBOX_WORLDS } from "@/lib/built-in-worlds";
@@ -37,10 +38,16 @@ import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
 export function GamesHub({ heading = "Play" }: { heading?: string }) {
   return (
     <div id="games" className="flex scroll-mt-20 flex-col gap-8 sm:gap-10">
-      <section className="flex flex-col gap-4">
+      <section className="rise-in flex flex-col gap-4" style={{ "--rise-i": 0 } as React.CSSProperties}>
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-xl font-bold">{heading}</h2>
           <ContinueChip />
+          {/* Right-aligned on a wide screen, full width under the heading on a
+              phone. Every game on the site is in its index, and worlds
+              people made arrive from the server as you type. */}
+          <div className="w-full sm:ml-auto sm:w-auto sm:flex-1 sm:max-w-md">
+            <GameSearch />
+          </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <ModeCard
@@ -73,7 +80,7 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section className="rise-in flex flex-col gap-4" style={{ "--rise-i": 1 } as React.CSSProperties}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-xl font-bold">Arcade</h2>
           <Link href="/arcade" className="hud-label hover:text-accent">
@@ -103,7 +110,7 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
         </ul>
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section className="rise-in flex flex-col gap-4" style={{ "--rise-i": 2 } as React.CSSProperties}>
         <h2 className="text-xl font-bold">Worlds to explore</h2>
         <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4">
           {SANDBOX_WORLDS.map((w) => (

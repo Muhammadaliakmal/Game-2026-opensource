@@ -14,7 +14,7 @@ import type { Mode } from "./WorldCanvas";
  */
 const WorldCanvas = dynamic(() => import("./WorldCanvas"), {
   ssr: false,
-  loading: () => <GameLoader label="Loading world" />,
+  loading: () => <GameLoader label="Loading world" tips="world" />,
 });
 
 export function WorldMount({

@@ -33,6 +33,8 @@
  * still shows a filled row and a label, which is a loading screen — just not
  * an animated one.
  */
+import { LoaderTip, type TipKind } from "./LoaderTip";
+
 export function GameLoader({
   label,
   /**
@@ -41,9 +43,15 @@ export function GameLoader({
    * nothing worth saying.
    */
   detail,
+  /**
+   * Which set of tips to show under the row. Defaults to all of them; a
+   * mount that knows what it is loading says so. See LoaderTip.
+   */
+  tips = "any",
 }: {
   label: string;
   detail?: string;
+  tips?: TipKind;
 }) {
   return (
     <div className="bg-base flex min-h-0 flex-1 flex-col items-center justify-center gap-5 p-6">
@@ -70,6 +78,10 @@ export function GameLoader({
         </span>
         {detail && <span className="text-dim text-2xs">{detail}</span>}
       </div>
+
+      {/* A line to read while the row fills. A wait with something to read
+          is a game already talking; a wait with nothing is a wait. */}
+      <LoaderTip kind={tips} />
     </div>
   );
 }

@@ -421,6 +421,26 @@ one that can disappoint.
   recolour with. Not screenshots: those would be seven PNGs to re-capture every
   time a course or the sky changed, and silently wrong the rest of the time.
 
+### Finding a game
+
+`GameSearch` sits in the hub's heading and searches two lists that are never
+merged in storage. The site's own games come from `lib/game-index.ts`, which is
+built from `CABINETS` and `BUILT_IN_WORLDS` — the same registries the hub
+renders — so the index cannot know about a game the hub does not, and
+`game-index.test.ts` requires an entry for every one of them. Worlds people
+published come from `/api/worlds/search`, which matches the database only: the
+built-ins have no rows, and a server that also matched them would disagree with
+the browser about what exists. `terms` is the vocabulary that is in no name —
+somebody looking for "bikes" wants the race.
+
+`game-index.ts` must not import three.js, directly or otherwise. It is on the
+front page, which should not pay for the renderer to draw a text field.
+
+The remote half stores the rows **with the query they answer**, and the render
+decides whether they still apply. Clearing them in an effect is both the
+`set-state-in-effect` error and a real flash of results for the previous query
+while the debounce runs.
+
 ## Perf overlay
 
 `?perf=1` on any live canvas — Play, Race and Arena all mount `PerfProbe` and

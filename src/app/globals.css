@@ -381,12 +381,37 @@ input {
   padding: 1px;
   background: var(--color-edge);
 }
-.chamfer-edge--accent {
+.chamfer-edge--accent,
+.chamfer-edge--focus:focus-within {
   background: linear-gradient(
     135deg,
     color-mix(in oklab, var(--color-accent) 70%, transparent),
     color-mix(in oklab, var(--color-accent) 10%, transparent)
   );
+}
+
+/*
+  ── Screen entry ─────────────────────────────────────────────────────────
+
+  The UI spec's motion rule: a screen's sections rise in, staggered 40ms
+  apart, at the slow duration with the arriving curve. `.rise-in` on each
+  section and `--rise-i` for its place in the order. Exits are never
+  animated — players wait for things to arrive and never for things to go —
+  and the reduced-motion block below flattens this with everything else.
+*/
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise-in {
+  animation: rise-in 380ms var(--ease-ui) both;
+  animation-delay: calc(var(--rise-i, 0) * 40ms);
 }
 
 /*

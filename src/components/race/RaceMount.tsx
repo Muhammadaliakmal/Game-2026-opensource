@@ -11,7 +11,7 @@ import { GameLoader } from "@/components/hud/GameLoader";
  */
 const RaceCanvas = dynamic(() => import("./RaceCanvas"), {
   ssr: false,
-  loading: () => <GameLoader label="Loading race" />,
+  loading: () => <GameLoader label="Loading race" tips="race" />,
 });
 
 export function RaceMount({

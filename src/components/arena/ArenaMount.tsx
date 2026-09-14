@@ -11,7 +11,7 @@ import { GameLoader } from "@/components/hud/GameLoader";
  */
 const ArenaCanvas = dynamic(() => import("./ArenaCanvas"), {
   ssr: false,
-  loading: () => <GameLoader label="Loading match" />,
+  loading: () => <GameLoader label="Loading match" tips="arena" />,
 });
 
 export function ArenaMount({ code, worldId }: { code: string; worldId: string }) {

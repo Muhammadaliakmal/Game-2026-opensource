@@ -288,6 +288,7 @@ export default function RaceCanvas({
           }}
         >
           <GameLoader
+            tips="race"
             label="Entering the circuit"
             /* Named, because this is the one loading screen where the wait can
                legitimately be long: a free-tier room server that has gone to
