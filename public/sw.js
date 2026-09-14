@@ -1,5 +1,5 @@
 /**
- * Blockworld's service worker.
+ * Spec Driven Games' service worker.
  *
  * Two jobs, in this order of importance:
  *

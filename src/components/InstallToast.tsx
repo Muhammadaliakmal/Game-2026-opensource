@@ -117,7 +117,7 @@ export function InstallToast() {
   return (
     <div
       role="dialog"
-      aria-label="Install Blockworld"
+      aria-label="Install Spec Driven Games"
       className="panel-enter fixed inset-x-3 bottom-3 z-40 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[22rem]"
       style={{
         paddingBottom: "env(safe-area-inset-bottom)",
@@ -135,8 +135,8 @@ export function InstallToast() {
               <h2 className="text-ink text-sm font-semibold">Play in one tap</h2>
               <p className="text-dim text-xs">
                 {ios
-                  ? "Put Blockworld on your home screen — fullscreen, no address bar, opens straight to the games."
-                  : "Install Blockworld: a home-screen icon, fullscreen with no address bar, and it updates itself."}
+                  ? "Put Spec Driven Games on your home screen — fullscreen, no address bar, opens straight to the games."
+                  : "Install Spec Driven Games: a home-screen icon, fullscreen with no address bar, and it updates itself."}
               </p>
             </div>
           </div>

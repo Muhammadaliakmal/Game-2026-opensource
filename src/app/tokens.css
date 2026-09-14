@@ -1,12 +1,12 @@
 /*
-  Blockworld design tokens — "Neon Drift".
+  Spec Driven Games design tokens — "Neon Drift".
 
   ── The governing decision, and the one it replaced ──────────────────────
 
   This file used to hold a desaturated tool-steel palette, on the reasoning
   that "every voxel builder surrounds a colourful world with more colour, and
   the result is mud." That reasoning was about the *builder*, and it lost to a
-  bigger one: Blockworld is three games — build, race, parkour — and the two
+  bigger one: Spec Driven Games is three games — build, race, parkour — and the two
   arcade modes had no identity of their own. The Neon Drift direction is
   neon-on-dark glassmorphism across all three (see plan-phase6.md §4).
 
@@ -107,10 +107,31 @@
      the same material. `--glass-blur` is the expensive one: `backdrop-filter`
      costs a full-screen read per stacking context, so panels using it are
      kept few and small, and the value stays at one blur radius rather than
-     drifting per component. */
-  --glass-bg: rgb(255 255 255 / 0.055);
-  --glass-border: rgb(255 255 255 / 0.12);
-  --glass-blur: blur(16px) saturate(140%);
+     drifting per component.
+
+     ── The ground is dark, and that is the whole point ──────────────────
+
+     This was `rgb(255 255 255 / 0.055)` — five and a half percent WHITE — and
+     it is worth writing down why that was wrong, because it looked right in
+     every screenshot taken over a night circuit.
+
+     A panel tinted white is only legible when what is behind it is darker
+     than its text. Play and Race run a night sky, so it was; the arcade, the
+     sunset look and the top half of any bright wall are not, and over those
+     the menu was white text on a white haze. Blur does not rescue it —
+     `backdrop-filter` blurs what is behind the panel, it does not darken it,
+     so a bright background blurs into an evenly bright one. That sentence is
+     already written twice in globals.css, once for the readout tier and once
+     for the modal tier, each time as a local exception. It was the default
+     that was wrong.
+
+     So the base material now carries its own dark ground, and the two tiers
+     above it are what they always were: more of the same, for surfaces that
+     need more. The ladder is 58 / 78 / 94 percent, and a panel should sit on
+     the lowest rung it can be read from. */
+  --glass-bg: color-mix(in oklab, var(--color-base) 58%, transparent);
+  --glass-border: rgb(255 255 255 / 0.16);
+  --glass-blur: blur(16px) saturate(130%);
 
   /*
     Elevation is two things at once now: a real shadow that separates the

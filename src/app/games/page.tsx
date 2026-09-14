@@ -10,7 +10,7 @@ import { PrefetchCanvas } from "@/components/PrefetchCanvas";
  * to land on the games and nothing else, which is this.
  */
 export const metadata = {
-  title: "Games — Blockworld",
+  title: "Games — Spec Driven Games",
   description:
     "Parkour, racing, arena duels, and four arcade cabinets. Every game on the site, one press from playing.",
 };

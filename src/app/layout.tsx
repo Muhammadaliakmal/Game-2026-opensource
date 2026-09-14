@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   // against localhost:3000 — so a shared link gets no preview image and the
   // failure is invisible from inside the app.
   metadataBase: new URL(SITE_URL),
-  title: "Blockworld",
+  title: "Spec Driven Games",
   // Describes what the thing IS, not what the repo contains: the builder is
   // hidden in v1 (lib/features), and this string is what a search result and
   // an ad review both read.
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Blockworld",
+    title: "Spec Driven Games",
     // Safari ignores the manifest entirely, so the installed-app appearance has
     // to be declared again here.
     statusBarStyle: "black-translucent",
@@ -160,7 +160,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 className="bg-accent block h-4 w-4 shrink-0 rotate-45 transition-transform group-hover:rotate-[135deg]"
                 style={{ boxShadow: "var(--glow-strong)" }}
               />
-              <span className="truncate text-sm font-semibold">Blockworld</span>
+              <span className="truncate text-sm font-semibold">Spec Driven Games</span>
             </Link>
             {/* Two layouts, not one squeezed: see components/SiteNav. */}
             <SiteNav />

@@ -53,7 +53,7 @@ export interface BlogPost {
 export const POSTS: readonly BlogPost[] = [
   {
     slug: "building-blockworld",
-    title: "How Blockworld is built",
+    title: "How Spec Driven Games is built",
     date: "",
     summary: "",
     status: "planned",

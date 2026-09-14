@@ -28,9 +28,9 @@ import { SITE_NAME, SITE_URL } from "@/lib/site";
 export const dynamic = "force-static";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy · Blockworld",
+  title: "Privacy Policy · Spec Driven Games",
   description:
-    "What Blockworld stores, which third parties it uses, and how advertising cookies work.",
+    "What Spec Driven Games stores, which third parties it uses, and how advertising cookies work.",
   alternates: { canonical: `${SITE_URL}/privacy` },
 };
 

@@ -2,7 +2,7 @@
 @import "./tokens.css";
 
 /*
-  Blockworld — base layer and chrome primitives.
+  Spec Driven Games — base layer and chrome primitives.
 
   Design direction (plan-phase6.md, "Neon Drift"): dark translucent glass,
   one live accent keyed to the current mode, glow used as emphasis rather
@@ -195,27 +195,26 @@ input {
   A panel carrying a number you have to read WHILE something else has your
   attention: speed, lap, position, boost.
 
-  The standard glass is 5.5% white, which is a material chosen to sit lightly
-  over the world — correct for a panel you look at, and not enough for one you
-  glance at. Blockworld's sky moves through a full day cycle, so the same
-  readout that is crisp over a night circuit is white-on-pale at the top of a
-  sunset, and blur does not help: `backdrop-filter` blurs what is behind the
-  panel, it does not darken it, so a bright sky blurs into an evenly bright
-  sky.
+  The standard glass carries a 58% dark ground, which is enough to read a
+  label off while you are looking at it. A number you take in at a glance,
+  without moving your attention off the road, wants more contrast than that —
+  so this is the same material one rung up the ladder in `tokens.css`.
 
-  So these panels carry their own ground instead of borrowing one. Dark enough
-  to hold `--color-ink` at any hour, still translucent enough to read as glass
-  and to let the world move behind it. The border comes up with it, because a
-  darker fill on the same faint edge stops looking like a pane and starts
-  looking like a hole.
+  It used to be the place the dark ground existed at all, back when the base
+  glass was 5.5% white and unreadable over anything bright. That is fixed at
+  the token now, and the note that belonged here is there: blur does not
+  darken, so contrast has to come from the fill.
+
+  The border comes up with the fill, because a darker pane behind the same
+  faint edge stops looking like glass and starts looking like a hole.
 
   It is deliberately NOT the default. Every panel painting its own dark ground
   is a HUD that covers the game, and most panels — a session code, a menu —
   are read when you have time to look at them.
 */
 .hud-panel--readout {
-  background: color-mix(in oklab, var(--color-base) 74%, transparent);
-  border-color: rgb(255 255 255 / 0.16);
+  background: color-mix(in oklab, var(--color-base) 78%, transparent);
+  border-color: rgb(255 255 255 / 0.2);
 }
 @supports not (backdrop-filter: blur(1px)) {
   .hud-panel--readout {

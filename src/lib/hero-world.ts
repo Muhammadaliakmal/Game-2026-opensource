@@ -6,7 +6,7 @@ import type { PartTuple, Shape, Vec3, WorldDoc } from "./worlddoc";
  *
  * UI spec §3.1: the hero is a live scene, not text. A visitor should be
  * playing with the product before they have read a word, so this is a real
- * Blockworld world rendered by the real renderer — small enough to load
+ * Spec Driven Games world rendered by the real renderer — small enough to load
  * instantly and already built, because an empty grid on a landing page teaches
  * nothing.
  *

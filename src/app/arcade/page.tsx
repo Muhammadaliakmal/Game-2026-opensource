@@ -13,7 +13,7 @@ import { DAILY_HARD_CAP, DAILY_SOFT_CAP } from "@/lib/arcade-payout";
  * and is read by the client component below rather than fetched.
  */
 export const metadata = {
-  title: "Arcade — Blockworld",
+  title: "Arcade — Spec Driven Games",
   description: "Four cabinets, ninety seconds a go. Coins for the shop.",
 };
 

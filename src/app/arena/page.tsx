@@ -38,7 +38,7 @@ export default function ArenaLobbyPage() {
         <PrefetchCanvas kind="arena" />
         <header className="flex flex-col gap-2">
           <Link href="/" className="hud-label w-fit">
-            ← Blockworld
+            ← Spec Driven Games
           </Link>
           <h1 className="text-ink text-2xl font-semibold">Matches</h1>
           <p className="text-dim text-sm">

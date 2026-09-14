@@ -13,7 +13,7 @@
  * Courier is a blocky robot of rounded cubes; the Warrior and the Mage were
  * sculpted low-poly humanoids with cloth and shaded armour. They did not look
  * like the same game, and the shop grid put them next to each other. The
- * platform is called Blockworld and every world in it is made of cubes, so of
+ * platform is called Spec Driven Games and every world in it is made of cubes, so of
  * the two directions on offer the blocky one was always the coherent answer —
  * see the bug report's #21, which says exactly that and leaves the call to us.
  *

@@ -60,7 +60,7 @@ export default function RaceLobbyPage() {
             />
             <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 p-5">
               <Link href="/" className="hud-label text-accent w-fit">
-                ← Blockworld
+                ← Spec Driven Games
               </Link>
               <h1 className="text-display text-ink font-bold">Race</h1>
               <p className="text-dim max-w-md text-sm">

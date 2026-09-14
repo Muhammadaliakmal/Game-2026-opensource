@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { SITE_NAME, SITE_SHORT_NAME } from "@/lib/site";
 
 /**
  * The web app manifest, served at /manifest.webmanifest.
@@ -22,12 +23,15 @@ import type { MetadataRoute } from "next";
  * - `icons` — a maskable entry is required for a launcher icon that is not
  *   letterboxed inside a white rounded square on Android 8+. See
  *   scripts/generate-icons.ts for why it is a separate image.
+ * - `short_name` is the home-screen label and is NOT the full name. A launcher
+ *   truncates rather than wraps, so the long one arrives as an ellipsis under
+ *   the icon. Both come from `lib/site.ts` so the name lives in one place.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Blockworld",
-    short_name: "Blockworld",
+    name: SITE_NAME,
+    short_name: SITE_SHORT_NAME,
     description:
       "Build 3D worlds out of blocks, then play and race through them with other people.",
     start_url: "/",

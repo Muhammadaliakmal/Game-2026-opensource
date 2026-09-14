@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SITE_NAME } from "@/lib/site";
 
 /**
  * The one page container. Every non-immersive route renders inside it.
@@ -113,7 +114,7 @@ export function PageShell({
 export function PageHeader({
   title,
   children,
-  back = { href: "/", label: "← Blockworld" },
+  back = { href: "/", label: `← ${SITE_NAME}` },
 }: {
   title: string;
   /** The standfirst, and anything else that belongs above the fold. */

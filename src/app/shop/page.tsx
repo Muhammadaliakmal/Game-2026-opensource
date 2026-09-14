@@ -9,7 +9,7 @@ import { Shop } from "@/components/shop/Shop";
  * static because everything on it comes from code.
  */
 export const metadata = {
-  title: "Characters — Blockworld",
+  title: "Characters — Spec Driven Games",
   description: "Earn coins on the courses. Spend them on somebody new to be.",
 };
 

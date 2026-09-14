@@ -4,9 +4,9 @@ import { PageShell, PageHeader } from "@/components/PageShell";
 import { InstallPanel } from "./InstallPanel";
 
 export const metadata: Metadata = {
-  title: "Get Blockworld",
+  title: "Get Spec Driven Games",
   description:
-    "Install Blockworld on Android, iOS or desktop — as a home-screen app or a downloadable APK.",
+    "Install Spec Driven Games on Android, iOS or desktop — as a home-screen app or a downloadable APK.",
 };
 
 /**
@@ -31,9 +31,9 @@ export default async function DownloadPage() {
     // discrepancy — content visibly sliding sideways on navigation — was the
     // whole of bug #20; see components/PageShell.
     <PageShell width="prose">
-      <PageHeader title="Get Blockworld">
+      <PageHeader title="Get Spec Driven Games">
           <p className="text-dim text-sm">
-            Blockworld runs in a browser, so there is nothing you have to
+            Spec Driven Games runs in a browser, so there is nothing you have to
             install. Installing it anyway gets you a home-screen icon, a
             fullscreen window with no address bar over the HUD, and a game that
             opens in one tap instead of a URL.

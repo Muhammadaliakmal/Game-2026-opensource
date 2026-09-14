@@ -10,7 +10,7 @@ import { TEXTURES } from "@/lib/texture-list";
  * in the real app rather than a second build. Not linked from anywhere.
  */
 export const metadata = {
-  title: "Surfaces — Blockworld",
+  title: "Surfaces — Spec Driven Games",
   robots: { index: false, follow: false },
 };
 

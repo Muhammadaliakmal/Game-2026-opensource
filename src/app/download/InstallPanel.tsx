@@ -75,7 +75,7 @@ export function InstallPanel({
       <section className="card border-accent/40 flex flex-col gap-3 p-5">
         <h2 className="text-ink text-sm font-semibold">Already installed</h2>
         <p className="text-dim text-xs">
-          You are running Blockworld as an app, so it is already on your home
+          You are running Spec Driven Games as an app, so it is already on your home
           screen and it updates itself with the site.
         </p>
         {/* A route out, rather than a full stop.
@@ -107,7 +107,7 @@ export function InstallPanel({
             Install from the browser
           </h2>
           <p className="text-dim text-xs">
-            Adds Blockworld to your home screen and runs it fullscreen, without
+            Adds Spec Driven Games to your home screen and runs it fullscreen, without
             the address bar. It updates itself with the site, so there is
             nothing to reinstall later — this is the route to prefer if your
             browser offers it.
@@ -120,7 +120,7 @@ export function InstallPanel({
             disabled={busy}
             className="hud-chip hud-chip--primary w-fit"
           >
-            {busy ? "Installing…" : "Install Blockworld"}
+            {busy ? "Installing…" : "Install Spec Driven Games"}
           </button>
         )}
 

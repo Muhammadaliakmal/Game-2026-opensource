@@ -47,7 +47,7 @@ import { PrefetchCanvas } from "@/components/PrefetchCanvas";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Parkour — Blockworld",
+  title: "Parkour — Spec Driven Games",
   description: "Twenty courses, Tutorial to Expert. Beat the clock, take a medal.",
 };
 

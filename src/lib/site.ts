@@ -14,7 +14,17 @@
 export const SITE_URL = "https://specdrivengames.com";
 
 /** The name used in metadata, the sitemap, and the privacy policy. */
-export const SITE_NAME = "Blockworld";
+export const SITE_NAME = "Spec Driven Games";
+
+/**
+ * The same name where the space is not there to spend.
+ *
+ * A PWA's `short_name` is what sits under the icon on a home screen, and the
+ * launcher truncates it rather than wrapping — Android gives it about twelve
+ * characters before it becomes an ellipsis. "Spec Driven" is the name that
+ * survives that; the full one does not.
+ */
+export const SITE_SHORT_NAME = "Spec Driven";
 
 /** The publisher, under their own name. */
 export const OWNER_NAME = "Muhammad Ali Akmal";

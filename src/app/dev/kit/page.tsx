@@ -30,7 +30,7 @@ import { CabinetPreview } from "@/components/arcade/CabinetPreview";
  * slot spent on something no player wants.
  */
 export const metadata = {
-  title: "Kit — Blockworld",
+  title: "Kit — Spec Driven Games",
   // A dev tool has no business in search results.
   robots: { index: false, follow: false },
 };

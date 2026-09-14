@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MenuIcon } from "@/components/hud/MenuIcon";
 import {
   FOOT_ACTIONS,
   FOOT_LABELS,
@@ -152,7 +153,7 @@ export function SettingsDialog({
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
-        className="hud-panel panel-enter flex max-h-full w-[min(94vw,34rem)] flex-col gap-3 p-4"
+        className="hud-panel hud-panel--modal panel-enter flex max-h-full w-[min(94vw,34rem)] flex-col gap-3 p-4"
       >
         <div className="flex items-center gap-2">
           <div className="flex min-w-0 flex-col">
@@ -165,20 +166,27 @@ export function SettingsDialog({
             )}
           </div>
           <div className="ml-auto flex gap-1">
+            {/* The icon is why the label can go on a narrow screen: three
+                words plus Done plus a title do not fit across a phone, and a
+                tab strip that wraps to a second row pushes the panel's own
+                content below the fold. */}
             {(
               [
-                ["keyboard", "Keyboard"],
-                ["touch", "Touch"],
-                ["display", "Display"],
+                ["keyboard", "Keyboard", "keyboard"],
+                ["touch", "Touch", "touch"],
+                ["display", "Display", "display"],
               ] as const
-            ).map(([id, label]) => (
+            ).map(([id, label, icon]) => (
               <button
                 key={id}
                 onClick={() => setTab(id)}
                 className={`hud-chip ${tab === id ? "is-active" : ""}`}
                 aria-pressed={tab === id}
+                aria-label={label}
+                title={label}
               >
-                {label}
+                <MenuIcon name={icon} />
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </div>

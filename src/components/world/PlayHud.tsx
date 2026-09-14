@@ -16,6 +16,7 @@ import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { RemixButton } from "@/components/RemixButton";
 import { HudZone, HudZones } from "@/components/hud/HudZones";
+import { MenuIcon } from "@/components/hud/MenuIcon";
 import { SettingsButton } from "@/components/hud/SettingsButton";
 import { ControlArranger } from "@/components/hud/ControlArranger";
 import { useHudOverlay } from "@/lib/hud-overlay";
@@ -570,7 +571,7 @@ function PlayMenu({
           role="dialog"
           aria-modal="true"
           aria-label="Game menu"
-          className="hud-panel panel-enter flex w-[min(88vw,17rem)] flex-col p-1.5"
+          className="hud-panel hud-panel--modal panel-enter flex w-[min(88vw,17rem)] flex-col p-1.5"
         >
           {/* The world's name, at the top of the thing that acts on it. It is
               also a title for the dialog, which a centred panel needs and a
@@ -587,6 +588,7 @@ function PlayMenu({
             className={`hud-menu-item ${firstPerson ? "is-active" : ""}`}
             title="Switch between first and third person (V)"
           >
+            <MenuIcon name="view" />
             View
             <span className="hud-menu-state">
               {firstPerson ? "First person" : "Third person"}
@@ -597,6 +599,7 @@ function PlayMenu({
             className="hud-menu-item"
             title="Level the view (C)"
           >
+            <MenuIcon name="level" />
             Level the view
           </button>
           <button
@@ -604,6 +607,7 @@ function PlayMenu({
             className="hud-menu-item"
             title="Back to the last checkpoint (R)"
           >
+            <MenuIcon name="respawn" />
             Respawn
           </button>
           {/* Only on a course, and only once one has started: on a sandbox
@@ -615,6 +619,7 @@ function PlayMenu({
               className="hud-menu-item"
               title="Start the course over, clock from zero (T)"
             >
+              <MenuIcon name="restart" />
               Restart run
             </button>
           )}
@@ -633,6 +638,7 @@ function PlayMenu({
               className="hud-menu-item"
               title="Back to building (Esc)"
             >
+              <MenuIcon name="edit" />
               Edit
             </button>
           ) : (
@@ -654,6 +660,7 @@ function PlayMenu({
             className="hud-menu-item"
             title="Leave the game"
           >
+            <MenuIcon name="exit" />
             Exit
           </Link>
         </div>

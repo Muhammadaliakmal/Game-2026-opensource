@@ -1,7 +1,7 @@
 import type { ClerkAppearanceTheme } from "@clerk/shared/types";
 
 /**
- * Blockworld's Neon Drift palette, restated for Clerk.
+ * Spec Driven Games' Neon Drift palette, restated for Clerk.
  *
  * ── Why this file exists at all ──────────────────────────────────────────
  *

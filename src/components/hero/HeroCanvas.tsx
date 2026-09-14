@@ -18,7 +18,7 @@ import { sfxPlace } from "@/lib/audio";
 import { UGC } from "@/lib/features";
 
 /**
- * The landing page hero: a real, live Blockworld world you can turn and build
+ * The landing page hero: a real, live Spec Driven Games world you can turn and build
  * on before you have read a word (UI spec §3.1).
  *
  * It is deliberately NOT the editor. No store, no undo stack, no toolbar —

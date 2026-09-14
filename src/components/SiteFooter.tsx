@@ -47,7 +47,7 @@ export function SiteFooter() {
         ))}
       </nav>
       {/* The name is the point of the line, not the year: a review is looking
-          for a publisher, and "© 2026 Blockworld" names a product rather than
+          for a publisher, and "© 2026 Spec Driven Games" names a product rather than
           a person. */}
       <span className="hud-label">
         © {new Date().getFullYear()} {SITE_NAME} — {OWNER_NAME}
