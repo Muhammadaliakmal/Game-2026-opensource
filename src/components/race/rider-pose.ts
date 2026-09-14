@@ -63,3 +63,29 @@ export const HEAD_LIFT = 0.7;
 export const HEAD_TURN = 0.3;
 /** Vertical travel from the road surface at speed, in units. */
 export const BUMP = 0.008;
+
+/**
+ * ── Detail LOD ───────────────────────────────────────────────────────────
+ *
+ * The rider's trim — gloves, boots, pauldrons, a pack, a belt, a crest —
+ * roughly doubles the mesh count, and on a four-bike grid that is about fifty
+ * draw calls for things a few pixels across on three of the four. So it is
+ * switched off by distance.
+ *
+ * Two thresholds rather than one, because one flickers: a rival holding
+ * station at exactly the cut-off toggles the whole set every frame, which is
+ * far more visible than the trim it is saving. The rider's own bike sits
+ * about eight units from the camera, so a player never loses their own.
+ */
+export const DETAIL_ON = 14;
+export const DETAIL_OFF = 17;
+
+/**
+ * Whether a rider that far away should draw its trim, given whether it is
+ * drawing it now. Pure, so the hysteresis can be asserted rather than
+ * eyeballed on a grid — the failure it guards against (the two bounds
+ * swapped) produces a rider that strobes only between 14 and 17 units.
+ */
+export function showDetail(distance: number, showing: boolean): boolean {
+  return showing ? distance < DETAIL_OFF : distance < DETAIL_ON;
+}

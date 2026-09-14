@@ -4,6 +4,8 @@ import * as THREE from "three";
 import { BARS, PEGS } from "./bike-anchors";
 import { LEAN, TUCK } from "./ride";
 import {
+  DETAIL_OFF,
+  DETAIL_ON,
   FORE,
   GRIP_X,
   HIP,
@@ -14,6 +16,7 @@ import {
   THIGH,
   TORSO_PITCH,
   UPPER,
+  showDetail,
 } from "./rider-pose";
 
 /**
@@ -179,4 +182,42 @@ test("an arm is about the right length for the body it is on", () => {
   const height = THIGH + SHIN + 0.44 + 0.34; // legs + torso + head
   const ratio = (UPPER + FORE) / height;
   assert.ok(ratio > 0.4 && ratio < 0.55, `arm is ${(ratio * 100).toFixed(0)}% of height`);
+});
+
+test("the detail LOD has hysteresis, and it is the right way round", () => {
+  // Swapping the two bounds still passes "on when near, off when far" and
+  // strobes every frame between them. That is the failure this pins.
+  assert.ok(DETAIL_ON < DETAIL_OFF, "the thresholds are inverted");
+
+  // Close: on, whatever it was doing.
+  assert.equal(showDetail(2, false), true);
+  assert.equal(showDetail(2, true), true);
+
+  // Far: off, whatever it was doing.
+  assert.equal(showDetail(40, true), false);
+  assert.equal(showDetail(40, false), false);
+
+  // In the band, the current state is what decides — that IS the hysteresis.
+  const mid = (DETAIL_ON + DETAIL_OFF) / 2;
+  assert.equal(showDetail(mid, true), true, "should hold on once on");
+  assert.equal(showDetail(mid, false), false, "should hold off once off");
+});
+
+test("a rider cannot strobe while sitting still at any distance", () => {
+  // Settle at each of a spread of distances and check the state is a fixed
+  // point: feeding the answer back in must give the same answer.
+  for (let d = 0; d <= 40; d += 0.25) {
+    for (const start of [true, false]) {
+      const once = showDetail(d, start);
+      assert.equal(showDetail(d, once), once, `oscillates at ${d}`);
+    }
+  }
+});
+
+test("a player never loses the trim on their own bike", () => {
+  // The chase camera sits about eight units back. If DETAIL_ON ever drops
+  // below that, the detail this LOD exists to protect is invisible to the one
+  // person guaranteed to be looking at it.
+  const CHASE_CAM = 8;
+  assert.ok(DETAIL_ON > CHASE_CAM + 3, `DETAIL_ON ${DETAIL_ON} is too close to the chase camera`);
 });

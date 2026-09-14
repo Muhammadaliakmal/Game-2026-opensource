@@ -1,7 +1,7 @@
 "use client";
 
 import * as THREE from "three";
-import { Suspense, useRef } from "react";
+import { Suspense, useCallback, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { DEFAULT_CHARACTER, characterFor } from "@/lib/characters";
@@ -23,6 +23,7 @@ import {
   SHIN,
   SHOULDER,
   THIGH,
+  showDetail,
   TORSO_PITCH,
   UPPER,
 } from "./rider-pose";
@@ -143,33 +144,74 @@ const ELBOW_POLE_L = new THREE.Vector3(-0.55, -1, -0.15).normalize();
 const ELBOW_POLE_R = new THREE.Vector3(0.55, -1, -0.15).normalize();
 const KNEE_POLE = new THREE.Vector3(0, 1, 0.45).normalize();
 
+/**
+ * ── Detail, and how far away it stops being worth drawing ────────────────
+ *
+ * The trim below — gloves, boots, pauldrons, a pack, a belt, a crest —
+ * roughly doubled the rider's mesh count, and on a four-bike grid that is
+ * about fifty draw calls for things smaller than a few pixels on three of
+ * the four. So they are switched off by distance.
+ *
+ * `visible = false` rather than unmounting: three skips an invisible subtree
+ * when it builds the render list, so the draw genuinely goes away, and doing
+ * it as a property write costs no React render at all — which matters,
+ * because this is decided inside a physics frame loop that must not re-render
+ * anything (the same reason `steerRef` is a ref).
+ *
+ * Two thresholds, not one. A single one flickers the whole set on and off
+ * while a rival sits at exactly that distance, which is far more visible than
+ * the trim ever was.
+ */
+/**
+ * Show or hide one detail mesh.
+ *
+ * A module-scope function taking the object as a parameter, rather than
+ * `o.visible = show` written inline, because `react-hooks/immutability`
+ * rejects assigning to a property of a value the component is holding — the
+ * same rule CLAUDE.md records for `camera.position.x += n`. `poseJoint` in
+ * `play/character-rig.ts` is the same shape for the same reason.
+ */
+function setVisible(o: THREE.Object3D, visible: boolean) {
+  o.visible = visible;
+}
+
+/** What a detail mesh's `ref` accepts. See `collectDetail`. */
+type DetailRef = (o: THREE.Object3D) => () => void;
+
 /** Scratch for the per-frame solves. Shared, like the geometries. */
 const _target = new THREE.Vector3();
+const _world = new THREE.Vector3();
 const _shoulderL = new THREE.Vector3(-SHOULDER.x, SHOULDER.y, SHOULDER.z);
 const _shoulderR = new THREE.Vector3(SHOULDER.x, SHOULDER.y, SHOULDER.z);
 const _hipL = new THREE.Vector3(-HIP.x, HIP.y, HIP.z);
 const _hipR = new THREE.Vector3(HIP.x, HIP.y, HIP.z);
 
 /** The hard trim on a helmet, per design. Shapes, not a texture. */
-function Crest({ design }: { design: CharacterDesign }) {
+function Crest({
+  design,
+  detail,
+}: {
+  design: CharacterDesign;
+  detail: DetailRef;
+}) {
   const m = solid(design.trim, FINISH.trim[0], FINISH.trim[1]);
   switch (design.crest) {
     case "antenna":
-      return <mesh geometry={G.antenna} material={m} position={[0.1, 0.22, -0.04]} />;
+      return <mesh ref={detail} geometry={G.antenna} material={m} position={[0.1, 0.22, -0.04]} />;
     case "horns":
       return (
         <>
-          <mesh geometry={G.horn} material={m} position={[-0.15, 0.16, -0.02]} rotation={[0, 0, 0.5]} />
-          <mesh geometry={G.horn} material={m} position={[0.15, 0.16, -0.02]} rotation={[0, 0, -0.5]} />
+          <mesh ref={detail} geometry={G.horn} material={m} position={[-0.15, 0.16, -0.02]} rotation={[0, 0, 0.5]} />
+          <mesh ref={detail} geometry={G.horn} material={m} position={[0.15, 0.16, -0.02]} rotation={[0, 0, -0.5]} />
         </>
       );
     case "brim":
-      return <mesh geometry={G.brim} material={m} position={[0, 0.02, 0.18]} rotation={[0.24, 0, 0]} />;
+      return <mesh ref={detail} geometry={G.brim} material={m} position={[0, 0.02, 0.18]} rotation={[0.24, 0, 0]} />;
     case "spines":
       return (
         <>
           {([-0.07, 0.02, 0.11] as const).map((z) => (
-            <mesh key={z} geometry={G.spine} material={m} position={[0, 0.19, z]} rotation={[-0.35, 0, 0]} />
+            <mesh key={z} ref={detail} geometry={G.spine} material={m} position={[0, 0.19, z]} rotation={[-0.35, 0, 0]} />
           ))}
         </>
       );
@@ -230,6 +272,26 @@ export function VoxelRider({
   const barR = useRef<THREE.Object3D>(null!);
   const pegL = useRef<THREE.Object3D>(null!);
   const pegR = useRef<THREE.Object3D>(null!);
+
+  /**
+   * Every mesh that is trim rather than silhouette.
+   *
+   * Collected through a ref callback that returns its own cleanup — React 19
+   * calls that when the mesh goes away, so a design whose pauldrons or crest
+   * differ cannot leave a dead object in the list. The older `(o) => o && ...`
+   * idiom cannot do this: it is handed `null` on unmount and has no way to
+   * know which entry to drop.
+   */
+  const detailParts = useRef<THREE.Object3D[]>([]);
+  const detailShown = useRef(true);
+  const collectDetail = useCallback<DetailRef>((o) => {
+    setVisible(o, detailShown.current);
+    detailParts.current.push(o);
+    return () => {
+      const i = detailParts.current.indexOf(o);
+      if (i >= 0) detailParts.current.splice(i, 1);
+    };
+  }, []);
 
   const upperL = useRef<THREE.Group>(null!);
   const upperR = useRef<THREE.Group>(null!);
@@ -316,6 +378,21 @@ export function VoxelRider({
       solveArm(thighR.current, shinR.current, _hipR, _target, THIGH, SHIN, KNEE_POLE);
     }
 
+    // ── Detail LOD ─────────────────────────────────────────────────────────
+    // The rider's own bike sits about eight units from the camera, so a player
+    // never loses their own trim; a rival down the straight does, and cannot
+    // tell. Hysteresis between the two thresholds, so a bike holding station
+    // beside you does not strobe.
+    if (root.current) {
+      root.current.getWorldPosition(_world);
+      const d = state.camera.position.distanceTo(_world);
+      const show = showDetail(d, detailShown.current);
+      if (show !== detailShown.current) {
+        detailShown.current = show;
+        for (const o of detailParts.current) setVisible(o, show);
+      }
+    }
+
     if (visorMat.current) {
       visorMat.current.emissiveIntensity =
         1.7 + Math.sin(state.clock.elapsedTime * 4) * 0.3;
@@ -350,7 +427,7 @@ export function VoxelRider({
         <group ref={torso} rotation={[TORSO_PITCH, 0, 0]}>
           <mesh geometry={G.chest} material={suit} position={[0, 0.07, 0.01]} castShadow />
           <mesh geometry={G.belly} material={suit} position={[0, -0.13, 0]} castShadow />
-          <mesh geometry={G.belt} material={trim} position={[0, -0.21, 0]} />
+          <mesh ref={collectDetail} geometry={G.belt} material={trim} position={[0, -0.21, 0]} />
           <mesh geometry={G.core} position={[0, 0.09, 0.15]}>
             <meshStandardMaterial
               color={color}
@@ -362,7 +439,7 @@ export function VoxelRider({
 
           {/* A block on the back, for the designs that carry one. */}
           {design.pack && (
-            <mesh geometry={G.pack} material={trim} position={[0, 0.02, -0.18]} />
+            <mesh ref={collectDetail} geometry={G.pack} material={trim} position={[0, 0.02, -0.18]} />
           )}
 
           {/* ── Helmet ── */}
@@ -379,7 +456,7 @@ export function VoxelRider({
                 toneMapped={false}
               />
             </mesh>
-            <Crest design={design} />
+            <Crest design={design} detail={collectDetail} />
           </group>
 
           {/* ── Arms ──
@@ -395,6 +472,7 @@ export function VoxelRider({
             <group key={side} ref={up} position={[side * SHOULDER.x, SHOULDER.y, SHOULDER.z]}>
               {design.pauldrons && (
                 <mesh
+                  ref={collectDetail}
                   geometry={G.pauldron}
                   material={trim}
                   position={[side * 0.03, 0.02, 0]}
@@ -404,7 +482,7 @@ export function VoxelRider({
               <group ref={fo} position={[0, -UPPER, 0]}>
                 <mesh geometry={G.fore} material={limb} position={[0, -FORE / 2, 0]} castShadow />
                 {/* The hand, on the grip. This is the whole point of the file. */}
-                <mesh geometry={G.glove} material={glove} position={[0, -FORE, 0]} />
+                <mesh ref={collectDetail} geometry={G.glove} material={glove} position={[0, -FORE, 0]} />
               </group>
             </group>
           ))}
@@ -423,7 +501,7 @@ export function VoxelRider({
             <mesh geometry={G.thigh} material={boot} position={[0, -THIGH / 2, 0]} castShadow />
             <group ref={sh} position={[0, -THIGH, 0]}>
               <mesh geometry={G.shin} material={boot} position={[0, -SHIN / 2, 0]} castShadow />
-              <mesh geometry={G.boot} material={boot} position={[0, -SHIN, 0.04]} />
+              <mesh ref={collectDetail} geometry={G.boot} material={boot} position={[0, -SHIN, 0.04]} />
             </group>
           </group>
         ))}
