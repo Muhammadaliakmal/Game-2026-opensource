@@ -109,8 +109,10 @@ export function FollowSun({
       position={[offset.x, offset.y, offset.z]}
       color={color}
       intensity={intensity}
-      castShadow
-      shadow-mapSize={[shadowMap, shadowMap]}
+      // 0 is "off", not a zero-sized map: a player can switch shadows off in
+      // Settings, and the tier field documents 0 as disabling them.
+      castShadow={shadowMap > 0}
+      shadow-mapSize={[Math.max(shadowMap, 1), Math.max(shadowMap, 1)]}
       shadow-camera-left={-extent}
       shadow-camera-right={extent}
       shadow-camera-top={extent}

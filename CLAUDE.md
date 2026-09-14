@@ -567,6 +567,37 @@ Two things the post chain (`PostFX`, Play and Race only) changed elsewhere:
   tier by one step after sixty slow frames, session-only. It never touches a
   tier the player chose in settings.
 
+### Graphics settings
+
+Settings → Display → Graphics is where the tier override finally surfaces
+(it had been in `quality.ts` since the tiers were measured, called by
+nothing), plus four switches laid over it: Surfaces (Off / Simple / Full),
+Effects, Shadows and Render scale. `useRenderQuality` resolves them in one
+place — tier → auto ceiling → `GraphicsPrefs` — so a canvas never reads a
+preference directly. Two rules:
+
+- **Every row has an Auto that names what it resolves to**, read from
+  `tierDefaults()`, so a choice is made against a known value. Pick "Low" and
+  every other Auto re-labels to Low's defaults in the same render.
+- **Preferences are per feature, not a second preset.** The usual complaint
+  is about one thing — the glow, the stutter — and one switch is the honest
+  fix. `render_prefs_v1` holds only the keys the player set; absent means the
+  tier. `render_tier_v1` is untouched so nobody's existing choice is lost.
+
+`shadowMap: 0` now genuinely means off — `FollowSun` reads it as
+`castShadow`, where before it sized a real shadow map to zero pixels.
+
+### What the shader costs
+
+`triSample` branches on the blend weight, and `triWeights` snaps anything
+under `TRI_EPS` to exactly zero, so a pixel on a flat face pays **one** fetch
+per map rather than three; only the chamfers pay for two or three. The
+branches are coherent per face and free. The mip level goes in explicitly via
+`textureGrad` from one pair of `dFdx`/`dFdy` on the world position — a fetch
+inside a branch has undefined derivatives where a quad diverges, which is a
+sparkle along every block edge on some GPUs. The detail pass is skipped
+entirely past `DETAIL.fadeEnd`, which is most of any world.
+
 ## Frame rate
 
 Every continuously-animating canvas runs `frameloop="never"` with a

@@ -23,6 +23,19 @@ import {
   type RaceScheme,
 } from "@/lib/player-settings";
 import { useCoarsePointer } from "@/lib/use-media-query";
+import {
+  TIER_NAMES,
+  clearGraphicsPrefs,
+  setGraphicsPref,
+  setTierOverride,
+  tierDefaults,
+  useDetectedTier,
+  useGraphicsPrefs,
+  useTierOverride,
+  type GraphicsPrefs,
+  type Tier,
+} from "@/lib/quality";
+import type { TextureMode } from "@/lib/textures/block-shader";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { useHudOverlay } from "@/lib/hud-overlay";
@@ -479,12 +492,158 @@ function TouchSettings({ onArrange }: { onArrange: () => void }) {
   );
 }
 
+const TIER_LABELS: Record<Tier, string> = { low: "Low", medium: "Medium", high: "High" };
+const TEXTURE_LABELS: Record<TextureMode, string> = {
+  flat: "Off",
+  surface: "Simple",
+  full: "Full",
+};
+
+/**
+ * One row of choices. The first chip is always "Auto" — the tier's own
+ * answer, named so the player can see what they would be getting back.
+ */
+function ChoiceRow<V extends string>({
+  label,
+  value,
+  auto,
+  options,
+  onPick,
+}: {
+  label: string;
+  /** The explicit choice, or null for auto. */
+  value: V | null;
+  /** What auto currently resolves to. */
+  auto: string;
+  options: Array<[V, string]>;
+  onPick(v: V | null): void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-dim w-24 shrink-0 text-2xs">{label}</span>
+      <button
+        onClick={() => onPick(null)}
+        className={`hud-chip ${value === null ? "is-active" : ""}`}
+        aria-pressed={value === null}
+      >
+        Auto · {auto}
+      </button>
+      {options.map(([v, text]) => (
+        <button
+          key={v}
+          onClick={() => onPick(v)}
+          className={`hud-chip ${value === v ? "is-active" : ""}`}
+          aria-pressed={value === v}
+        >
+          {text}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Graphics: the tier, and four switches laid over it.
+ *
+ * `lib/quality.ts` has carried a player override since the tiers were
+ * measured, and nothing ever exposed it — a player whose phone was guessed
+ * Low had no way to say otherwise. The per-feature rows exist because the
+ * usual complaint is about one thing (the glow, the stutter) and the honest
+ * fix for one thing is one switch. Each shows what Auto would give, so the
+ * choice is made against a known value rather than a blank.
+ */
+function GraphicsSettings() {
+  const override = useTierOverride();
+  const detected = useDetectedTier();
+  const prefs = useGraphicsPrefs();
+  const touched = override !== null || Object.keys(prefs).length > 0;
+
+  // What each Auto resolves to right now — the tier the override or detection
+  // lands on, then that tier's defaults, read the same way the canvases do.
+  const tier = override ?? detected;
+  const base = tierDefaults(tier);
+
+  const pick = <K extends keyof GraphicsPrefs>(key: K) => (v: GraphicsPrefs[K] | null) =>
+    setGraphicsPref(key, v === null ? undefined : v);
+  const onOff = (v: boolean | null) => (v === null ? null : v ? "on" : "off");
+  const fromOnOff = (v: "on" | "off" | null) => (v === null ? null : v === "on");
+
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <h3 className="hud-label">Graphics</h3>
+        {touched && (
+          <button
+            onClick={() => {
+              setTierOverride(null);
+              clearGraphicsPrefs();
+            }}
+            className="hud-chip ml-auto"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+      <p className="text-dim text-2xs">
+        Auto is a guess about this device. If it stutters, drop one thing at a
+        time — the render scale first — rather than the whole preset.
+      </p>
+      <ChoiceRow<Tier>
+        label="Quality"
+        value={override}
+        auto={TIER_LABELS[detected]}
+        options={TIER_NAMES.map((t) => [t, TIER_LABELS[t]])}
+        onPick={setTierOverride}
+      />
+      <ChoiceRow<TextureMode>
+        label="Surfaces"
+        value={prefs.textures ?? null}
+        auto={TEXTURE_LABELS[base.textures]}
+        options={[
+          ["flat", "Off"],
+          ["surface", "Simple"],
+          ["full", "Full"],
+        ]}
+        onPick={pick("textures")}
+      />
+      <ChoiceRow<"on" | "off">
+        label="Effects"
+        value={onOff(prefs.post ?? null)}
+        auto={base.post ? "On" : "Off"}
+        options={[
+          ["on", "On"],
+          ["off", "Off"],
+        ]}
+        onPick={(v) => pick("post")(fromOnOff(v))}
+      />
+      <ChoiceRow<"on" | "off">
+        label="Shadows"
+        value={onOff(prefs.shadows ?? null)}
+        auto="On"
+        options={[
+          ["on", "On"],
+          ["off", "Off"],
+        ]}
+        onPick={(v) => pick("shadows")(fromOnOff(v))}
+      />
+      <ChoiceRow<"fast">
+        label="Render scale"
+        value={prefs.performanceScale ? "fast" : null}
+        auto={base.dpr[1] === 1 ? "1×" : "Native"}
+        options={[["fast", "1×"]]}
+        onPick={(v) => pick("performanceScale")(v === null ? null : true)}
+      />
+    </section>
+  );
+}
+
 function DisplaySettings() {
   const inset = usePlayerSettings((s) => s.hudInset);
   const setInset = usePlayerSettings((s) => s.setHudInset);
 
   return (
     <div className="flex flex-col gap-4">
+      <GraphicsSettings />
       {/*
         Sound and fullscreen live here now as well as on the HUD.
 

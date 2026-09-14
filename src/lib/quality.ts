@@ -238,6 +238,123 @@ export function setTierOverride(tier: Tier | null) {
   for (const fn of overrideListeners) fn();
 }
 
+/**
+ * The player's own graphics choices, each laid over the tier's default.
+ *
+ * ── Why these are separate from the tier ─────────────────────────────────
+ *
+ * A tier is one guess about the whole machine. A player usually has one
+ * specific complaint — "it stutters, but I like the shadows" or "the glow
+ * makes me feel sick" — and the answer to that is one switch, not a coarser
+ * preset that also throws away everything else. Every field is optional:
+ * absent means "whatever the tier says", so a player who has never opened
+ * the menu gets exactly the tier.
+ *
+ * Stored under their own key. `render_tier_v1` stays what it was so nobody's
+ * existing choice is lost over a new field.
+ */
+export interface GraphicsPrefs {
+  /** What block materials sample. See TextureMode. */
+  textures?: TextureMode;
+  /** The post chain (bloom, vignette). */
+  post?: boolean;
+  /** Whether the sun casts at all. */
+  shadows?: boolean;
+  /**
+   * Cap the device pixel ratio at 1. A voxel world is fragment-bound, so on
+   * a 3× phone this is the single largest lever a player has — and the one
+   * that costs the least to look at, because a chamfered block at arm's
+   * length hides a soft pixel far better than text does.
+   */
+  performanceScale?: boolean;
+}
+
+const PREFS_KEY = "render_prefs_v1";
+const PREF_KEYS = ["textures", "post", "shadows", "performanceScale"] as const;
+const TEXTURE_MODES: readonly TextureMode[] = ["flat", "surface", "full"];
+
+/** The stored object, or an empty one, with anything unrecognised dropped. */
+function readPrefs(): GraphicsPrefs {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (!raw) return EMPTY_PREFS;
+    const v = JSON.parse(raw) as Record<string, unknown>;
+    const out: GraphicsPrefs = {};
+    if (TEXTURE_MODES.includes(v.textures as TextureMode)) out.textures = v.textures as TextureMode;
+    if (typeof v.post === "boolean") out.post = v.post;
+    if (typeof v.shadows === "boolean") out.shadows = v.shadows;
+    if (typeof v.performanceScale === "boolean") out.performanceScale = v.performanceScale;
+    return out;
+  } catch {
+    return EMPTY_PREFS;
+  }
+}
+
+// One stable object for "nothing set", so useSyncExternalStore does not see
+// a fresh {} on every read and re-render forever.
+const EMPTY_PREFS: GraphicsPrefs = Object.freeze({});
+let prefsCache: { raw: string | null; value: GraphicsPrefs } | null = null;
+
+function prefsSnapshot(): GraphicsPrefs {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(PREFS_KEY);
+  } catch {
+    return EMPTY_PREFS;
+  }
+  if (prefsCache && prefsCache.raw === raw) return prefsCache.value;
+  prefsCache = { raw, value: readPrefs() };
+  return prefsCache.value;
+}
+
+/** Set one preference, or pass undefined to hand it back to the tier. */
+export function setGraphicsPref<K extends keyof GraphicsPrefs>(
+  key: K,
+  value: GraphicsPrefs[K] | undefined
+) {
+  const next: GraphicsPrefs = { ...prefsSnapshot() };
+  if (value === undefined) delete next[key];
+  else next[key] = value;
+  try {
+    if (PREF_KEYS.some((k) => next[k] !== undefined)) {
+      localStorage.setItem(PREFS_KEY, JSON.stringify(next));
+    } else {
+      localStorage.removeItem(PREFS_KEY);
+    }
+  } catch {
+    // The session keeps what it has.
+  }
+  for (const fn of overrideListeners) fn();
+}
+
+/** Every preference back to the tier. */
+export function clearGraphicsPrefs() {
+  try {
+    localStorage.removeItem(PREFS_KEY);
+  } catch {
+    // As above.
+  }
+  for (const fn of overrideListeners) fn();
+}
+
+/** The player's explicit tier choice, null for auto. For a settings UI. */
+export function useTierOverride(): Tier | null {
+  return useSyncExternalStore(subscribeOverride, readOverride, () => null);
+}
+
+/** The tier the device would get with no override — what "Auto" means. */
+export function useDetectedTier(): Tier {
+  const coarse = useCoarsePointer();
+  const ceiling = useSyncExternalStore(subscribeOverride, () => autoCeiling, () => null);
+  const detected = detectTier(coarse);
+  return ceiling ? lowerOf(detected, ceiling) : detected;
+}
+
+/** The player's graphics preferences, for a settings UI. */
+export function useGraphicsPrefs(): GraphicsPrefs {
+  return useSyncExternalStore(subscribeOverride, prefsSnapshot, () => EMPTY_PREFS);
+}
+
 export function useRenderQuality(): RenderQuality {
   const coarse = useCoarsePointer();
 
@@ -258,13 +375,27 @@ export function useRenderQuality(): RenderQuality {
     () => autoCeiling,
     () => null
   );
+  const prefs = useSyncExternalStore(subscribeOverride, prefsSnapshot, () => EMPTY_PREFS);
 
   return useMemo(() => {
     const detected = detectTier(coarse);
     const tier = override ?? (ceiling ? lowerOf(detected, ceiling) : detected);
-    return { tier, ...TIERS[tier] };
-  }, [override, ceiling, coarse]);
+    const base = TIERS[tier];
+    return {
+      tier,
+      ...base,
+      textures: prefs.textures ?? base.textures,
+      post: prefs.post ?? base.post,
+      shadowMap: prefs.shadows === false ? 0 : base.shadowMap,
+      dpr: prefs.performanceScale ? [1, 1] : base.dpr,
+    };
+  }, [override, ceiling, coarse, prefs]);
 }
 
 /** The tiers, for a settings UI to enumerate. */
 export const TIER_NAMES: Tier[] = ["low", "medium", "high"];
+
+/** A tier's defaults before any preference — what "Auto" means in Settings. */
+export function tierDefaults(tier: Tier): Omit<RenderQuality, "tier"> {
+  return TIERS[tier];
+}

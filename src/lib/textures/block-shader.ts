@@ -125,10 +125,15 @@ export function applyBlockTextures(
         varying vec3 vTexWorldPos;
 
         // Blend weights from the geometric world normal, sharpened so an
-        // axis-aligned face is exactly one projection and only a chamfer mixes.
+        // axis-aligned face is exactly one projection and only a chamfer
+        // mixes. Weights under TRI_EPS are snapped to zero — on a flat face
+        // they already are, and the snap is what lets the samplers below
+        // skip the two projections that would contribute nothing.
+        #define TRI_EPS 0.002
         vec3 triWeights( vec3 wn ) {
           vec3 w = pow( abs( wn ), vec3( uTriSharp ) );
-          return w / ( w.x + w.y + w.z );
+          w *= step( vec3( TRI_EPS ), w );
+          return w / max( w.x + w.y + w.z, 1e-5 );
         }
 
         // The three projections. Walls take -y as v so the image's top is up.
@@ -136,10 +141,30 @@ export function applyBlockTextures(
         vec2 triUvY( vec3 p ) { return vec2( p.x,  p.z ); }
         vec2 triUvZ( vec3 p ) { return vec2( p.x, -p.y ); }
 
-        vec4 triSample( sampler2DArray arr, vec3 p, vec3 w, float layer ) {
-          return texture( arr, vec3( triUvX( p ), layer ) ) * w.x
-               + texture( arr, vec3( triUvY( p ), layer ) ) * w.y
-               + texture( arr, vec3( triUvZ( p ), layer ) ) * w.z;
+        // One fetch per projection that carries weight. On the ~99% of block
+        // pixels that lie on a flat face that is ONE fetch, not three; only
+        // the chamfers pay for two or three. The branches are coherent — a
+        // whole face takes the same path — so they cost nothing on the GPU.
+        //
+        // The mip level is handed in explicitly. A fetch inside a branch
+        // has undefined derivatives wherever a 2×2 quad diverges (a chamfer
+        // edge), which on some GPUs is a sparkle along every block edge.
+        // The projections are linear in p, so the screen-space gradient of
+        // each uv is the same swizzle of the gradient of p — two dFd* of a
+        // vec3, taken once, cover all three.
+        vec4 triSample( sampler2DArray arr, vec3 p, vec3 dpx, vec3 dpy, vec3 w, float layer ) {
+          vec4 c = vec4( 0.0 );
+          if ( w.x > 0.0 ) c += textureGrad( arr, vec3( triUvX( p ), layer ), triUvX( dpx ), triUvX( dpy ) ) * w.x;
+          if ( w.y > 0.0 ) c += textureGrad( arr, vec3( triUvY( p ), layer ), triUvY( dpx ), triUvY( dpy ) ) * w.y;
+          if ( w.z > 0.0 ) c += textureGrad( arr, vec3( triUvZ( p ), layer ), triUvZ( dpx ), triUvZ( dpy ) ) * w.z;
+          return c;
+        }
+        float triSampleR( sampler2D tex, vec3 p, vec3 dpx, vec3 dpy, vec3 w ) {
+          float c = 0.0;
+          if ( w.x > 0.0 ) c += textureGrad( tex, triUvX( p ), triUvX( dpx ), triUvX( dpy ) ).r * w.x;
+          if ( w.y > 0.0 ) c += textureGrad( tex, triUvY( p ), triUvY( dpx ), triUvY( dpy ) ).r * w.y;
+          if ( w.z > 0.0 ) c += textureGrad( tex, triUvZ( p ), triUvZ( dpx ), triUvZ( dpy ) ).r * w.z;
+          return c;
         }
         `
       )
@@ -155,20 +180,23 @@ export function applyBlockTextures(
         vec3 texGeoNormal = transformNormalByInverseViewMatrix( normalize( vNormal ), viewMatrix );
         vec3 texW = triWeights( texGeoNormal );
         vec3 texP = vTexWorldPos * uTexScale;
-        vec4 texSurface = triSample( uSurfaceArray, texP, texW, vTexLayer );
+        vec3 texDpx = dFdx( texP );
+        vec3 texDpy = dFdy( texP );
+        vec4 texSurface = triSample( uSurfaceArray, texP, texDpx, texDpy, texW, vTexLayer );
         // R is luminance normalised to a mean of 0.5: ×2 makes the identity 1.
         diffuseColor.rgb *= texSurface.r * 2.0;
         ${
           full
             ? /* glsl */ `
         {
-          // Part 8: fine grain at arm's length, gone by twenty metres.
-          vec3 dp = vTexWorldPos * uDetailScale;
-          float detail = texture2D( uDetail, triUvX( dp ) ).r * texW.x
-                       + texture2D( uDetail, triUvY( dp ) ).r * texW.y
-                       + texture2D( uDetail, triUvZ( dp ) ).r * texW.z;
+          // Part 8: fine grain at arm's length, gone by twenty metres — and
+          // past that, no fetch at all. Most of a world is past that.
           float fade = 1.0 - smoothstep( uDetailFade.x, uDetailFade.y, length( vViewPosition ) );
-          diffuseColor.rgb *= mix( 1.0, detail * 2.0, uDetailStrength * fade );
+          if ( fade > 0.0 ) {
+            float ds = uDetailScale / uTexScale;
+            float detail = triSampleR( uDetail, texP * ds, texDpx * ds, texDpy * ds, texW );
+            diffuseColor.rgb *= mix( 1.0, detail * 2.0, uDetailStrength * fade );
+          }
         }
         `
             : ""
@@ -195,12 +223,19 @@ export function applyBlockTextures(
           // slope is swizzled onto the world axes its uv runs along, weighted,
           // and added to the geometric normal. The tangent z is dropped, which
           // is what makes this blend cheap and seam-free.
-          vec3 nX = texture( uNormalArray, vec3( triUvX( texP ), vTexLayer ) ).xyz * 2.0 - 1.0;
-          vec3 nY = texture( uNormalArray, vec3( triUvY( texP ), vTexLayer ) ).xyz * 2.0 - 1.0;
-          vec3 nZ = texture( uNormalArray, vec3( triUvZ( texP ), vTexLayer ) ).xyz * 2.0 - 1.0;
-          vec3 delta = vec3( 0.0, -nX.y, nX.x ) * texW.x
-                     + vec3( nY.x, 0.0, nY.y ) * texW.y
-                     + vec3( nZ.x, -nZ.y, 0.0 ) * texW.z;
+          vec3 delta = vec3( 0.0 );
+          if ( texW.x > 0.0 ) {
+            vec3 nX = textureGrad( uNormalArray, vec3( triUvX( texP ), vTexLayer ), triUvX( texDpx ), triUvX( texDpy ) ).xyz * 2.0 - 1.0;
+            delta += vec3( 0.0, -nX.y, nX.x ) * texW.x;
+          }
+          if ( texW.y > 0.0 ) {
+            vec3 nY = textureGrad( uNormalArray, vec3( triUvY( texP ), vTexLayer ), triUvY( texDpx ), triUvY( texDpy ) ).xyz * 2.0 - 1.0;
+            delta += vec3( nY.x, 0.0, nY.y ) * texW.y;
+          }
+          if ( texW.z > 0.0 ) {
+            vec3 nZ = textureGrad( uNormalArray, vec3( triUvZ( texP ), vTexLayer ), triUvZ( texDpx ), triUvZ( texDpy ) ).xyz * 2.0 - 1.0;
+            delta += vec3( nZ.x, -nZ.y, 0.0 ) * texW.z;
+          }
           vec3 worldN = normalize( texGeoNormal + delta * uNormalStrength );
           normal = normalize( ( viewMatrix * vec4( worldN, 0.0 ) ).xyz );
         }
