@@ -27,6 +27,28 @@ export const SADDLE = { y: 0.23, z: -0.35 } as const;
 export const BARS = { y: 0.23, z: 0.4 } as const;
 
 /**
+ * Where the feet go. Beside the chassis, a little ahead of the hips.
+ *
+ * Added with the rider's IK, which needs a target for the legs for the same
+ * reason it needs one for the arms: a foot placed by a hand-tuned angle is a
+ * foot that drifts the moment anything above it moves.
+ */
+export const PEGS = { y: -0.02, z: 0.1, x: 0.19 } as const;
+
+/**
+ * How far the whole bike is dropped so its wheels meet the ground.
+ *
+ * The vehicle's origin is at axle height and the wheels have radius 0.33, so
+ * the body hangs below its own origin by this much. It is a named constant
+ * because the anchors above are in BODY space while the meshes below are in
+ * the dropped group's space, and every conversion between the two is this
+ * number. Writing it inline three times is how the procedural bike's
+ * handlebar came to sit 0.12 away from `BARS` while the comment above claimed
+ * the two bikes were built to the same anchors.
+ */
+export const BIKE_DROP = 0.12;
+
+/**
  * The bike, as geometry only.
  *
  * Procedural like the character avatar and for the same reason: no asset
@@ -140,7 +162,7 @@ export function VoxelBike({
   return (
     // Dropped so the wheels meet the ground rather than the body origin: the
     // vehicle's origin sits at axle height, and the wheels have radius 0.33.
-    <group position={[0, -0.12, 0]}>
+    <group position={[0, -BIKE_DROP, 0]}>
       {/* ── Frame ── */}
       <mesh geometry={G.chassis} material={paint} position={[0, 0.1, 0]} castShadow />
       <mesh geometry={G.tank} material={paint} position={[0, 0.28, 0.16]} castShadow />
@@ -164,10 +186,14 @@ export function VoxelBike({
         position={[0.12, 0.12, 0.66]}
         rotation={[0.35, 0, 0]}
       />
+      {/* Derived from BARS rather than written again, so the fallback bike's
+          grips are where the rider's hands are solved to. They were 0.12
+          apart, which is a hand through a handlebar for as long as the GLB
+          takes to arrive. */}
       <mesh
         geometry={G.bar}
         material={M.bar}
-        position={[0, 0.46, 0.52]}
+        position={[0, BARS.y + BIKE_DROP, BARS.z]}
         rotation={[0, 0, Math.PI / 2]}
       />
 
@@ -249,7 +275,7 @@ function ScifiBike({ color, emissive }: { color: string; emissive: number }) {
   // Same drop as the procedural bike: the model's origin is at axle height and
   // the body's is not. Both are normalised to that, which is what lets this be
   // a straight swap — see AXLE_TO_GROUND in scripts/import-bike.ts.
-  return <primitive object={model} position={[0, -0.12, 0]} />;
+  return <primitive object={model} position={[0, -BIKE_DROP, 0]} />;
 }
 
 /**
