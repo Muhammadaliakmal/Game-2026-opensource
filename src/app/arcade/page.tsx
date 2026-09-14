@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { ArcadeLobby } from "@/components/arcade/ArcadeLobby";
+import { ArcadeAutoOpen } from "@/components/arcade/ArcadeAutoOpen";
 import { PageShell, PageHeader } from "@/components/PageShell";
 import { DAILY_HARD_CAP, DAILY_SOFT_CAP } from "@/lib/arcade-payout";
 
@@ -27,6 +29,12 @@ export default function ArcadePage() {
       </PageHeader>
 
       <ArcadeLobby />
+      {/* `useSearchParams` needs a Suspense boundary or the whole static page
+          would fall back to client rendering. Nothing is shown while it
+          resolves, so the fallback is nothing. */}
+      <Suspense fallback={null}>
+        <ArcadeAutoOpen />
+      </Suspense>
 
       {/* The payout rule, said once and plainly. A cap a player discovers by
           watching their coins stop is a cap that reads as a bug. */}

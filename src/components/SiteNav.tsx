@@ -69,6 +69,10 @@ interface NavLink {
 
 const LINKS: readonly NavLink[] = [
   { href: "/", label: "Home" },
+  // Every game on one page. It goes second because it is what most people
+  // came for, and it is what the arena and the arcade's cabinets never had:
+  // a place in the header that leads to them in one press.
+  { href: "/games", label: "Games" },
   { href: "/browse", label: "Browse" },
   { href: "/arcade", label: "Arcade" },
   { href: "/shop", label: "Characters" },

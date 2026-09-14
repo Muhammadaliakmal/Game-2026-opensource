@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { RememberPlay } from "@/components/RememberPlay";
 import { RaceMount } from "@/components/race/RaceMount";
 import { isMatchCode, normalizeMatchCode } from "@/lib/match-code";
 import { MAX_RIDERS, RACE_TRACKS } from "@/lib/race-track";
@@ -44,7 +45,12 @@ export default async function RacePage({
     Number.isFinite(n) && n >= 1 && n <= MAX_RIDERS ? Math.floor(n) : undefined;
 
   return (
-    <RaceMount code={normalizeMatchCode(code)} target={target} track={track} />
+    <>
+      <RaceMount code={normalizeMatchCode(code)} target={target} track={track} />
+      {/* The lobby, not this grid: a code is one session's, and a chip that
+          rejoins a room everyone has left is a chip that opens an empty grid. */}
+      <RememberPlay href="/race" title="Race" kind="race" />
+    </>
   );
 }
 

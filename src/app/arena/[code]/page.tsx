@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { RememberPlay } from "@/components/RememberPlay";
 import { ArenaMount } from "@/components/arena/ArenaMount";
 import { isMatchCode, normalizeMatchCode } from "@/lib/match-code";
 import { IMMERSIVE_VIEWPORT } from "@/lib/immersive";
@@ -20,7 +21,11 @@ export default async function MatchPage({
   if (!isMatchCode(code)) notFound();
 
   return (
-    <ArenaMount code={normalizeMatchCode(code)} worldId={world ?? "parkour"} />
+    <>
+      <ArenaMount code={normalizeMatchCode(code)} worldId={world ?? "parkour"} />
+      {/* The lobby, for the same reason the race remembers its lobby. */}
+      <RememberPlay href="/arena" title="Arena" kind="arena" />
+    </>
   );
 }
 

@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { CABINETS } from "@/arcade/registry";
+import { CABINETS, entryFor } from "@/arcade/registry";
+import { RememberPlay } from "@/components/RememberPlay";
 import { useArcade } from "@/arcade/store";
 import { RATES } from "@/lib/arcade-payout";
 import { ControlsHint } from "@/components/hud/Hotkey";
@@ -76,6 +77,15 @@ export function ArcadeLobby() {
       </ul>
 
       {activeGame && <ArcadeOverlay />}
+      {/* A cabinet is a game, so the front page can offer it back. Keyed on
+          the open cabinet: it records once per opening, not per render. */}
+      {activeGame && entryFor(activeGame) && (
+        <RememberPlay
+          href={`/arcade?play=${activeGame}`}
+          title={entryFor(activeGame)!.title}
+          kind="arcade"
+        />
+      )}
     </>
   );
 }

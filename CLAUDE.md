@@ -391,13 +391,28 @@ Two things about the sky layers that are easy to get wrong:
 
 ## The menu
 
-There are two modes, and each is a cover you press, not a row with a button
-after it: `/parkour` (the five-course ladder) and `/race`. Parkour first —
-it works alone, offline, on the first visit; racing needs a room server and
-somebody else, and leading with the one that can fail to connect is leading
-with the one that can disappoint.
+**Every game is in `components/modes/GamesHub.tsx`, and nowhere else.** The
+home page (both halves) and `/games` render it, so there is one list of what
+the site has. Before it, the front page offered two of the four modes, the
+arena was on no page and in no menu, and the arcade's four cabinets had no
+address. The order: a Continue chip (the last game opened, from
+`lib/last-played.ts`, recorded by `<RememberPlay>` on the screens that ARE a
+game — never a lobby), then the three modes as covers, then the cabinets,
+then the sandboxes. Add a game there and it is on the front page, on
+`/games`, and in the sitemap's neighbourhood; add it anywhere else and it
+is hidden again.
 
-- Racing is deliberately **not** a chip in the page header any more.
+The modes are covers you press, not rows with a button after them:
+`/parkour` (the ladder), `/race`, `/arena`. Parkour first — it works alone,
+offline, on the first visit; the other two need a room server and somebody
+else, and leading with the one that can fail to connect is leading with the
+one that can disappoint.
+
+- `/arcade?play=<id>` opens that cabinet on arrival (`ArcadeAutoOpen`). The
+  cabinets open through the store, not a route, and this is what gives each
+  one a link the hub and the Continue chip can use.
+- Racing is deliberately **not** a chip in the page header any more; `Games`
+  is, and it leads to all of them.
 - `PARKOUR_COURSES` / `SANDBOX_WORLDS` in `built-in-worlds.ts` split on `tier`,
   so adding a course to `TIERED_COURSES` puts it on the parkour screen and
   nowhere else. There is no second list to keep in step.

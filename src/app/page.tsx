@@ -5,11 +5,8 @@ import { db } from "@/lib/db";
 import { worlds } from "@/lib/db/schema";
 import { NewWorldButton } from "@/components/NewWorldButton";
 import { WorldCardMenu } from "@/components/WorldCardMenu";
-import { RemixButton } from "@/components/RemixButton";
 import { HeroMount } from "@/components/hero/HeroMount";
-import { PARKOUR_COURSES, SANDBOX_WORLDS } from "@/lib/built-in-worlds";
-import { ModeCard } from "@/components/modes/ModeCard";
-import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
+import { GamesHub } from "@/components/modes/GamesHub";
 import { UGC } from "@/lib/features";
 import { AdSlot } from "@/components/AdSlot";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -37,53 +34,11 @@ import { PrefetchCanvas } from "@/components/PrefetchCanvas";
  */
 
 /**
- * The two things you can go and do, as covers rather than as a list.
- *
- * ── Order ────────────────────────────────────────────────────────────────
- *
- * Parkour first and race second, and not alphabetically. Parkour is the mode
- * that works alone, offline, on the first visit, with no code to share and
- * nobody else needed; racing needs a room server and — to be a race rather
- * than a time trial — somebody else. Leading with the one that can fail to
- * connect is leading with the one that can disappoint.
- *
- * ── Why both are one tile each ───────────────────────────────────────────
- *
- * Racing used to be a chip in the page header, which is the same as not
- * shipping it: a five-word link between "Browse" and "Get the app" does not
- * read as a game mode. And the parkour courses used to be entries in a flat
- * list of built-in worlds, so the ladder they form was invisible. One cover
- * each, one screen behind each, and the covers are drawn from the game's own
- * night sky so they show what pressing them gets you.
+ * Every game the site has, in one place, is `<GamesHub>` — used here in
+ * both halves and again at `/games`. It used to be two of the four modes as
+ * covers, with the arena on no page at all and the arcade a word in the
+ * header. See that file for the order and why.
  */
-function Modes() {
-  return (
-    <section>
-      <h2 className="mb-4 text-xl font-bold">Play</h2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <ModeCard
-          href="/parkour"
-          art="parkour"
-          eyebrow={`${PARKOUR_COURSES.length} courses · Tutorial to Expert`}
-          title="Parkour"
-          blurb="Jump it, time it, take the medal. Checkpoints keep the clock running through a fall, and a ghost of your best run is out there ahead of you."
-          meta={["Solo", "Medals", "Ghosts", "Leaderboards"]}
-          cta="Choose a course"
-        />
-        <ModeCard
-          href="/race"
-          art="race"
-          eyebrow={`Up to ${MAX_RIDERS} riders · ${RACE_LAPS} laps`}
-          title="Race"
-          blurb="Neon Circuit, on bikes. Drift to fill the boost, spend it down the straight, and send the code to whoever you want on the grid."
-          meta={["Multiplayer", "Boost", "Drift", "Time trial"]}
-          cta="Open a grid"
-        />
-      </div>
-    </section>
-  );
-}
-
 export default async function Home() {
   const { userId } = await auth();
 
@@ -109,6 +64,12 @@ export default async function Home() {
         <HeroMount />
 
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-7 sm:gap-12 sm:px-6 sm:py-10">
+          {/* The games come straight after the scene, before the pitch. A
+              visitor who has just turned the island with a drag does not need
+              a paragraph to tell them what this is; they need the next thing
+              to press, and every one of them is here. */}
+          <GamesHub />
+
           <section className="flex flex-col items-start gap-5">
             <h1 className="text-display max-w-2xl font-bold">
               {UGC
@@ -131,35 +92,6 @@ export default async function Home() {
                 Browse worlds
               </Link>
             </div>
-          </section>
-
-          <Modes />
-
-          {/* The worlds with nothing to complete. Kept as a plain list on
-              purpose: they are somewhere to stand and look around, not a mode,
-              and giving them cover art would claim they were. */}
-          <section>
-            <h2 className="mb-4 text-xl font-bold">Worlds to explore</h2>
-            <ul className="grid gap-4 sm:grid-cols-2">
-              {SANDBOX_WORLDS.map((w) => (
-                <li
-                  key={w.slug}
-                  className="card hover:border-accent/50 p-4 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-base font-semibold">{w.name}</h3>
-                    <span className="hud-label shrink-0">Built-in</span>
-                  </div>
-                  <p className="text-dim mt-1 text-sm">{w.blurb}</p>
-                  <Link
-                    href={`/play/${w.slug}`}
-                    className="hud-chip hud-chip--primary mt-4"
-                  >
-                    Play
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </section>
 
           {showcase.length > 0 && (
@@ -225,41 +157,13 @@ export default async function Home() {
 
   return (
     <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
-      {/* The modes first: they are always here, and they give a brand-new
-          account something to do before it has built anything. */}
+      {/* The games first: they are always here, and they give a brand-new
+          account something to do before it has built anything. Remix — the
+          door into the builder — is off with UGC (lib/features), so the
+          sandbox tiles are plain Play tiles like the visitor's. */}
       <div className="mb-8 sm:mb-12">
-        <Modes />
+        <GamesHub />
       </div>
-
-      <section className="mb-8 sm:mb-12">
-        <h2 className="mb-4 text-xl font-bold">Worlds to explore</h2>
-        <ul className="grid gap-4 sm:grid-cols-2">
-          {SANDBOX_WORLDS.map((w) => (
-            <li
-              key={w.slug}
-              className="card hover:border-accent/50 p-4 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-base font-semibold">{w.name}</h3>
-                <span className="hud-label shrink-0">Built-in</span>
-              </div>
-              <p className="text-dim mt-1 text-sm">{w.blurb}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link
-                  href={`/play/${w.slug}`}
-                  className="hud-chip hud-chip--primary"
-                >
-                  Play
-                </Link>
-                {/* Remix is the door into the builder, and v1 does not open it
-                    — see lib/features. The route still works for anyone who
-                    has one open. */}
-                {UGC && <RemixButton from={w.slug} name={w.name} />}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
 
       {/* ── Your worlds ──
           Hidden wholesale in v1 rather than emptied: a heading reading "Your

@@ -28,7 +28,7 @@
 // server, and atmosphere.ts imports the whole of three.js.
 import { NIGHT_STOPS } from "@/lib/sky-stops";
 
-export type ModeArt = "parkour" | "race";
+export type ModeArt = "parkour" | "race" | "arena";
 
 /** Deterministic, so the art is identical on the server and in the browser. */
 function stars(count: number, seed: number) {
@@ -57,6 +57,7 @@ function stars(count: number, seed: number) {
 
 const PARKOUR_STARS = stars(70, 20240115);
 const RACE_STARS = stars(70, 77010203);
+const ARENA_STARS = stars(70, 31415926);
 
 /**
  * The sky, shared by both covers.
@@ -254,6 +255,58 @@ function RaceArt() {
 }
 
 /**
+ * Arena: two fighters squared up on one platform, under the same sky.
+ *
+ * The platform is the whole stage and there is nothing beyond its edge — a
+ * knockdown is a fall — so the frame is a single pad, wide and central, with
+ * the void either side of it. Two figures, one lit in the accent, facing.
+ */
+function ArenaArt() {
+  const fighter = (x: number, flip: boolean, lit: boolean) => {
+    const fill = lit ? "var(--color-accent)" : "#eef1ff";
+    const sx = flip ? -1 : 1;
+    return (
+      <g transform={`translate(${x} 150) scale(${sx} 1)`}>
+        <ellipse cx="0" cy="4" rx="12" ry="3" fill="#02030a" opacity="0.5" />
+        <rect x="-4" y="-22" width="8" height="12" rx="2.5" fill={fill} />
+        <circle cx="0" cy="-27" r="4.2" fill={fill} />
+        {/* A guard hand forward, a leg back: the stance says fight. */}
+        <rect x="3" y="-20" width="9" height="4" rx="2" fill={fill} transform="rotate(-18 3 -20)" />
+        <rect x="-8" y="-17" width="7" height="4" rx="2" fill={fill} transform="rotate(30 -8 -17)" />
+        <rect x="-5.5" y="-10" width="4" height="12" rx="1.8" fill={fill} transform="rotate(20 -5.5 -10)" />
+        <rect x="1.5" y="-10" width="4" height="12" rx="1.8" fill={fill} transform="rotate(-8 1.5 -10)" />
+      </g>
+    );
+  };
+  return (
+    <>
+      <Stars from={ARENA_STARS} />
+      <Moon id="ar" cx={200} cy={40} />
+
+      {/* The void, both sides and below. */}
+      <rect y="120" width="400" height="105" fill="#02030a" opacity="0.55" />
+
+      {/* The stage: one wide pad, lit along its top edge. */}
+      <rect x="92" y="156" width="216" height="26" rx="2" fill="#1b2450" />
+      <rect x="92" y="153.5" width="216" height="3.5" rx="1.5" fill="var(--color-accent)" opacity="0.8" />
+      <rect x="92" y="157" width="216" height="22" fill="url(#ar-glow)" opacity="0.22" />
+
+      {fighter(158, false, true)}
+      {fighter(242, true, false)}
+
+      {/* The hit: a short burst between them, the one instant worth drawing. */}
+      <g transform="translate(200 128)" fill="var(--color-accent)">
+        <rect x="-1.2" y="-9" width="2.4" height="6" rx="1" />
+        <rect x="-1.2" y="3" width="2.4" height="6" rx="1" transform="rotate(35)" />
+        <rect x="-1.2" y="3" width="2.4" height="6" rx="1" transform="rotate(-35)" />
+      </g>
+    </>
+  );
+}
+
+const IDS: Record<ModeArt, string> = { parkour: "pk", race: "rc", arena: "ar" };
+
+/**
  * @param art which mode's picture.
  *
  * `aria-hidden` throughout: the card around this carries the name and the
@@ -269,8 +322,8 @@ export function ModeCover({ art }: { art: ModeArt }) {
       aria-hidden="true"
       focusable="false"
     >
-      <NightBackdrop id={art === "race" ? "rc" : "pk"} />
-      {art === "race" ? <RaceArt /> : <ParkourArt />}
+      <NightBackdrop id={IDS[art]} />
+      {art === "race" ? <RaceArt /> : art === "arena" ? <ArenaArt /> : <ParkourArt />}
     </svg>
   );
 }
