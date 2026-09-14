@@ -421,8 +421,11 @@ actually care about.
 
 Measured 10 September 2026, because the standing advice for this app was to
 Draco-compress the glTFs and convert textures to KTX2, and **all of `public/`
-is 717 KB**. The largest single asset is the bike at 73 KB. That work would
-save nothing, and knowing so is worth more than doing it.
+was 717 KB**. The largest single asset was the bike at 73 KB. That work would
+have saved nothing, and knowing so is worth more than doing it. (Phase 9
+added ~700 KB of block surface strips — the largest asset is now
+`block_normal.jpg` at 399 KB — which is why they are JPEG and not the 2.4 MB
+of PNG they started as. Still under the three.js chunk on its own.)
 
 What the numbers actually are:
 
@@ -505,6 +508,65 @@ Vapor Ridge 8.7%, Neon Circuit nothing at all — it is flat, and a flat world h
 no interior. That spread is the reason it is a fact about the world rather than
 a knob about the device.
 
+## Block surfaces
+
+A part's eighth field is a **surface** — an index into `TEXTURES` in
+`lib/texture-list.ts` — and it is optional, so every seven-number tuple, every
+shipped course and every op from an older build stays valid. Read it with
+`textureOf(part)`, never `p[7]`. See `plan-phase9.md` for the spec this came
+from and what was decided against it.
+
+```
+Renderer:        react-three-fiber (three r185, WebGL2 only)
+Colour space:    sRGB output, ACESFilmic, exposure 1.05 — unchanged, see "The sky"
+Surface maps:    two DataArrayTextures, 256² per layer, 4:4:4 JPEG on the wire
+Voxel texturing: world-space triplanar, surface index as an instance attribute
+Budget:          ~5.5 MB VRAM for the whole set; zero extra draw calls
+Anisotropy:      8 high / 4 medium / 1 low, clamped to the GPU
+```
+
+Four things about it that are not obvious from the code:
+
+- **Surfaces are tint maps, not colour maps.** The palette colour a player
+  placed is the content (see "The sky"), so a surface supplies luminance,
+  normal and roughness only, each normalised so 0.5 is the identity, and the
+  shader doubles them. Layer 0, `plain`, is a flat 128: a block with no
+  surface renders bit-for-bit as it did before surfaces existed. Grass in
+  blue is blue grass, on purpose.
+- **`TEXTURES` is append-only.** The index is stored in every saved world.
+  Reorder or delete an entry and every world that used the slots after it is
+  silently retextured. Retire a surface by keeping its name and changing its
+  `source`. `texture-list.test.ts` holds the committed strip to the list, so
+  a strip from a stale build fails the suite rather than the player.
+- **The surface is an instance attribute, not a bucket axis.** Buckets are
+  still `(shape, finish, ground, chunk)`; `aTexture` rides on each bucket's
+  own clone of the shape geometry (`lib/textures/instance-texture.ts`). Making
+  it a bucket axis would have multiplied the draw-call count by eleven.
+- **The projection is by world position**, one tile per unit, because the
+  four shapes share no UV layout and the wedge has none at all. A floor of
+  one surface therefore tiles continuously across cells. `TEXTURE_SCALE` and
+  the rest of the numbers are in `lib/textures/tuning.ts`.
+
+The pipeline: `npm run textures:fetch` downloads the 1K CC0 maps from Poly
+Haven into `assets/raw-textures/` (gitignored, like every raw asset) and
+writes `public/textures/CREDITS.md`; `npm run textures` builds the strips in
+`public/textures/generated/`, which **are committed** so a deploy needs
+neither the network nor the raw maps. Judge any change to either at
+`/dev/surfaces` — every surface under every finish in three palette colours,
+with Play's post chain — and not on whichever block is in front of the camera.
+`?cam=x,y,z&at=x,y,z` fixes the viewpoint so two builds can be compared.
+
+Two things the post chain (`PostFX`, Play and Race only) changed elsewhere:
+
+- `gl.info` resets on every `renderer.render()`, and a composer makes one per
+  pass, so `?perf=1` would read the final full-screen triangle and report a
+  10,000-block world as one draw call. `PostFX` turns the auto-reset off and
+  snapshots the frame's totals after its own pass; `PerfProbe` reads those
+  when they exist. Anything else that adds a render pass has to do the same.
+- The frame monitor (`monitorFrame` in `quality.ts`) lowers a **guessed**
+  tier by one step after sixty slow frames, session-only. It never touches a
+  tier the player chose in settings.
+
 ## Frame rate
 
 Every continuously-animating canvas runs `frameloop="never"` with a
@@ -554,6 +616,7 @@ Neon `DATABASE_URL` via `neon env pull`.
 
 - `npm run dev` — dev server
 - `npm test` — unit tests (node:test via tsx)
+- `npm run textures:fetch` / `npm run textures` — block surfaces, see "Block surfaces"
 - `npx drizzle-kit generate` / `npx drizzle-kit migrate` — schema migrations
 
 ## Room server (`server/`, Phase 5)

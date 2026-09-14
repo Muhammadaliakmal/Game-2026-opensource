@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRenderQuality } from "@/lib/quality";
-import { perfEnabled, perfStats } from "./perf-stats";
+import { composed, perfEnabled, perfStats } from "./perf-stats";
 
 /**
  * Samples the renderer from inside the frame loop. Renders nothing.
@@ -41,8 +41,10 @@ export function PerfProbe() {
       worst.current = 0;
 
       const info = gl.info;
-      perfStats.calls = info.render.calls;
-      perfStats.triangles = info.render.triangles;
+      // Under a composer the live counters hold only the last pass; the
+      // composer leaves the whole frame's totals in `composed` instead.
+      perfStats.calls = composed.frame?.calls ?? info.render.calls;
+      perfStats.triangles = composed.frame?.triangles ?? info.render.triangles;
       perfStats.geometries = info.memory.geometries;
       perfStats.textures = info.memory.textures;
       perfStats.programs = info.programs?.length ?? 0;

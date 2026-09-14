@@ -8,6 +8,9 @@ import { OrbitControls } from "@react-three/drei";
 import { InstancedWorld } from "@/components/play/InstancedWorld";
 import { BlockSurfaces } from "@/components/BlockSurfaces";
 import { FollowSun } from "@/components/FollowSun";
+import { PostFX } from "@/components/PostFX";
+import { PerfProbe } from "@/components/perf/PerfProbe";
+import { PerfPanel } from "@/components/perf/PerfPanel";
 import { FINISHES, TEXTURES, type PartTuple } from "@/lib/worlddoc";
 
 /**
@@ -45,14 +48,27 @@ function showcaseParts(): PartTuple[] {
   return parts;
 }
 
+/** `?cam=x,y,z&at=x,y,z` — a repeatable viewpoint, for comparing two builds. */
+function viewFromUrl(): { cam: [number, number, number]; at: [number, number, number] } {
+  const q = new URLSearchParams(window.location.search);
+  const read = (key: string, fallback: [number, number, number]) => {
+    const v = q.get(key)?.split(",").map(Number);
+    return v && v.length === 3 && v.every(Number.isFinite)
+      ? (v as [number, number, number])
+      : fallback;
+  };
+  return { cam: read("cam", [24, 18, 44]), at: read("at", [10, 1, 16]) };
+}
+
 export default function SurfacesCanvas() {
-  const parts = useMemo(showcaseParts, []);
+  const parts = useMemo(() => showcaseParts(), []);
+  const view = useMemo(() => viewFromUrl(), []);
   return (
     <div className="relative h-[80dvh] w-full">
       <Canvas
         frameloop="demand"
         shadows
-        camera={{ position: [24, 18, 44], fov: 45 }}
+        camera={{ position: view.cam, fov: 45 }}
         onCreated={({ scene, gl }) => {
           scene.background = new THREE.Color("#14171a");
           const pmrem = new THREE.PMREMGenerator(gl);
@@ -67,8 +83,14 @@ export default function SurfacesCanvas() {
         <FollowSun getFocus={() => focus} extent={30} />
         <InstancedWorld parts={parts} />
         <BlockSurfaces />
-        <OrbitControls makeDefault target={[10, 1, 16]} enableDamping />
+        <OrbitControls makeDefault target={view.at} enableDamping />
+        {/* Play's post chain, so the emissive rows are judged with the bloom
+            they will actually have; and the perf probe, so this page doubles
+            as the check that the probe reads whole frames under a composer. */}
+        <PostFX />
+        <PerfProbe />
       </Canvas>
+      <PerfPanel />
     </div>
   );
 }

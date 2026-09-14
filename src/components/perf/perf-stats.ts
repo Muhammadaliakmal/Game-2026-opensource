@@ -52,3 +52,36 @@ export const perfStats: PerfStats = {
 export const perfEnabled =
   typeof window !== "undefined" &&
   new URLSearchParams(window.location.search).get("perf") === "1";
+
+/**
+ * The last full frame's render counts, when a post-processing composer owns
+ * the frame; null otherwise.
+ *
+ * `gl.info` resets itself at the start of every `renderer.render()`, and a
+ * composer calls that once per pass — so by the time <PerfProbe> reads it,
+ * it holds the final full-screen pass: one call, one triangle, and a panel
+ * that says a 10,000-block world costs nothing. <PostFX> switches the reset
+ * off, snapshots here after its last pass, and resets by hand.
+ */
+export const composed: { frame: { calls: number; triangles: number } | null } = {
+  frame: null,
+};
+
+/**
+ * Plain functions rather than assignments in the component, because
+ * `react-hooks/immutability` rejects writing a member of a value a hook
+ * returned — and `gl` comes from `useThree`. CLAUDE.md's camera rule, again.
+ */
+export function beginComposedFrames(gl: { info: { autoReset: boolean } }) {
+  gl.info.autoReset = false;
+}
+export function endComposedFrames(gl: { info: { autoReset: boolean } }) {
+  gl.info.autoReset = true;
+  composed.frame = null;
+}
+export function snapshotComposedFrame(gl: {
+  info: { render: { calls: number; triangles: number }; reset(): void };
+}) {
+  composed.frame = { calls: gl.info.render.calls, triangles: gl.info.render.triangles };
+  gl.info.reset();
+}

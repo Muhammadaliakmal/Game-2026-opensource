@@ -1,7 +1,33 @@
 "use client";
 
+import { useEffect } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { useRenderQuality } from "@/lib/quality";
+import {
+  beginComposedFrames,
+  endComposedFrames,
+  snapshotComposedFrame,
+} from "@/components/perf/perf-stats";
+
+/**
+ * Keeps `?perf=1` honest under the composer.
+ *
+ * `gl.info` resets itself on every `renderer.render()`, and the composer
+ * makes one of those per pass, so the probe would read the final
+ * full-screen triangle and nothing else. This turns the auto-reset off,
+ * snapshots the frame's totals AFTER the composer (priority 2 runs after
+ * its 1) and resets by hand, so the next frame starts from zero again.
+ */
+function FrameTotals() {
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    beginComposedFrames(gl);
+    return () => endComposedFrames(gl);
+  }, [gl]);
+  useFrame(() => snapshotComposedFrame(gl), 2);
+  return null;
+}
 
 /**
  * The post-processing chain. Play and Race; never the editor.
@@ -34,14 +60,17 @@ export function PostFX() {
   if (!quality.post) return null;
 
   return (
-    <EffectComposer multisampling={quality.antialias ? 4 : 0}>
-      <Bloom
-        intensity={0.55}
-        luminanceThreshold={0.75}
-        luminanceSmoothing={0.3}
-        mipmapBlur
-      />
-      <Vignette offset={0.3} darkness={0.45} />
-    </EffectComposer>
+    <>
+      <FrameTotals />
+      <EffectComposer multisampling={quality.antialias ? 4 : 0}>
+        <Bloom
+          intensity={0.55}
+          luminanceThreshold={0.75}
+          luminanceSmoothing={0.3}
+          mipmapBlur
+        />
+        <Vignette offset={0.3} darkness={0.45} />
+      </EffectComposer>
+    </>
   );
 }
