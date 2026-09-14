@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ModeCard } from "./ModeCard";
 import { ContinueChip } from "./ContinueChip";
 import { GameSearch } from "./GameSearch";
+import { WorldCard } from "./WorldCard";
 import { CabinetPreview } from "@/components/arcade/CabinetPreview";
 import { CABINETS } from "@/arcade/registry";
 import { PARKOUR_COURSES, SANDBOX_WORLDS } from "@/lib/built-in-worlds";
@@ -112,25 +113,19 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
 
       <section className="rise-in flex flex-col gap-4" style={{ "--rise-i": 2 } as React.CSSProperties}>
         <h2 className="text-xl font-bold">Worlds to explore</h2>
-        <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+        <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           {SANDBOX_WORLDS.map((w) => (
             <li key={w.slug}>
               {/* The whole card is the link, as with the modes: a Play chip
                   under a paragraph made the paragraph the part that was not
                   pressable. */}
-              <Link
+              <WorldCard
+                slug={w.slug}
+                name={w.name}
+                blurb={w.blurb}
                 href={`/play/${w.slug}`}
-                className="group card hover:border-accent/70 focus-visible:border-accent/70 flex h-full flex-col p-4 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-ink text-base font-semibold">{w.name}</h3>
-                  <span className="hud-label shrink-0">Built-in</span>
-                </div>
-                <p className="text-dim mt-1 flex-1 text-sm">{w.blurb}</p>
-                <span className="hud-chip hud-chip--primary group-hover:brightness-110 mt-4 w-fit">
-                  Play
-                </span>
-              </Link>
+                badge="Built-in"
+              />
             </li>
           ))}
         </ul>

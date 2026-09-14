@@ -462,6 +462,41 @@ one that can disappoint.
   recolour with. Not screenshots: those would be seven PNGs to re-capture every
   time a course or the sky changed, and silently wrong the rest of the time.
 
+### Level cards, and the one angle they are all drawn at
+
+Every world and course card carries a bird's-eye picture of the place, drawn
+from `WorldDoc.parts` by `lib/world-cover.ts` and committed as a PNG by
+`npm run covers`. Four things about it are load-bearing:
+
+- **It is not straight down**, and that is the whole decision. A parkour
+  course IS its verticality — the climb, the gap, the drop — and a 90° camera
+  collapses all of it into one plane, so the card shows a maze rather than a
+  course. `COVER_RIG` is a fixed oblique elevation at a fixed heading, and
+  `world-cover.test.ts` asserts the angle stays in the band where height
+  survives.
+- **One heading for every world, never fitted per world.** Picking the
+  flattering angle per level is what makes a level-select screen look cheap:
+  every card ends up lit from a different direction. Orthographic too, so a
+  block is the same size in every card and a big world reads as big.
+- **Generated, not captured — which is what makes the images allowed at all.**
+  The rule above bans screenshots because they go stale silently. These are a
+  pure function of the parts, the manifest records `coverKey` of the parts
+  each was drawn from, and the test recomputes it. A world edited without
+  `npm run covers` fails the suite instead of misleading a player. That also
+  makes re-running byte-identical by construction, so the freshness check can
+  be a hash rather than an image diff.
+- **`coverKey` hashes position, shape and colour only.** A finish or texture
+  change cannot alter a flat-shaded quad, so it must not mark every cover
+  stale — the same argument `courseKey` makes in `course-floor.ts` about
+  which fields can move a route floor.
+
+The output is PNG rather than inline SVG because Vapor Ridge is 10,762 parts
+and just under 30,000 quads — 2.3 MB of markup. Rendered, all 24 covers are
+92 kB. `BIRDS_EYE_THUMBNAILS.md` proposes a `/dev/thumbnail` route driven by
+Playwright, which is right for a game whose levels are `.glb` files; here a
+world is a function returning tuples, so there is nothing to load in a browser
+and no browser is involved. `npm run bike:preview` already made that trade.
+
 ### Finding a game
 
 `GameSearch` sits in the hub's heading and searches two lists that are never

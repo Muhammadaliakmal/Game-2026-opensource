@@ -12,6 +12,7 @@
     "light:check": "node --import tsx scripts/light-check.mts",
     "courses:check": "node --import tsx scripts/course-check.ts",
     "floors:backfill": "node --import tsx scripts/backfill-floors.ts",
+    "covers": "node --import tsx scripts/generate-covers.ts",
     "icons:generate": "node --import tsx scripts/generate-icons.ts",
     "chars:optimize": "node --import tsx scripts/optimize-characters.ts",
     "props:generate": "node --import tsx scripts/meshy-batch.ts",

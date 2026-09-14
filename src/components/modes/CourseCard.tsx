@@ -1,9 +1,12 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Tier } from "@/lib/course-kit";
 // From lib/sky-stops rather than lib/atmosphere: this renders on the
 // server, and atmosphere.ts imports the whole of three.js.
 import { NIGHT_STOPS } from "@/lib/sky-stops";
-import { SILHOUETTE_COLUMNS, silhouetteFor } from "@/lib/course-silhouette";
+import covers from "@/lib/world-covers.json";
+
+const COVERS: Record<string, { key: string; blur: string }> = covers;
 
 /**
  * One course on the parkour ladder.
@@ -16,40 +19,31 @@ import { SILHOUETTE_COLUMNS, silhouetteFor } from "@/lib/course-silhouette";
  *
  * ── What the picture is ──────────────────────────────────────────────────
  *
- * The course's own elevation, read off its actual blocks — see
- * `lib/course-silhouette`. It is not a map: a 220x90 thumbnail of a 90-unit
- * course is an unreadable smear. It is where the run climbs, where it gives
- * height back and where it breaks, which is the shape of the ask.
+ * The course itself, seen from above at the one fixed oblique angle every
+ * cover in the app shares — see `lib/world-cover.ts` for why that angle is
+ * not straight down, and `scripts/generate-covers.ts` for where the image
+ * comes from.
+ *
+ * It replaced an elevation silhouette drawn from the same blocks, which was
+ * honest and answered a narrower question: how the run climbs, but not what
+ * it looks like or how big it is. The oblique view carries both, because
+ * height survives it — that is the whole reason for the angle — so the strip
+ * was information the picture already contained, drawn twice.
  *
  * ── It used to be a lie ──────────────────────────────────────────────────
  *
- * The skyline was generated from the TIER — a climb rate and a bar width per
- * difficulty — so all four Hard courses drew the same picture, and the `seed`
- * prop that appeared to vary them only fed a gradient id. Two adjacent cards
- * with identical art and identical captions is worse than two cards with no
- * art at all, because it looks like information.
+ * Before the silhouette, the skyline was generated from the TIER — a climb
+ * rate and a bar width per difficulty — so all four Hard courses drew the
+ * same picture, and the `seed` prop that appeared to vary them only fed a
+ * gradient id. Two adjacent cards with identical art and identical captions
+ * is worse than two cards with no art at all, because it looks like
+ * information. The rule that came out of it is the one this still follows:
+ * the art is read off the course's own blocks or it does not exist.
  */
 
-function CourseArt({ slug, index }: { slug: string; index: number }) {
-  // Cached at module scope in the library — see the note there about why that
-  // cache is permanently valid.
-  const heights = silhouetteFor(slug);
+/** The night behind the cover. Only the index varies — it keys the gradient. */
+function CourseArt({ index }: { index: number }) {
   const id = `c${index}`;
-
-  const step = 220 / SILHOUETTE_COLUMNS;
-  // A 2px sliver of air between columns, so a run of equal heights still reads
-  // as separate blocks rather than one bar.
-  const width = step - 2;
-  const bars = (heights ?? []).map((h, i) => ({
-    x: i * step + 1,
-    // 12 is the ceiling and 82 the floor, so a full-height column stops short
-    // of the top edge and a zero-height one is a gap rather than a hairline.
-    y: 82 - h * 70,
-    w: width,
-    // Kept so the renderer can tell "nothing here" from "something very low".
-    empty: h <= 0,
-  }));
-
   return (
     <svg
       viewBox="0 0 220 90"
@@ -74,26 +68,6 @@ function CourseArt({ slug, index }: { slug: string; index: number }) {
           <circle key={sx} cx={sx} cy={8 + ((k * 13) % 26)} r={k % 3 === 0 ? 1.2 : 0.7} />
         ))}
       </g>
-
-      {/* A gap in the course is drawn as a gap. That is the half of this that
-          the tier-generated version could not do at all: a course is defined
-          by where the ground is not. */}
-      {bars.map((b, k) =>
-        b.empty ? null : (
-          <g key={k}>
-            <rect x={b.x} y={b.y} width={b.w} height={90 - b.y} fill="#131a3c" />
-            {/* The lit top edge, which is the surface a runner lands on. */}
-            <rect
-              x={b.x}
-              y={b.y - 2}
-              width={b.w}
-              height="2.5"
-              fill="var(--color-accent)"
-              opacity={0.45 + Math.min(0.5, k * 0.03)}
-            />
-          </g>
-        )
-      )}
     </svg>
   );
 }
@@ -123,8 +97,19 @@ export function CourseCard({
       href={`/play/${slug}`}
       className="group card hover:border-accent/70 focus-visible:border-accent/70 block overflow-hidden transition-colors"
     >
-      <div className="relative h-28 w-full">
-        <CourseArt slug={slug} index={index} />
+      <div className="relative h-32 w-full">
+        <CourseArt index={index} />
+        {COVERS[slug] && (
+          <Image
+            src={`/covers/${slug}.png`}
+            alt=""
+            fill
+            sizes="(max-width: 640px) 92vw, 30vw"
+            placeholder="blur"
+            blurDataURL={COVERS[slug].blur}
+            className="object-contain p-1.5 transition-transform duration-300 group-hover:scale-[1.05]"
+          />
+        )}
         <div
           aria-hidden
           className="absolute inset-0"
