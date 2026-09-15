@@ -131,6 +131,40 @@ ship are slugs generated from code and have no row to point at.
   back with an index and a lerp, and recorded against the course's own clock so
   the replay and the on-screen timer cannot drift apart.
 
+### Two bests on one row, and three ways to be paid
+
+`runs` now carries a **week best** beside the all-time one (`week_ms`,
+`week_key`), and the upsert can no longer be gated by one `setWhere`: a run
+slower than your all-time best can still be this week's. Each column decides
+in SQL whether the new time beats the one it holds. `?period=week` on the
+board is the same query over the other column, keyed by `weekKey()`.
+
+- **The calendar is `lib/daily.ts`, and it is UTC.** The daily challenge is
+  shared, so its day must be one day for everyone; the pick is a hash of
+  the day key over `PARKOUR_COURSES`, computed by the hub card *and* by the
+  runs route, and neither trusts the other. The arcade's `arcade_day` stays
+  the player's local day for the opposite reason — it defends a balance, not
+  a shared fact.
+- **`DailyChallenge` reads the clock in its store snapshot, never in
+  render.** The hub is a server component on a page that may be cached, so
+  the pick is made client-side through `useSyncExternalStore`; and the
+  purity lint rejects `Date.now()` from render, rightly.
+- **Race places and duel results are paid by the room, through the app.**
+  `server/src/rewards.ts` posts the *result* (place, entrants, won) to
+  `POST /api/rewards/match` with the service secret; `lib/match-reward.ts`
+  turns it into coins on the app side and `MAX_MATCH_REWARD` caps it there
+  too. The room never states an amount. Matches draw on the arcade's daily
+  pool (`awardMatchCoins` is `awardArcadeCoins` with rate 1), so "everything
+  that is not a course pays at most 1000 a day" stays one sentence. A race
+  of one pays the finish, not the place; guests are never sent.
+- **The lucky run is rolled on the server** (`lib/lucky.ts`), only on a
+  payout that exists, and the client only learns the outcome.
+- **A `beat my time` link is `/play/<id>?vs=<userId>`.** `RunRecorder`
+  reads it off `window.location` — it mounts inside the R3F root, which is
+  not the page's React tree — and `runs/ghost?who=user:<id>` serves it.
+  `ghostLoading` is what lets `GhostRunner` tell "no such ghost" from "not
+  here yet"; without it the record overrode the personal ghost on mount.
+
 ### The course floor, and what an edit costs a board
 
 **Nothing downstream of `authorMsFor` is keyed by an id.** The medal ladder is

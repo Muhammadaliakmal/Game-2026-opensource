@@ -48,10 +48,15 @@ export function RunRecorder({ worldId }: { worldId: string }) {
   useEffect(() => {
     const runs = useRuns.getState();
     void runs.load(worldId);
-    // Your own best first: on the attempt after a personal best, the run worth
-    // chasing is the one you just did. `GhostRunner` falls back to the record
-    // when there is no personal one yet.
-    void runs.loadGhost(worldId, "me");
+    // A "beat my time" link names the runner to chase (`?vs=<userId>`), and
+    // that is the whole point of following one, so it wins over the usual
+    // choice. Read off the location rather than the router: this mounts
+    // inside the R3F root, which is a separate React tree from the page's.
+    // Otherwise your own best first: on the attempt after a personal best,
+    // the run worth chasing is the one you just did. `GhostRunner` falls
+    // back to the record when there is no personal one yet.
+    const vs = new URLSearchParams(window.location.search).get("vs");
+    void runs.loadGhost(worldId, vs ? `user:${vs}` : "me");
     return () => useRuns.getState().clear();
   }, [worldId]);
 

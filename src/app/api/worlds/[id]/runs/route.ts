@@ -4,11 +4,13 @@ import { and, asc, eq, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { runs, worlds } from "@/lib/db/schema";
-import { isBuiltInWorld } from "@/lib/built-in-worlds";
+import { isBuiltInWorld, PARKOUR_COURSES } from "@/lib/built-in-worlds";
 import { isUuid } from "@/lib/ids";
 import { ghostSchema } from "@/lib/ghost";
 import { coinAward } from "@/lib/coins";
-import { awardCoins } from "@/lib/db/players";
+import { awardCoins, awardDailyBonus } from "@/lib/db/players";
+import { DAILY_BONUS, dailyPick, dayKey, weekKey } from "@/lib/daily";
+import { luckyRoll } from "@/lib/lucky";
 import {
   MAX_RUN_MS,
   authorMsFor,
@@ -23,10 +25,12 @@ import {
  *
  * ── What is on offer, and what is not ────────────────────────────────────
  *
- * Global and personal best. Not friends boards: those need a social graph the
- * app does not have, for the same reason `BuildRoom.canEdit` has no
- * collaborator model — inventing one here would mean inventing permissions
- * nobody can grant or revoke.
+ * Global and personal best, and the same board over this week alone
+ * (`?period=week`) — a fresh start every Monday for everyone who was not
+ * here first. Not friends boards: those need a social graph the app does not
+ * have, for the same reason `BuildRoom.canEdit` has no collaborator model —
+ * inventing one here would mean inventing permissions nobody can grant or
+ * revoke.
  *
  * ── Signed in only, on the way in ────────────────────────────────────────
  *
@@ -103,10 +107,24 @@ export async function GET(req: Request, { params }: Params) {
   const limit =
     Number.isFinite(asked) && asked > 0 ? Math.min(MAX_N, Math.floor(asked)) : TOP_N;
 
+  /*
+   * `?period=week` is the same board over this week's times — see the
+   * `week_ms` column for why that is a column and not a date filter. The
+   * time column and the row predicate are the only two things that differ,
+   * so they are chosen once here and every query below is written against
+   * them. A weekly row's `timeMs` is its week best, which is what the
+   * client draws; the all-time best is a different board.
+   */
+  const weekly = url.searchParams.get("period") === "week";
+  const timeCol = weekly ? runs.weekMs : runs.timeMs;
+  const onBoard = weekly
+    ? and(eq(runs.worldId, id), eq(runs.weekKey, weekKey()))
+    : eq(runs.worldId, id);
+
   const columns = {
     userId: runs.userId,
     name: runs.name,
-    timeMs: runs.timeMs,
+    timeMs: sql<number>`${timeCol}`.mapWith(Number),
     medal: runs.medal,
     hasGhost: sql<boolean>`${runs.ghost} is not null`.mapWith(Boolean),
     at: runs.updatedAt,
@@ -115,10 +133,10 @@ export async function GET(req: Request, { params }: Params) {
   const top = await db
     .select(columns)
     .from(runs)
-    .where(eq(runs.worldId, id))
+    .where(onBoard)
     // The tie-break matters: without it two identical times swap places
     // between requests and the board looks like it is flickering.
-    .orderBy(asc(runs.timeMs), asc(runs.updatedAt))
+    .orderBy(asc(timeCol), asc(runs.updatedAt))
     .limit(limit);
 
   // The caller's own row and rank, which is the half of a leaderboard that
@@ -130,13 +148,13 @@ export async function GET(req: Request, { params }: Params) {
     const [mine] = await db
       .select(columns)
       .from(runs)
-      .where(and(eq(runs.worldId, id), eq(runs.userId, userId)));
+      .where(and(onBoard, eq(runs.userId, userId)));
     if (mine) {
       me = mine;
       const [{ ahead }] = await db
         .select({ ahead: sql<number>`count(*)`.mapWith(Number) })
         .from(runs)
-        .where(and(eq(runs.worldId, id), lt(runs.timeMs, mine.timeMs)));
+        .where(and(onBoard, lt(timeCol, mine.timeMs)));
       rank = ahead + 1;
     }
   }
@@ -148,6 +166,7 @@ export async function GET(req: Request, { params }: Params) {
     top,
     me,
     rank,
+    period: weekly ? "week" : "all",
     authorMs: authorMsFor(id, course.floorMs),
   });
 }
@@ -202,10 +221,21 @@ export async function POST(req: Request, { params }: Params) {
   // finished pays a first-finish, finished-without-a-medal does not. See
   // `lib/coins.ts` for why the payout is a difference rather than a payment.
   const [previous] = await db
-    .select({ medal: runs.medal })
+    .select({ medal: runs.medal, timeMs: runs.timeMs })
     .from(runs)
     .where(and(eq(runs.worldId, id), eq(runs.userId, userId)));
 
+  /*
+   * Two bests live on one row now, and they move independently: a run that
+   * is slower than your all-time best can still be the fastest you have gone
+   * this week. So the upsert can no longer be gated by one `setWhere` — it
+   * always lands, and each column decides for itself in SQL whether the new
+   * time beats the one it holds. The comparisons stay in the statement for
+   * the reason they always did: two tabs finishing at once must not let the
+   * slower one land last.
+   */
+  const week = weekKey();
+  const better = sql`excluded.time_ms < ${runs.timeMs}`;
   const [row] = await db
     .insert(runs)
     .values({
@@ -215,42 +245,64 @@ export async function POST(req: Request, { params }: Params) {
       timeMs,
       medal,
       ghost: ghost ?? null,
+      weekMs: timeMs,
+      weekKey: week,
     })
     .onConflictDoUpdate({
       target: [runs.worldId, runs.userId],
       set: {
         name: sql`excluded.name`,
-        timeMs: sql`excluded.time_ms`,
-        medal: sql`excluded.medal`,
-        ghost: sql`excluded.ghost`,
-        updatedAt: sql`now()`,
+        timeMs: sql`least(${runs.timeMs}, excluded.time_ms)`,
+        medal: sql`case when ${better} then excluded.medal else ${runs.medal} end`,
+        ghost: sql`case when ${better} then excluded.ghost else ${runs.ghost} end`,
+        updatedAt: sql`case when ${better} then now() else ${runs.updatedAt} end`,
+        // A new week starts from this run; the same week keeps its best.
+        weekMs: sql`case when ${runs.weekKey} = ${week} then least(coalesce(${runs.weekMs}, excluded.time_ms), excluded.time_ms) else excluded.time_ms end`,
+        weekKey: week,
       },
-      // Only when it is actually better. A slower run is not an error — it is
-      // most runs — so the response below reports which happened rather than
-      // failing, and the client uses that to decide whether to refetch.
-      setWhere: sql`${runs.timeMs} > excluded.time_ms`,
     })
     .returning({ timeMs: runs.timeMs });
 
-  // Coins are only paid when the run actually landed. `row` is undefined for a
-  // slower attempt — which is most attempts — and paying for one would make
-  // the easiest course in the game a vending machine.
-  const earned =
-    row === undefined
-      ? 0
-      : coinAward(
-          previous === undefined ? undefined : (previous.medal as Medal | null),
-          medal
-        );
-  const coins = earned > 0 ? await awardCoins(userId, earned) : null;
+  // Improved means the all-time best moved, which is what decides both the
+  // refetch and the payout. Judged against the row read above rather than
+  // in the statement; the window in which two tabs of one player could both
+  // read the old best is milliseconds wide, and what it would double is a
+  // cosmetic — see `lib/coins.ts` on what this guard is and is not.
+  const improved = previous === undefined || timeMs < previous.timeMs;
+
+  // Coins are only paid when the run actually landed. A slower attempt —
+  // which is most attempts — pays nothing, and paying for one would make the
+  // easiest course in the game a vending machine.
+  const base = !improved
+    ? 0
+    : coinAward(
+        previous === undefined ? undefined : (previous.medal as Medal | null),
+        medal
+      );
+  // The lucky run: the server rolls, and only on a payout that exists.
+  const { earned, lucky } = luckyRoll(base);
+  let coins = earned > 0 ? await awardCoins(userId, earned) : null;
+
+  // Today's challenge pays a bonus the first time it is finished today,
+  // whatever the time was. It is the course of the day for everyone — the
+  // pick is the same pure function the hub used to show it — and the day is
+  // UTC for the same reason, so the bonus and the card cannot disagree.
+  let daily = 0;
+  if (id === dailyPick(PARKOUR_COURSES)?.slug) {
+    const bonus = await awardDailyBonus(userId, DAILY_BONUS, dayKey());
+    daily = bonus.earned;
+    if (daily > 0) coins = bonus.coins;
+  }
 
   return NextResponse.json({
     ok: true,
-    improved: row !== undefined,
+    improved,
     best: row?.timeMs ?? null,
     medal,
     authorMs: authorMsFor(id, course.floorMs),
     earned,
+    lucky,
+    daily,
     coins,
   });
 }

@@ -140,8 +140,10 @@ export function InstallPanel({
         {!available && platform !== "ios" && (
           <p className="text-dim text-xs">
             Your browser has not offered an install prompt. Chrome and Edge show
-            one from an install icon in the address bar; Firefox does not
-            support installing web apps on desktop at all.
+            one from an install icon in the address bar. Firefox on a desktop
+            cannot install web apps at all — that is Firefox, not the game —
+            so play it in the tab: nothing is missing, and a bookmark gets you
+            back in one press.
           </p>
         )}
       </section>

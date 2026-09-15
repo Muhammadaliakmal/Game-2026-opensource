@@ -2,7 +2,8 @@ import { Room, ServerError, type Client } from "colyseus";
 import { z } from "zod";
 import { ARENA, ArenaMatch } from "../arena-match.ts";
 import { ArenaState, Fighter } from "../arena-state.ts";
-import { verifyJoin } from "../auth.ts";
+import { verifyJoin, type RoomIdentity } from "../auth.ts";
+import { getRewardSink } from "../rewards.ts";
 import { getWorldSource } from "../world-source.ts";
 import type { Vec3, WorldDoc } from "@/lib/worlddoc";
 
@@ -88,6 +89,7 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
         knockdown: result.knockdown,
         winner: result.winner,
       });
+      if (result.winner) this.reward(result.winner);
     });
 
     this.onMessage("rematch", () => {
@@ -104,6 +106,29 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
       this.sync();
       for (const r of revived) this.broadcast("revive", r);
     }, 200);
+  }
+
+  /**
+   * The match is over: both fighters are paid for the result — the winner
+   * more, the loser something for having fought it out. Guests have no
+   * wallet and are skipped. The app decides the amounts; see rewards.ts.
+   */
+  private reward(winnerId: string) {
+    for (const client of this.clients) {
+      const who = client.auth as RoomIdentity | undefined;
+      if (!who || who.guest || !this.match.fighters.has(client.sessionId)) continue;
+      getRewardSink()
+        .pay({
+          userId: who.userId,
+          mode: "arena",
+          won: client.sessionId === winnerId,
+          entrants: this.match.fighters.size,
+        })
+        .then((paid) => {
+          if (paid && paid.earned > 0) client.send("coins", paid);
+        })
+        .catch((error) => console.error(`[arena ${this.roomId}] reward failed`, error));
+    }
   }
 
   onJoin(client: Client) {

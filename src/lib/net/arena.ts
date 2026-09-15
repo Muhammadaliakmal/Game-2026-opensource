@@ -88,6 +88,12 @@ export async function joinMatch(
 
     joined.onMessage("rematch", () => requestRespawn());
 
+    // The match paid out. Same shape as the race's.
+    joined.onMessage("coins", (paid: { earned: number; coins: number }) => {
+      useArenaStore.getState().setEarned(paid.earned);
+      void import("@/lib/shop").then(({ useShop }) => useShop.setState({ coins: paid.coins }));
+    });
+
     joined.onMessage(
       "hit",
       (h: { by: string; target: string; knockdown: boolean }) => {

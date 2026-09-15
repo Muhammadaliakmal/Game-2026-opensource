@@ -31,11 +31,14 @@ interface ArenaState {
   downTick: number;
   /** Whether the last knockdown was the local fighter going down. */
   downWasMe: boolean;
+  /** Coins the match just paid this fighter, or null. Cleared by a rematch. */
+  earned: number | null;
 
   setConnection(v: { connected: boolean; code?: string | null; selfId?: string | null; error?: string | null }): void;
   setMatch(v: { phase: ArenaPhase; winner: string | null; fighters: FighterView[] }): void;
   flashHurt(knockdown?: boolean): void;
   flashLanded(knockdown?: boolean): void;
+  setEarned(earned: number | null): void;
   reset(): void;
 }
 
@@ -51,6 +54,7 @@ const empty = {
   landedTick: 0,
   downTick: 0,
   downWasMe: false,
+  earned: null as number | null,
 };
 
 export const useArenaStore = create<ArenaState>((set) => ({
@@ -63,7 +67,9 @@ export const useArenaStore = create<ArenaState>((set) => ({
       selfId: selfId === undefined ? s.selfId : selfId,
       error: error === undefined ? s.error : error,
     })),
-  setMatch: ({ phase, winner, fighters }) => set({ phase, winner, fighters }),
+  setMatch: ({ phase, winner, fighters }) =>
+    set((s) => ({ phase, winner, fighters, earned: phase === "over" ? s.earned : null })),
+  setEarned: (earned) => set({ earned }),
   flashHurt: (knockdown = false) =>
     set((s) => ({
       hurtTick: s.hurtTick + 1,

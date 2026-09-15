@@ -97,6 +97,7 @@ export function GhostRunner({ goal }: { goal?: Vec3 }) {
   const ghost = useRuns((s) => s.ghost);
   const worldId = useRuns((s) => s.worldId);
   const ghostWho = useRuns((s) => s.ghostWho);
+  const ghostLoading = useRuns((s) => s.ghostLoading);
 
   /**
    * Fall back to the record when the player has no run of their own here.
@@ -107,9 +108,11 @@ export function GhostRunner({ goal }: { goal?: Vec3 }) {
    * not "then show nothing".
    */
   useEffect(() => {
-    if (ghost || !worldId || ghostWho !== "me") return;
+    // The same fallback for a "beat my time" link whose run has since been
+    // replaced or reset off the board: race the record rather than nobody.
+    if (ghost || ghostLoading || !worldId || ghostWho === "best") return;
     void useRuns.getState().loadGhost(worldId, "best");
-  }, [ghost, worldId, ghostWho]);
+  }, [ghost, ghostLoading, worldId, ghostWho]);
 
   // Phase is integrated rather than derived from the clock, so the gait does
   // not stutter when the run restarts and the clock jumps back to zero.

@@ -26,6 +26,7 @@ export function ArenaHud({ code, onAttack }: { code: string; onAttack: () => voi
   // object literal selector would build a new one every time it ran.
   const phase = useArenaStore((s) => s.phase);
   const winner = useArenaStore((s) => s.winner);
+  const earned = useArenaStore((s) => s.earned);
   const fighters = useArenaStore((s) => s.fighters);
   const selfId = useArenaStore((s) => s.selfId);
   const hurtTick = useArenaStore((s) => s.hurtTick);
@@ -73,7 +74,11 @@ export function ArenaHud({ code, onAttack }: { code: string; onAttack: () => voi
           {phase === "over" && (
             <Banner
               title={winner === selfId ? "You win" : "You lose"}
-              body={`First to ${WIN_AT} knockdowns.`}
+              body={
+                earned !== null && earned > 0
+                  ? `First to ${WIN_AT} knockdowns. + ⬤ ${earned}`
+                  : `First to ${WIN_AT} knockdowns.`
+              }
               action={
                 <div className="flex gap-2">
                   <button className="hud-chip hud-chip--primary" onClick={requestRematch}>

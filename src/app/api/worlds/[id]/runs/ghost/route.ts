@@ -41,11 +41,23 @@ export async function GET(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const who = new URL(req.url).searchParams.get("who");
+  const who = new URL(req.url).searchParams.get("who") ?? "best";
   const mine = who === "me";
   if (mine && !userId) {
     // Not an error: a signed-out player has no stored run, and the client's
     // answer to "no ghost" is the same either way — race nobody.
+    return NextResponse.json({ ghost: null, name: null, timeMs: null });
+  }
+
+  /*
+   * `?who=user:<id>` is somebody else's best — the run behind a "beat my
+   * time" link. Their id is already public on every board row, and what it
+   * yields is a replay on a course the caller can read anyway, so there is
+   * nothing here to guard beyond the world check above. An unknown id is a
+   * missing ghost, not an error: the link may outlive the run.
+   */
+  const target = who.startsWith("user:") ? who.slice(5) : null;
+  if (target !== null && !/^[\w-]{1,64}$/.test(target)) {
     return NextResponse.json({ ghost: null, name: null, timeMs: null });
   }
 
@@ -55,7 +67,9 @@ export async function GET(req: Request, { params }: Params) {
     .where(
       mine
         ? and(eq(runs.worldId, id), eq(runs.userId, userId!))
-        : and(eq(runs.worldId, id), isNotNull(runs.ghost))
+        : target !== null
+          ? and(eq(runs.worldId, id), eq(runs.userId, target))
+          : and(eq(runs.worldId, id), isNotNull(runs.ghost))
     )
     .orderBy(asc(runs.timeMs))
     .limit(1);

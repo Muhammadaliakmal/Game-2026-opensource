@@ -254,6 +254,7 @@ export function RaceHud({ code }: { code: string }) {
                 </li>
               ))}
             </ol>
+            <RaceEarned />
             <div className="flex gap-2">
               <button
                 onClick={requestRaceRematch}
@@ -394,5 +395,17 @@ function GreenFlash() {
         GO
       </span>
     </div>
+  );
+}
+
+/**
+ * What the finish paid. Only when it paid: a guest and a rider past the
+ * day's ceiling both see nothing rather than a zero.
+ */
+function RaceEarned() {
+  const earned = useRaceStore((s) => s.earned);
+  if (earned === null || earned <= 0) return null;
+  return (
+    <span className="hud-readout text-accent num text-sm font-semibold">+ ⬤ {earned}</span>
   );
 }

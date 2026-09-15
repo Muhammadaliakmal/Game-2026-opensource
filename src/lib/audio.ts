@@ -28,6 +28,16 @@
  * would be distortion on top of it. The count is released by `onended`, so a
  * voice that finished always frees its slot.
  *
+ * ── Loudness ─────────────────────────────────────────────────────────────
+ *
+ * A compressor sits between the master and the output. Every sound here is
+ * synthesised and hand-gained, and hand-gaining forty sounds to one level is
+ * a thing nobody gets right — so the graph does the last few dB itself. A
+ * gentle ratio with a soft knee: it catches a crash landing on top of a
+ * stinger on top of the bed, and leaves a single footstep alone. It is the
+ * one stage that keeps the mix calm during the loud moments, which is what
+ * the sound spec asks for and what a startle at the peak would break.
+ *
  * ── Tab blur ─────────────────────────────────────────────────────────────
  *
  * The context is suspended when the tab is hidden and resumed when it is
@@ -177,7 +187,17 @@ function audio(): {
     ctx = new Ctor();
     master = ctx.createGain();
     master.gain.value = isMuted() ? 0 : VOLUME;
-    master.connect(ctx.destination);
+
+    // The loudness stage. Threshold high enough that ordinary play never
+    // reaches it; the ratio only ever pulls the stacked peaks down. Fast in,
+    // slow out, so it does not pump under the engine.
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -18;
+    limiter.knee.value = 12;
+    limiter.ratio.value = 3;
+    limiter.attack.value = 0.004;
+    limiter.release.value = 0.22;
+    master.connect(limiter).connect(ctx.destination);
 
     const saved = busVolumes();
     const made = {} as Record<Bus, GainNode>;

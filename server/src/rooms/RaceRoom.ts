@@ -2,8 +2,9 @@ import { Room, ServerError, type Client } from "colyseus";
 import { z } from "zod";
 import { RACE, Race, gridPose } from "../race.ts";
 import { RaceState, Rider } from "../race-state.ts";
-import { verifyJoin } from "../auth.ts";
+import { verifyJoin, type RoomIdentity } from "../auth.ts";
 import { getWorldSource } from "../world-source.ts";
+import { getRewardSink } from "../rewards.ts";
 import { GRID_YAW, raceTrackSlug } from "@/lib/race-track";
 import type { WorldDoc } from "@/lib/worlddoc";
 
@@ -95,6 +96,7 @@ export class RaceRoom extends Room<{ state: RaceState }> {
           place: r?.place ?? 0,
           timeMs: r?.timeMs ?? 0,
         });
+        this.reward(client, r?.place ?? 0);
       } else if (result.lapped) {
         // Only the rider needs this — it is the "new lap" beat on their own
         // HUD, not news for anybody else.
@@ -164,6 +166,23 @@ export class RaceRoom extends Room<{ state: RaceState }> {
         this.sync();
       }
     }, 100);
+  }
+
+  /**
+   * A finish is paid, once, to whoever crossed the line — not to guests,
+   * who have no wallet. The grid size travels with the result so the app
+   * can tell a race from a time trial; the app decides what it is worth.
+   * Fire-and-forget: the room never waits on the wallet.
+   */
+  private reward(client: Client, place: number) {
+    const who = client.auth as RoomIdentity | undefined;
+    if (!who || who.guest) return;
+    getRewardSink()
+      .pay({ userId: who.userId, mode: "race", place, entrants: this.race.riders.size })
+      .then((paid) => {
+        if (paid && paid.earned > 0) client.send("coins", paid);
+      })
+      .catch((error) => console.error(`[race ${this.roomId}] reward failed`, error));
   }
 
   onJoin(client: Client) {

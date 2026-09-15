@@ -4,6 +4,7 @@ import { BuildRoom } from "./rooms/BuildRoom.ts";
 import { ArenaRoom } from "./rooms/ArenaRoom.ts";
 import { RaceRoom } from "./rooms/RaceRoom.ts";
 import { appWorldSource, setWorldSource } from "./world-source.ts";
+import { appRewardSink, setRewardSink } from "./rewards.ts";
 
 /**
  * The room server: a separate Node process from the Next app, because a
@@ -23,6 +24,9 @@ const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 const MULTIPLAYER_SECRET = process.env.MULTIPLAYER_SECRET;
 
 setWorldSource(appWorldSource(APP_URL, MULTIPLAYER_SECRET));
+// Race places and duel results are paid through the app too, with the same
+// secret — see rewards.ts. Without it, matches are simply unpaid.
+setRewardSink(appRewardSink(APP_URL, MULTIPLAYER_SECRET));
 
 if (!MULTIPLAYER_SECRET) {
   console.warn(

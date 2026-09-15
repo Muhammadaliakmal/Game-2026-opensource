@@ -195,6 +195,53 @@ export async function awardArcadeCoins(
 }
 
 /**
+ * Pay a match result out of the arcade's daily pool.
+ *
+ * A race place or a duel result is a flat amount (`lib/match-reward.ts`),
+ * and the only thing that bounds a grind of them is the day — the same
+ * ceiling, the same two columns and the same statement the arcade uses, with
+ * the amount standing in for `score × rate`. One pool means one sentence
+ * that stays true about everything that is not a course.
+ */
+export async function awardMatchCoins(
+  userId: string,
+  amount: number,
+  date: string
+): Promise<{ earned: number; coins: number; cappedForToday: boolean }> {
+  return awardArcadeCoins(userId, amount, 1, date);
+}
+
+/**
+ * Pay the daily challenge bonus, once per UTC day.
+ *
+ * The day already collected is in the WHERE clause, so the row is only paid
+ * if it has not been paid today — two tabs finishing the challenge at the
+ * same moment produce one payout and one "already collected". Returns the
+ * amount actually granted, which is the bonus or nothing.
+ */
+export async function awardDailyBonus(
+  userId: string,
+  amount: number,
+  day: string
+): Promise<{ earned: number; coins: number }> {
+  await db.insert(players).values({ userId }).onConflictDoNothing();
+
+  const [row] = await db
+    .update(players)
+    .set({
+      coins: sql`${players.coins} + ${amount}`,
+      dailyDay: day,
+      updatedAt: sql`now()`,
+    })
+    .where(and(eq(players.userId, userId), sql`${players.dailyDay} <> ${day}`))
+    .returning({ coins: players.coins });
+
+  if (row) return { earned: amount, coins: row.coins };
+  const { coins } = await playerState(userId);
+  return { earned: 0, coins };
+}
+
+/**
  * Wear a character.
  *
  * `free` is for the catalog entries that cost nothing and are therefore not in

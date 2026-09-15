@@ -96,6 +96,21 @@ export const runs = pgTable(
     medal: text("medal"),
     /** The replay, if the client recorded one. See lib/ghost.ts. */
     ghost: jsonb("ghost").$type<GhostTrack>(),
+    /**
+     * The player's best time posted during `week_key`, and which ISO week
+     * that is (`lib/daily.ts`).
+     *
+     * The weekly board is the answer to "a global all-time board demotivates
+     * everyone who was not here first". It cannot be a filter on `updated_at`
+     * — a run only updates that row when it beats the all-time best, so a
+     * regular who ran the course every day this week would be absent from
+     * this week's board. These two hold the week's own best, reset by the
+     * write path the moment the key changes. Null until the player posts a
+     * run after the columns existed: the board is honest about that rather
+     * than backfilled from a best that may have been set a year ago.
+     */
+    weekMs: integer("week_ms"),
+    weekKey: text("week_key"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -104,6 +119,11 @@ export const runs = pgTable(
     // The board query, and the only one that runs on a page load: every row
     // for a world, in time order. Without it a popular map table-scans.
     boardIdx: index("runs_board_idx").on(t.worldId, t.timeMs),
+    // The weekly board: the same scan, keyed by the week. Partial, because a
+    // row that has never posted since the column existed is not on any week.
+    weekIdx: index("runs_week_idx")
+      .on(t.worldId, t.weekKey, t.weekMs)
+      .where(sql`${t.weekMs} is not null`),
   })
 );
 
@@ -169,6 +189,16 @@ export const players = pgTable("players", {
    * thing being defended.
    */
   arcadeDay: text("arcade_day").default("").notNull(),
+  /**
+   * The last UTC day this player collected the daily challenge bonus, as
+   * YYYY-MM-DD from `lib/daily.ts`.
+   *
+   * UTC rather than the player's day, unlike `arcade_day`: the challenge is
+   * shared, so its day has to be the same day for everyone. Set in the same
+   * UPDATE that pays the bonus, with the old value in the WHERE clause, so
+   * two tabs finishing today's course together cannot both collect it.
+   */
+  dailyDay: text("daily_day").default("").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

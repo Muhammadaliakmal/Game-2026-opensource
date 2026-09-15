@@ -39,6 +39,11 @@ interface RaceStoreState {
    */
   target: number;
   riders: RiderView[];
+  /**
+   * Coins this finish paid, or null. The room pays on the line and tells
+   * only the rider it paid; a rematch clears it with everything else.
+   */
+  earned: number | null;
 
   setConnection(v: {
     connected: boolean;
@@ -53,6 +58,7 @@ interface RaceStoreState {
     target: number;
     riders: RiderView[];
   }): void;
+  setEarned(earned: number | null): void;
   reset(): void;
 }
 
@@ -66,6 +72,7 @@ const empty = {
   countdownMs: 0,
   target: 2,
   riders: [] as RiderView[],
+  earned: null as number | null,
 };
 
 export const useRaceStore = create<RaceStoreState>((set) => ({
@@ -80,7 +87,18 @@ export const useRaceStore = create<RaceStoreState>((set) => ({
     })),
 
   setRace: ({ phase, laps, countdownMs, target, riders }) =>
-    set({ phase, laps, countdownMs, target, riders }),
+    set((s) => ({
+      phase,
+      laps,
+      countdownMs,
+      target,
+      riders,
+      // A new race is a new payout. Cleared on the way back to the grid
+      // rather than on finish, so the line stays up while the panel does.
+      earned: phase === "finished" ? s.earned : null,
+    })),
+
+  setEarned: (earned) => set({ earned }),
 
   reset: () => set({ ...empty }),
 }));

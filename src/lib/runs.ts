@@ -40,13 +40,21 @@ export interface Board {
   rank: number | null;
 }
 
-/** Which run the ghost on screen is a replay of. */
-export type GhostWho = "best" | "me";
+/**
+ * Which run the ghost on screen is a replay of: the record, your own, or a
+ * named player's — the last being what a "beat my time" link points at.
+ */
+export type GhostWho = "best" | "me" | `user:${string}`;
+
+/** All time, or this ISO week. See the `week_ms` column for why both exist. */
+export type BoardPeriod = "all" | "week";
 
 interface RunsState {
   /** Which world the loaded board and ghost belong to. */
   worldId: string | null;
   board: Board | null;
+  /** Which board is loaded. The panel toggles it; the choice is remembered. */
+  period: BoardPeriod;
   loading: boolean;
   submitting: boolean;
   error: string | null;
@@ -55,6 +63,14 @@ interface RunsState {
   ghostName: string | null;
   ghostMs: number | null;
   ghostWho: GhostWho;
+  /**
+   * A ghost request is in flight. `GhostRunner` falls back to the record
+   * when the chosen ghost turns out not to exist, and "does not exist" and
+   * "has not arrived yet" look identical on `ghost` alone — without this the
+   * fallback fired on mount and the record overrode the personal run every
+   * time.
+   */
+  ghostLoading: boolean;
 
   /**
    * Coins this finish just earned, or null if it earned none.
@@ -65,9 +81,15 @@ interface RunsState {
    * what you now have.
    */
   earned: number | null;
+  /** The payout was doubled. Only ever true beside a non-null `earned`. */
+  lucky: boolean;
+  /** The daily challenge bonus this finish collected, or null. */
+  daily: number | null;
 
   /** Load (or reload) the board for a world. */
-  load(worldId: string): Promise<void>;
+  load(worldId: string, period?: BoardPeriod): Promise<void>;
+  /** Switch boards for the loaded world. */
+  setPeriod(period: BoardPeriod): Promise<void>;
   /** Fetch a replay to race against. */
   loadGhost(worldId: string, who: GhostWho): Promise<void>;
   /** Post a finished run. Refreshes the board if it was an improvement. */
@@ -85,25 +107,29 @@ async function json<T>(url: string, init?: RequestInit): Promise<T> {
 export const useRuns = create<RunsState>((set, get) => ({
   worldId: null,
   board: null,
+  period: readPeriod(),
   loading: false,
   submitting: false,
   error: null,
   earned: null,
+  lucky: false,
+  daily: null,
   ghost: null,
   ghostName: null,
   ghostMs: null,
   ghostWho: "best",
+  ghostLoading: false,
 
-  load: async (worldId) => {
-    set({ worldId, loading: true, error: null });
+  load: async (worldId, period = get().period) => {
+    set({ worldId, period, loading: true, error: null });
     try {
       const board = await json<Board>(
-        `/api/worlds/${encodeURIComponent(worldId)}/runs`
+        `/api/worlds/${encodeURIComponent(worldId)}/runs?period=${period}`
       );
       // A world switch mid-request must not land the old board on the new
-      // course. Cheaper and more obvious than an AbortController for a
-      // request nothing is waiting on.
-      if (get().worldId !== worldId) return;
+      // course — nor a period switch the other board. Cheaper and more
+      // obvious than an AbortController for a request nothing is waiting on.
+      if (get().worldId !== worldId || get().period !== period) return;
       set({ board, loading: false });
     } catch {
       if (get().worldId !== worldId) return;
@@ -111,8 +137,16 @@ export const useRuns = create<RunsState>((set, get) => ({
     }
   },
 
+  setPeriod: async (period) => {
+    if (period === get().period) return;
+    writePeriod(period);
+    const { worldId } = get();
+    if (worldId) await get().load(worldId, period);
+    else set({ period });
+  },
+
   loadGhost: async (worldId, who) => {
-    set({ ghostWho: who });
+    set({ ghostWho: who, ghostLoading: true });
     try {
       const r = await json<{
         ghost: GhostTrack | null;
@@ -120,19 +154,25 @@ export const useRuns = create<RunsState>((set, get) => ({
         timeMs: number | null;
       }>(`/api/worlds/${encodeURIComponent(worldId)}/runs/ghost?who=${who}`);
       if (get().worldId !== worldId || get().ghostWho !== who) return;
-      set({ ghost: r.ghost, ghostName: r.name, ghostMs: r.timeMs });
+      set({ ghost: r.ghost, ghostName: r.name, ghostMs: r.timeMs, ghostLoading: false });
     } catch {
       // No ghost is a normal outcome — nobody has run this map yet — and it
       // looks the same to the player as a ghost that failed to load.
-      if (get().worldId !== worldId) return;
-      set({ ghost: null, ghostName: null, ghostMs: null });
+      if (get().worldId !== worldId || get().ghostWho !== who) return;
+      set({ ghost: null, ghostName: null, ghostMs: null, ghostLoading: false });
     }
   },
 
   submit: async (worldId, timeMs, ghost) => {
     set({ submitting: true });
     try {
-      const r = await json<{ improved: boolean; earned?: number; coins?: number | null }>(
+      const r = await json<{
+        improved: boolean;
+        earned?: number;
+        lucky?: boolean;
+        daily?: number;
+        coins?: number | null;
+      }>(
         `/api/worlds/${encodeURIComponent(worldId)}/runs`,
         {
           method: "POST",
@@ -140,7 +180,12 @@ export const useRuns = create<RunsState>((set, get) => ({
           body: JSON.stringify({ timeMs: Math.round(timeMs), ghost }),
         }
       );
-      set({ submitting: false, earned: r.earned && r.earned > 0 ? r.earned : null });
+      set({
+        submitting: false,
+        earned: r.earned && r.earned > 0 ? r.earned : null,
+        lucky: r.lucky === true,
+        daily: r.daily && r.daily > 0 ? r.daily : null,
+      });
       // The balance moved, so anything showing it is now stale. Written
       // straight in rather than refetched: the server just told us the answer.
       if (typeof r.coins === "number") {
@@ -149,8 +194,12 @@ export const useRuns = create<RunsState>((set, get) => ({
       }
       // Only refetch when the standings can have moved. Most runs are slower
       // than the runner's own best, and re-fetching for those would mean a
-      // request per attempt on a map somebody is grinding.
-      if (r.improved && get().worldId === worldId) await get().load(worldId);
+      // request per attempt on a map somebody is grinding. The weekly board
+      // can move on a run the all-time one ignores — a slower-than-ever run
+      // that is still this week's best — so it refetches on any finish.
+      if ((r.improved || get().period === "week") && get().worldId === worldId) {
+        await get().load(worldId);
+      }
     } catch (e) {
       // 401 is not a failure worth reporting: a signed-out player was never
       // going to be on the board and telling them so at the moment they
@@ -173,6 +222,28 @@ export const useRuns = create<RunsState>((set, get) => ({
       ghost: null,
       ghostName: null,
       ghostMs: null,
+      ghostLoading: false,
       earned: null,
+      lucky: false,
+      daily: null,
     }),
 }));
+
+const PERIOD_KEY = "blockworld:board-period";
+
+/** The board the player last chose. Per browser, like a best time. */
+function readPeriod(): BoardPeriod {
+  try {
+    return localStorage.getItem(PERIOD_KEY) === "week" ? "week" : "all";
+  } catch {
+    return "all";
+  }
+}
+
+function writePeriod(period: BoardPeriod) {
+  try {
+    localStorage.setItem(PERIOD_KEY, period);
+  } catch {
+    /* the choice lasts the session */
+  }
+}

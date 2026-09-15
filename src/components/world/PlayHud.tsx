@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { recenterPitch, useViewStore } from "@/components/play/camera-rig";
 import { useMoveMode } from "@/components/play/move-mode";
 import {
@@ -10,9 +11,11 @@ import {
   requestRestart,
 } from "@/components/play/play-actions";
 import { formatTime, runAuthorMs, useCourse } from "@/components/play/course";
-import { MEDAL_LABELS, medalForAuthor, nextMedalFor } from "@/lib/medals";
-import { useRuns, type BoardRow } from "@/lib/runs";
+import { MEDAL_LABELS, medalForAuthor, medalTimesFor, nextMedalFor } from "@/lib/medals";
+import { useRuns, type BoardPeriod, type BoardRow } from "@/lib/runs";
 import { sfxCourseComplete, sfxMedal, sfxPersonalBest } from "@/lib/sfx/parkour";
+import { sfxUiConfirm, sfxUiTick } from "@/lib/audio";
+import { PARKOUR_COURSES } from "@/lib/built-in-worlds";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { RemixButton } from "@/components/RemixButton";
@@ -178,8 +181,36 @@ function RunTimer() {
   return (
     <div className="hud-panel hud-panel--readout flex shrink-0 flex-col items-start px-3 py-2">
       <span className="num text-2xs font-medium">{formatTime(ms)}</span>
+      {finishedMs === null && <PaceLine elapsed={elapsed} />}
       <GhostLine />
     </div>
+  );
+}
+
+/**
+ * The medal still on, and how long it stays on.
+ *
+ * "Gold · 4.20s" means: cross the line within 4.20 seconds and it is Gold.
+ * The run clock alone says how long you have taken; this says what it is
+ * worth, which is the number that makes the last gap feel like something. It
+ * counts down through the ladder — when the Gold window closes the line
+ * becomes Silver's — and goes quiet once no medal is left rather than
+ * announcing the fact, because the clock is already doing that.
+ *
+ * Derived from the same elapsed sample the clock draws, so the two cannot
+ * disagree by a frame.
+ */
+function PaceLine({ elapsed }: { elapsed: number }) {
+  const authorMs = useCourse(runAuthorMs);
+  if (authorMs === null) return null;
+  const onPace = medalForAuthor(authorMs, elapsed);
+  if (onPace === null) return null;
+  const threshold = medalTimesFor(authorMs).find((t) => t.medal === onPace)!.ms;
+  const left = threshold - elapsed;
+  return (
+    <span className="hud-label num text-[10px] leading-tight">
+      {MEDAL_LABELS[onPace]} · {(left / 1000).toFixed(2)}s
+    </span>
   );
 }
 
@@ -277,6 +308,7 @@ const BOARD_ROWS = 5;
 
 function Leaderboard() {
   const board = useRuns((s) => s.board);
+  const period = useRuns((s) => s.period);
   const loading = useRuns((s) => s.loading);
   const error = useRuns((s) => s.error);
   const submitting = useRuns((s) => s.submitting);
@@ -284,11 +316,8 @@ function Leaderboard() {
   if (loading || submitting) {
     return <span className="hud-label">Posting your run…</span>;
   }
-  // Nothing to say rather than an empty box: a course nobody has finished yet
-  // has no board, and drawing the frame of one is worse than drawing none.
-  if (error || !board || board.top.length === 0) {
-    return error ? <span className="hud-label">{error}</span> : null;
-  }
+  if (error) return <span className="hud-label">{error}</span>;
+  if (!board) return null;
 
   const top = board.top.slice(0, BOARD_ROWS);
   // Your own row, appended when the top few do not already contain it — the
@@ -300,7 +329,19 @@ function Leaderboard() {
 
   return (
     <div className="flex w-full flex-col gap-1">
-      <span className="hud-label">Fastest runs</span>
+      {/* All time, or this week. The weekly board is the one a new player can
+          get onto: a global all-time top five on a year-old course is five
+          names that will never move. Monday it is empty for everybody. */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="hud-label">Fastest runs</span>
+        <PeriodToggle period={period} />
+      </div>
+      {/* An empty board is only worth a line when it is the weekly one —
+          "nobody yet this week" is an invitation; an empty all-time board on
+          a course you just finished cannot happen. */}
+      {top.length === 0 && (
+        <span className="text-dim text-xs">Nobody yet this week. You could be first.</span>
+      )}
       {top.map((row, i) => (
         <BoardLine
           key={row.userId}
@@ -317,6 +358,30 @@ function Leaderboard() {
           <BoardLine rank={board.rank ?? 0} row={mine} you />
         </>
       )}
+    </div>
+  );
+}
+
+function PeriodToggle({ period }: { period: BoardPeriod }) {
+  const pick = (p: BoardPeriod) => () => {
+    sfxUiTick();
+    void useRuns.getState().setPeriod(p);
+  };
+  const chip = (p: BoardPeriod, label: string) => (
+    <button
+      onClick={pick(p)}
+      className={`hud-label rounded-[var(--radius)] px-1.5 py-0.5 transition-colors ${
+        period === p ? "text-accent bg-white/10" : "hover:text-ink"
+      }`}
+      aria-pressed={period === p}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="flex items-center gap-0.5" role="group" aria-label="Board period">
+      {chip("all", "All time")}
+      {chip("week", "This week")}
     </div>
   );
 }
@@ -352,8 +417,11 @@ function CourseComplete({
 }) {
   const finishedMs = useCourse((s) => s.finishedMs);
   const best = useCourse((s) => s.best);
+  const worldId = useCourse((s) => s.worldId);
   const authorMs = useCourse(runAuthorMs);
   const earned = useRuns((s) => s.earned);
+  const lucky = useRuns((s) => s.lucky);
+  const daily = useRuns((s) => s.daily);
 
   const isBest =
     finishedMs !== null && best !== null && Math.abs(best - finishedMs) < 1;
@@ -410,17 +478,27 @@ function CourseComplete({
         </span>
       )}
 
+      <GhostDelta finishedMs={finishedMs} />
+
       {/* Only when something was actually earned. A course pays for reaching a
           medal tier the first time and nothing for running it again, so on
           most attempts this is absent — which is the honest way to show a rule
-          whose whole point is that repetition is worth nothing. */}
+          whose whole point is that repetition is worth nothing. A lucky run
+          says so beside the number rather than instead of it: the surprise is
+          the doubling, and a doubling needs the number to read as one. */}
       {earned !== null && (
         <span className="hud-readout text-accent num text-sm font-semibold">
           + ⬤ {earned}
+          {lucky && <span className="ml-2 tracking-widest">LUCKY RUN ×2</span>}
         </span>
+      )}
+      {daily !== null && (
+        <span className="hud-label num">Daily challenge + ⬤ {daily}</span>
       )}
 
       <Leaderboard />
+
+      <NextCourse worldId={worldId} />
 
       <div className="flex flex-wrap items-center justify-center gap-2">
         {/* A restart, not a respawn. Respawning here would resume at the last
@@ -434,6 +512,7 @@ function CourseComplete({
         >
           Run again
         </button>
+        <ShareRun worldId={worldId} />
         {canEdit && (
           <button onClick={onEdit} className="hud-chip">
             Edit
@@ -444,6 +523,127 @@ function CourseComplete({
         </Link>
       </div>
     </div>
+  );
+}
+
+/**
+ * How the run went against the ghost.
+ *
+ * A near miss is the most motivating result there is — more than a clean
+ * win, and far more than a clean loss — and "beaten by 0.31s" is the one line
+ * that turns a figure you were chasing into a reason to press Run again. It
+ * names the runner, because the ghost's own line under the clock does, and
+ * calls your own replay "your ghost" rather than repeating your name at you.
+ */
+function GhostDelta({ finishedMs }: { finishedMs: number }) {
+  const ghostMs = useRuns((s) => s.ghostMs);
+  const name = useRuns((s) => s.ghostName);
+  const who = useRuns((s) => s.ghostWho);
+  if (ghostMs === null) return null;
+  const gap = Math.abs(ghostMs - finishedMs) / 1000;
+  const them = who === "me" ? "your ghost" : (name ?? "the ghost");
+  const won = ghostMs > finishedMs;
+  return (
+    <span className={`hud-label num ${won ? "text-accent" : ""}`}>
+      {won ? `Beat ${them} by ${gap.toFixed(2)}s` : `${them} had you by ${gap.toFixed(2)}s`}
+    </span>
+  );
+}
+
+/**
+ * "Beat my time" — one press, one link.
+ *
+ * The link is the course with `?vs=<you>` on it, which loads your best as
+ * the ghost for whoever opens it (`RunRecorder`). It needs your row on the
+ * board — so a signed-out player does not get the button, because there is
+ * no run of theirs on the server for a link to point at. The system share
+ * sheet where there is one (a phone), the clipboard where there is not.
+ */
+function ShareRun({ worldId }: { worldId: string | null }) {
+  const me = useRuns((s) => s.board?.me ?? null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const t = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(t);
+  }, [copied]);
+
+  if (!me || !worldId) return null;
+
+  const share = async () => {
+    const url = `${window.location.origin}/play/${encodeURIComponent(worldId)}?vs=${encodeURIComponent(me.userId)}`;
+    const text = `Beat my ${formatTime(me.timeMs)} on Spec Driven Games`;
+    sfxUiConfirm();
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: text, text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+    } catch {
+      // A dismissed share sheet or a refused clipboard is not an error the
+      // player needs to hear about.
+    }
+  };
+
+  return (
+    <button onClick={share} className="hud-chip" title="Copy a link that races your best">
+      {copied ? "Link copied" : "Beat my time"}
+    </button>
+  );
+}
+
+/** Seconds the next course waits before it is chosen for you. */
+const NEXT_COUNTDOWN = 6;
+
+/**
+ * One more run.
+ *
+ * The course after this one on the ladder, offered with a countdown — a
+ * default rather than a demand. Any press or key anywhere stops it, so a
+ * player reading the board or reaching for Run again is never carried off
+ * mid-thought; only someone who has stopped touching anything is taken to
+ * the next course. A course somebody built has no "next", and neither does
+ * the last one on the ladder.
+ */
+function NextCourse({ worldId }: { worldId: string | null }) {
+  const router = useRouter();
+  const index = PARKOUR_COURSES.findIndex((c) => c.slug === worldId);
+  const next = index >= 0 ? PARKOUR_COURSES[index + 1] : undefined;
+  const [left, setLeft] = useState<number | null>(NEXT_COUNTDOWN);
+  const armed = left !== null;
+
+  useEffect(() => {
+    if (!next || !armed) return;
+    const stop = () => setLeft(null);
+    window.addEventListener("pointerdown", stop, true);
+    window.addEventListener("keydown", stop, true);
+    const tick = setInterval(() => {
+      setLeft((n) => (n === null ? null : n - 1));
+    }, 1000);
+    return () => {
+      clearInterval(tick);
+      window.removeEventListener("pointerdown", stop, true);
+      window.removeEventListener("keydown", stop, true);
+    };
+  }, [next, armed]);
+
+  useEffect(() => {
+    if (!next || left !== 0) return;
+    router.push(`/play/${next.slug}`);
+  }, [left, next, router]);
+
+  if (!next) return null;
+  return (
+    <Link
+      href={`/play/${next.slug}`}
+      className="hud-label num text-accent hover:brightness-110"
+      onClick={() => setLeft(null)}
+    >
+      Next: {next.name} {armed && left > 0 ? `in ${left}…` : "→"}
+    </Link>
   );
 }
 

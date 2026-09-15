@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ModeCard } from "./ModeCard";
 import { ContinueChip } from "./ContinueChip";
+import { DailyChallenge } from "./DailyChallenge";
 import { GameSearch } from "./GameSearch";
 import { WorldCard } from "./WorldCard";
 import { CabinetPreview } from "@/components/arcade/CabinetPreview";
@@ -27,6 +28,8 @@ import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
  *
  *  1. Continue — the last thing you played, if anything. Most visits are
  *     return visits, and a returning player wants the game, not the menu.
+ *     Under it, today's challenge: the one thing that is different about
+ *     the site today, and so the one reason to have come back today.
  *  2. The three modes, as covers. Parkour first (works alone, offline, no
  *     code needed), then Race, then Arena, both of which need a room.
  *  3. The arcade, cabinet by cabinet. Each tile is a link to
@@ -50,6 +53,7 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
             <GameSearch />
           </div>
         </div>
+        <DailyChallenge />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <ModeCard
             href="/parkour"
