@@ -31,6 +31,15 @@ export const raceTelemetry = {
    * rendered with.
    */
   riding: false,
+  /**
+   * Crashes, as a counter and the speed the last one cost. Written by the
+   * bike on the frame an impact is confirmed, read by whatever wants to react
+   * — the sound, today — by watching the counter move. A counter rather than
+   * a flag because a flag set in one frame loop and cleared in another is a
+   * race about which runs first; a counter is compared, never cleared.
+   */
+  impacts: 0,
+  impactLoss: 0,
 };
 
 /**
@@ -71,6 +80,8 @@ export function resetTelemetry() {
   raceTelemetry.charge = 0;
   raceTelemetry.drifting = false;
   raceTelemetry.boosting = false;
+  raceTelemetry.impacts = 0;
+  raceTelemetry.impactLoss = 0;
   raceTelemetry.riding = false;
 }
 

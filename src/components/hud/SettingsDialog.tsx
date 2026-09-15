@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { MenuIcon } from "@/components/hud/MenuIcon";
 import {
   FOOT_ACTIONS,
@@ -39,6 +39,7 @@ import {
 import type { TextureMode } from "@/lib/textures/block-shader";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
+import { BUSES, BUS_LABELS, busVolumes, onVolumeChange, setBusVolume, sfxUiTick, type Bus } from "@/lib/audio";
 import { useHudOverlay } from "@/lib/hud-overlay";
 import {
   CONTROL_NAMES,
@@ -662,6 +663,49 @@ function GraphicsSettings() {
   );
 }
 
+/**
+ * One slider per bus.
+ *
+ * The buses exist for this row (see `lib/audio.ts`): a player who wants the
+ * music down and the footsteps up has one slider for each rather than a
+ * mute for both. Read with `useSyncExternalStore`, because the volumes live
+ * in the audio module and not in React — the repo rule — and each notch
+ * ticks on the interface bus, so a player dragging that one hears the level
+ * they are setting.
+ */
+function SoundSettings() {
+  const volumes = useSyncExternalStore(onVolumeChange, busVolumes, busVolumes);
+  const set = (bus: Bus, v: number) => {
+    setBusVolume(bus, v);
+    sfxUiTick();
+  };
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="hud-label">Sound</h3>
+      <p className="text-dim text-2xs">
+        Interface is the menus, Game the cues and the engine, Impacts the
+        footsteps and hits, Music the beds and the arcade.
+      </p>
+      {BUSES.map((bus) => (
+        <div key={bus} className="flex items-center gap-3">
+          <span className="text-dim w-24 shrink-0 text-2xs">{BUS_LABELS[bus]}</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={Math.round(volumes[bus] * 100)}
+            onChange={(e) => set(bus, Number(e.target.value) / 100)}
+            className="accent-accent min-w-0 flex-1"
+            aria-label={`${BUS_LABELS[bus]} volume`}
+          />
+          <span className="num text-2xs w-10 text-right">{Math.round(volumes[bus] * 100)}%</span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function DisplaySettings() {
   const inset = usePlayerSettings((s) => s.hudInset);
   const setInset = usePlayerSettings((s) => s.setHudInset);
@@ -690,6 +734,8 @@ function DisplaySettings() {
         <MuteButton className="hud-menu-item" label="Sound" />
         <FullscreenButton className="hud-menu-item" label="Fullscreen" />
       </section>
+
+      <SoundSettings />
 
       <section className="flex flex-col gap-2">
         <h3 className="hud-label">Safe frame</h3>

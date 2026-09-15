@@ -12,6 +12,7 @@ import {
 import { formatTime, runAuthorMs, useCourse } from "@/components/play/course";
 import { MEDAL_LABELS, medalForAuthor, nextMedalFor } from "@/lib/medals";
 import { useRuns, type BoardRow } from "@/lib/runs";
+import { sfxCourseComplete, sfxMedal, sfxPersonalBest } from "@/lib/sfx/parkour";
 import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { RemixButton } from "@/components/RemixButton";
@@ -353,14 +354,29 @@ function CourseComplete({
   const best = useCourse((s) => s.best);
   const authorMs = useCourse(runAuthorMs);
   const earned = useRuns((s) => s.earned);
-  if (finishedMs === null) return null;
 
-  const isBest = best !== null && Math.abs(best - finishedMs) < 1;
+  const isBest =
+    finishedMs !== null && best !== null && Math.abs(best - finishedMs) < 1;
   // Any course has medal times, shipped or built, because they are multiples
   // of an Author time derived from the geometry rather than a table keyed by
   // slug. A world with no goal is not a course and still has none — it cannot
   // be finished, so this panel never opens for one.
-  const medal = medalForAuthor(authorMs, finishedMs);
+  const medal = finishedMs === null ? null : medalForAuthor(authorMs, finishedMs);
+
+  // The stinger, once per finish. Keyed on the time rather than on mount
+  // because the panel is conditionally rendered on the same value and a
+  // re-render must not replay it. Completion first, then the medal, then the
+  // record — each scheduled after the last on the audio clock, so the three
+  // read as one phrase rather than three components each making a noise.
+  useEffect(() => {
+    if (finishedMs === null) return;
+    sfxCourseComplete();
+    if (medal) sfxMedal(medal, 0.85);
+    if (isBest) sfxPersonalBest(medal ? 1.6 : 0.85);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one phrase per finish
+  }, [finishedMs]);
+
+  if (finishedMs === null) return null;
   const chase = nextMedalFor(authorMs, medal);
 
   return (

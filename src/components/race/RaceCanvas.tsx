@@ -37,6 +37,8 @@ import {
 import { MAP_V2 } from "@/lib/map-v2";
 import { useCoarsePointer } from "@/lib/use-media-query";
 import { Bike } from "./Bike";
+import { RaceSounds } from "./RaceSounds";
+import { Ambient } from "@/components/play/Ambient";
 import { RaceRiders } from "./RaceRiders";
 import { RaceHud } from "./RaceHud";
 import { RaceTouchControls } from "./RaceTouchControls";
@@ -90,6 +92,7 @@ export default function RaceCanvas({
   // leave a spinner claiming to be joining. ArenaCanvas already did this and
   // this file, copied from it, dropped the branch.
   const error = useRaceStore((s) => s.error);
+  const phase = useRaceStore((s) => s.phase);
 
   const onWorld = useCallback((doc: WorldDoc) => {
     // The track is read-only here, but it goes through the editor store for the
@@ -260,6 +263,8 @@ export default function RaceCanvas({
             frame of that empty scene -- which is the black the cover is
             covering. */}
         {snapshot && <FirstFrame onPainted={onPainted} />}
+        {/* The engine and the race's cues. Gated like FirstFrame: no bike, no engine. */}
+        {snapshot && <RaceSounds />}
 
         <BlockSurfaces precompile adaptive />
         <PostFX />
@@ -275,6 +280,8 @@ export default function RaceCanvas({
 
       <RaceHud code={code} />
       <PerfPanel />
+      {/* Every track is neon. Intensity follows the lights: up when racing. */}
+      <Ambient mood="neon" intensity={phase === "racing" ? 1 : 0} />
       {snapshot && painted && touch && <RaceTouchControls />}
 
       {(!painted || !snapshot) && (

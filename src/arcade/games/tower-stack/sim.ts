@@ -70,6 +70,12 @@ export interface Sim {
 
   /** What the last step's drop did. One step only. */
   drop: Drop;
+  /**
+   * Of a `placed` drop, the fraction of the block that survived, 0..1. The
+   * near-miss cue reads it: a block that kept a fifth of itself is a block
+   * that was one frame from ending the run, and the run should sound like it.
+   */
+  kept: number;
 
   step(dt: number, dropPressed: boolean): void;
   /** Row `i` counting back from the newest, or null. 0 is the top of the tower. */
@@ -112,6 +118,7 @@ export function createSim(): Sim {
     cam: 0,
     camTarget: 0,
     drop: "none",
+    kept: 1,
     step,
     rowAt,
     rowY,
@@ -234,6 +241,7 @@ export function createSim(): Sim {
       else spawnSlice(s.curX, left - s.curX, -1);
 
       s.curX = left;
+      s.kept = overlap / Math.max(1e-6, prev.w);
       s.curW = overlap;
       s.combo = 0;
       s.drop = "placed";

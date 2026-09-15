@@ -65,6 +65,22 @@ test("an imperfect drop is sliced down to the overlap", () => {
   assert.equal(topRow(s).x, before.x + off);
 });
 
+test("a placed drop reports how much of the block survived", () => {
+  // `kept` is what the near-miss sting reads: a fraction, so the cue means
+  // the same thing on a wide base and on a sliver twenty rows up.
+  const s = createSim();
+  const before = topRow(s);
+  const off = Math.round(before.w * 0.75);
+  dropAt(s, before.x + off);
+  assert.equal(s.drop, "placed");
+  assert.ok(Math.abs(s.kept - 0.25) < 0.02, `kept ${s.kept}`);
+  assert.ok(s.kept < T.NEAR_MISS_KEPT, "a quarter left should count as a near miss");
+
+  const wide = createSim();
+  dropAt(wide, topRow(wide).x + 8);
+  assert.ok(wide.kept > T.NEAR_MISS_KEPT, "a small trim is not a near miss");
+});
+
 test("the sliced piece is thrown on the side it hung over", () => {
   const right = createSim();
   dropAt(right, topRow(right).x + 40);

@@ -338,7 +338,7 @@ export function startMusic(seed: number, bpm = DEFAULT_BPM): void {
 
   const gain = bus.ctx.createGain();
   gain.gain.value = MIX;
-  gain.connect(bus.master);
+  gain.connect(bus.bus.music);
 
   const rng = mulberry32(seed);
   live = {

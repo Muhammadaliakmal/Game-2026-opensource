@@ -466,6 +466,10 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
           charge.current = 0;
           // Only on the frame the impact is confirmed. A rider holding the
           // throttle into a rail is one crash, not sixty a second.
+          if (blockedFor.current === IMPACT_CONFIRM) {
+            raceTelemetry.impacts++;
+            raceTelemetry.impactLoss = lost;
+          }
           if (
             blockedFor.current === IMPACT_CONFIRM &&
             lost > IMPACT_SHAKE_LOSS &&

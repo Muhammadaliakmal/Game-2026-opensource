@@ -119,9 +119,12 @@ attempt. `world_id` is `text` with no foreign key, because the courses that
 ship are slugs generated from code and have no row to point at.
 
 - Submission upserts with `setWhere` on the time, so a slower concurrent write
-  cannot land last. It refuses times under the course's route floor. That is a
-  guard against a hand-written `fetch`, not anti-cheat, and the comment in
-  `medals.ts` says so.
+  cannot land last. It refuses times under **half** the course's route floor
+  (`minRunMs`), not the floor itself: the floor is a model of the course, and
+  real runs landed within 1% of it, so a guard at the floor refused the
+  fastest genuine runs and the board froze exactly when somebody got good. It
+  is a guard against a hand-written `fetch`, not anti-cheat, and the comment
+  in `medals.ts` says so.
 - The board endpoint never returns a ghost. Ghosts are the largest thing in the
   table and exactly one is ever watched; `runs/ghost` serves that one.
 - Ghosts are fixed-rate (10 Hz) fixed-point tracks — see `lib/ghost.ts` — read
@@ -755,6 +758,38 @@ branches are coherent per face and free. The mip level goes in explicitly via
 inside a branch has undefined derivatives where a quad diverges, which is a
 sparkle along every block edge on some GPUs. The detail pass is skipped
 entirely past `DETAIL.fadeEnd`, which is most of any world.
+
+## Sound
+
+Everything is synthesised on one graph in `lib/audio.ts` — no audio files —
+and every sound names the **bus** it sits on: `ui`, `game`, `impact` or
+`music`. The buses are what Settings → Sound's four sliders move, so a
+source connected to `master` is a source no slider can reach. Connect to
+`bus.<name>`, never to `master`.
+
+- **Phrases are scheduled with `at`, not `setTimeout`.** A timer fires when
+  the main thread is free, which on a heavy frame is late enough to turn a
+  two-note confirm into two clicks. `at` is seconds on the audio clock.
+- **Repeating sounds name a `voice`** and are refused past `maxVoices` of it.
+  Footsteps, punches and crashes are capped; a stinger that plays once is not.
+- **The context suspends on tab blur** and resumes on return, in `audio.ts`.
+  Nothing else needs to know.
+- **Continuous sounds are nodes moved by `setTargetAtTime`, built once per
+  mount.** The engine (`race/RaceSounds.tsx`), the sprint wind
+  (`useFootstepAudio.ts`) and the beds (`lib/ambient.ts`) all work this way;
+  none creates a node per frame.
+- **Events come from the store or from telemetry, never from a component
+  re-rendering.** `RaceSounds` and `ArenaSounds` are one `subscribe` each,
+  comparing state to previous; the bike publishes a crash as a counter on
+  `raceTelemetry` because a flag cleared by another loop is a race.
+- **Footsteps read the block underfoot** through the parts map, by surface
+  *name* (`PROFILES` in `useFootstepAudio.ts`). Adding a surface to
+  `TEXTURES` without a profile gets the plain step, which is fine; a profile
+  for a name that is not in `TEXTURES` is dead.
+- **The ambient bed has three moods**, chosen by `moodFor(worldId)` the way
+  `surface-dressing.ts` chooses a palette, and one intensity knob that the
+  course clock drives. `ambient.test.ts` holds every shipped world to a mood.
+  A cabinet ducks the bed rather than stopping it.
 
 ## Arcade surfaces
 

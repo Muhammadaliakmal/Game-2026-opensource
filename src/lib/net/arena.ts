@@ -91,8 +91,8 @@ export async function joinMatch(
     joined.onMessage(
       "hit",
       (h: { by: string; target: string; knockdown: boolean }) => {
-        if (h.target === joined.sessionId) useArenaStore.getState().flashHurt();
-        else if (h.by === joined.sessionId) useArenaStore.getState().flashLanded();
+        if (h.target === joined.sessionId) useArenaStore.getState().flashHurt(h.knockdown);
+        else if (h.by === joined.sessionId) useArenaStore.getState().flashLanded(h.knockdown);
       }
     );
 

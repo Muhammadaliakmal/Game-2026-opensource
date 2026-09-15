@@ -69,6 +69,10 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
         s.sfx("perfect", Math.min(T.COMBO_PITCH_MAX, sim.combo - 1));
       } else if (sim.drop === "placed") {
         s.sfx("place");
+        // The near miss. This is the sound "one more try" is made of: the
+        // block landed, but only just, and the sting says so before the
+        // player has read the width.
+        if (sim.kept < T.NEAR_MISS_KEPT) s.sfx("close");
       } else if (sim.drop === "missed") {
         s.sfx("die");
         // Longer than Chunk Runner's, because the thing worth watching here

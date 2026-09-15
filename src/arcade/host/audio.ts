@@ -35,6 +35,8 @@ const VOICES: Record<string, Voice> = {
   place: { freq: 300, to: 300, dur: 0.05, type: "square", gain: 0.15 },
   perfect: { freq: 990, to: 1480, dur: 0.12, type: "square", gain: 0.18 },
   die: { freq: 220, to: 60, dur: 0.35, type: "sawtooth", gain: 0.21 },
+  /** The near miss: a tense wobble that does not resolve. */
+  close: { freq: 330, to: 311, dur: 0.28, type: "sawtooth", gain: 0.1 },
 };
 
 /**
@@ -66,7 +68,7 @@ export function sfx(name: string, semitones = 0): void {
   gain.gain.setValueAtTime(v.gain, t);
   gain.gain.exponentialRampToValueAtTime(0.0001, t + v.dur);
 
-  osc.connect(gain).connect(bus.master);
+  osc.connect(gain).connect(bus.bus.game);
   osc.start(t);
   osc.stop(t + v.dur + 0.02);
   osc.onended = () => {

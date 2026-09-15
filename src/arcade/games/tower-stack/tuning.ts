@@ -104,3 +104,10 @@ export const FLASH_TIME = 0.18;
 export const COMBO_TIME = 1.2;
 /** Semitones the perfect chime climbs per combo step, and its ceiling. */
 export const COMBO_PITCH_MAX = 12;
+
+/**
+ * A placed block that kept less than this of itself gets the near-miss
+ * sting. A third: wide enough that it fires a few times in a decent run,
+ * narrow enough that it still means something when it does.
+ */
+export const NEAR_MISS_KEPT = 0.34;

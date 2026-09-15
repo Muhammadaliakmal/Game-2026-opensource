@@ -25,6 +25,7 @@ import { FrameLimiter } from "@/components/FrameLimiter";
 import { FirstFrame, useFirstPaint } from "@/components/FirstFrame";
 import { BlockSurfaces } from "@/components/BlockSurfaces";
 import { ArenaHud } from "./ArenaHud";
+import { ArenaSounds } from "./ArenaSounds";
 import { PerfProbe } from "@/components/perf/PerfProbe";
 import { PerfPanel } from "@/components/perf/PerfPanel";
 import { useRenderQuality } from "@/lib/quality";
@@ -174,6 +175,7 @@ export default function ArenaCanvas({
 
       <PerfPanel />
       <ArenaHud code={code} onAttack={attack} />
+      <ArenaSounds />
 
       {(!painted || !snapshot) && (
         <div className="bg-base absolute inset-0 flex flex-col items-center justify-center gap-4">

@@ -27,11 +27,15 @@ interface ArenaState {
   hurtTick: number;
   /** Bumped when we land one. */
   landedTick: number;
+  /** Knockdowns, either way round. The sound wants the heavier hit. */
+  downTick: number;
+  /** Whether the last knockdown was the local fighter going down. */
+  downWasMe: boolean;
 
   setConnection(v: { connected: boolean; code?: string | null; selfId?: string | null; error?: string | null }): void;
   setMatch(v: { phase: ArenaPhase; winner: string | null; fighters: FighterView[] }): void;
-  flashHurt(): void;
-  flashLanded(): void;
+  flashHurt(knockdown?: boolean): void;
+  flashLanded(knockdown?: boolean): void;
   reset(): void;
 }
 
@@ -45,6 +49,8 @@ const empty = {
   fighters: [] as FighterView[],
   hurtTick: 0,
   landedTick: 0,
+  downTick: 0,
+  downWasMe: false,
 };
 
 export const useArenaStore = create<ArenaState>((set) => ({
@@ -58,8 +64,18 @@ export const useArenaStore = create<ArenaState>((set) => ({
       error: error === undefined ? s.error : error,
     })),
   setMatch: ({ phase, winner, fighters }) => set({ phase, winner, fighters }),
-  flashHurt: () => set((s) => ({ hurtTick: s.hurtTick + 1 })),
-  flashLanded: () => set((s) => ({ landedTick: s.landedTick + 1 })),
+  flashHurt: (knockdown = false) =>
+    set((s) => ({
+      hurtTick: s.hurtTick + 1,
+      downTick: knockdown ? s.downTick + 1 : s.downTick,
+      downWasMe: knockdown ? true : s.downWasMe,
+    })),
+  flashLanded: (knockdown = false) =>
+    set((s) => ({
+      landedTick: s.landedTick + 1,
+      downTick: knockdown ? s.downTick + 1 : s.downTick,
+      downWasMe: knockdown ? false : s.downWasMe,
+    })),
   reset: () => set({ ...empty }),
 }));
 

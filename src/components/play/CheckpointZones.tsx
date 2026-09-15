@@ -6,7 +6,7 @@ import { useFrame } from "@react-three/fiber";
 import type { Checkpoint } from "@/lib/worlddoc";
 import { CHECKPOINT_RADIUS, checkpointAt } from "@/lib/checkpoints";
 import { HAPTIC, haptic } from "@/lib/player-settings";
-import { sfxSpawn } from "@/lib/audio";
+import { sfxCheckpoint } from "@/lib/sfx/parkour";
 import { playerFocus } from "./camera-rig";
 import { useCourse } from "./course";
 
@@ -69,9 +69,9 @@ export function CheckpointZones({
 
     held.current = next;
     useCourse.getState().reachCheckpoint(next);
-    // The same two-channel confirmation the rest of the game uses for "that
-    // worked": a sound, and a buzz for the hand that cannot hear it.
-    sfxSpawn();
+    // A chime a whole tone above the last gate's — the ear's progress bar —
+    // and a buzz for the hand that cannot hear it.
+    sfxCheckpoint(next);
     haptic(HAPTIC.event);
   });
 

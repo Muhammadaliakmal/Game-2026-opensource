@@ -2,10 +2,13 @@
 
 import * as THREE from "three";
 import { useEffect, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { ghostPoseAt, type GhostTrack } from "@/lib/ghost";
 import { useRuns } from "@/lib/runs";
+import type { Vec3 } from "@/lib/worlddoc";
+import { sfxGhostPass } from "@/lib/sfx/parkour";
+import { playerFocus } from "./camera-rig";
 import { useCourse } from "./course";
 
 /**
@@ -67,8 +70,25 @@ const SPRINT = 5;
 /** Strides per second at a full sprint. */
 const CADENCE = 2.6;
 
-export function GhostRunner() {
+/**
+ * How far one has to lead before a change of places counts, in world units.
+ * The two figures spend most of a close run within a stride of each other,
+ * and a whoosh on every stride would be noise; a lead of two blocks is a
+ * pass anybody watching would agree happened.
+ */
+const PASS_MARGIN = 2;
+/** Seconds between passes that can sound, so a duel does not chatter. */
+const PASS_COOLDOWN = 1.2;
+
+export function GhostRunner({ goal }: { goal?: Vec3 }) {
   const root = useRef<THREE.Group>(null);
+  const camera = useThree((s) => s.camera);
+  // +1 when the player leads, -1 when the ghost does, 0 until decided.
+  const lead = useRef(0);
+  const lastPass = useRef(-Infinity);
+  /** The run the lead was decided in; a restart starts undecided. */
+  const leadRun = useRef<number | null>(null);
+  const view = useRef(new THREE.Vector3());
   const legL = useRef<THREE.Group>(null);
   const legR = useRef<THREE.Group>(null);
   const armL = useRef<THREE.Group>(null);
@@ -120,6 +140,34 @@ export function GhostRunner() {
 
     g.visible = true;
     g.position.set(pose.x, pose.y + GROUND_OFFSET, pose.z);
+
+    // Who is ahead: whoever is nearer the goal, by more than the margin. The
+    // pass is panned to the side the ghost is on in the camera's view, so the
+    // sound says where to look. A finished run has nothing left to pass.
+    if (leadRun.current !== startedAt) {
+      leadRun.current = startedAt;
+      lead.current = 0;
+      lastPass.current = -Infinity;
+    }
+    if (goal && finishedMs === null) {
+      const mine = Math.hypot(playerFocus.x - goal[0], playerFocus.z - goal[2]);
+      const theirs = Math.hypot(pose.x - goal[0], pose.z - goal[2]);
+      const gap = theirs - mine; // positive: the player leads
+      const now = elapsed / 1000;
+      const next = gap > PASS_MARGIN ? 1 : gap < -PASS_MARGIN ? -1 : lead.current;
+      if (next !== lead.current) {
+        const decided = lead.current !== 0;
+        lead.current = next;
+        if (decided && now - lastPass.current > PASS_COOLDOWN) {
+          lastPass.current = now;
+          view.current.set(pose.x, pose.y, pose.z).project(camera);
+          const pan = Math.max(-1, Math.min(1, view.current.x));
+          sfxGhostPass(next > 0, pan);
+        }
+      }
+    } else {
+      lead.current = 0;
+    }
     // The stored yaw is a camera heading, so the figure faces the direction
     // that heading looks along — the negation of it. See lib/course-kit.ts.
     g.rotation.y = pose.yaw + Math.PI + MODEL_FACING;
