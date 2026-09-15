@@ -55,6 +55,7 @@ import { PerfProbe } from "@/components/perf/PerfProbe";
 import { PerfPanel } from "@/components/perf/PerfPanel";
 import { RunRecorder } from "@/components/play/RunRecorder";
 import { GhostRunner } from "@/components/play/GhostRunner";
+import { HazardPulse } from "@/components/play/HazardPulse";
 import { TouchControls } from "@/components/play/TouchControls";
 import { useTouchControls } from "@/lib/use-media-query";
 import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
@@ -638,6 +639,9 @@ export default function WorldCanvas({
             avatar that moves between frames nobody asked for would either
             stutter or force the editor to render continuously. */}
         {playing && <Peers />}
+        {/* The lava breathes while playing and holds still while building —
+            the editor renders on demand and must not animate. */}
+        {playing && <HazardPulse />}
         {/* The arcade, in built-in sandboxes only. Not in a world somebody
             built — four glowing boxes dropped into their creation would be
             defacing it — and not on a course, where they would be furniture

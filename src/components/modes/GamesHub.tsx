@@ -58,10 +58,10 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
           <ModeCard
             href="/parkour"
             art="parkour"
-            eyebrow={`${PARKOUR_COURSES.length} courses · Tutorial to Expert`}
+            eyebrow={`${PARKOUR_COURSES.length} courses · Tutorial to Obby`}
             title="Parkour"
-            blurb="Jump it, time it, take the medal. A ghost of your best run is out there ahead of you."
-            meta={["Solo", "Medals", "Ghosts"]}
+            blurb="Jump it, time it, take the medal. A ghost of your best run is out there ahead of you — and one course is lava."
+            meta={["Solo", "Medals", "Ghosts", "Obby"]}
             cta="Choose a course"
           />
           <ModeCard

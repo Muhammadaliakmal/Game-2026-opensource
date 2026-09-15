@@ -113,7 +113,22 @@ export const PALETTE: string[] = [
   "#22c55e", "#84cc16", "#a3e635", "#78350f", "#57534e", "#a8a29e",
   "#000000", "#ffffff",
 ];
-export const FINISHES = ["matte", "glossy", "metal", "emissive"] as const;
+/**
+ * Finishes, index-addressed like the palette, and append-only for the same
+ * reason: every saved part stores one of these as a number.
+ *
+ * `hazard` is the fifth. It is a finish rather than a surface or a flag
+ * because a finish is already the one field that decides how a block is
+ * *made* (a material bucket, an editor chip, a schema bound) — and a block
+ * that kills is a different kind of block, not a different picture on the
+ * same one. It glows like `emissive` and pulses, so it is legible from the
+ * air, and `isHazard` is the one predicate the player, the route solver and
+ * the course floor all read. Touch one and the run resumes at the last
+ * checkpoint; see `Player.tsx`.
+ */
+export const FINISHES = ["matte", "glossy", "metal", "emissive", "hazard"] as const;
+export const HAZARD_FINISH = 4;
+export const isHazard = (p: PartTuple): boolean => p[5] === HAZARD_FINISH;
 
 export const vec3 = z.tuple([z.number(), z.number(), z.number()]);
 export const partTuple = z.tuple([
@@ -122,7 +137,7 @@ export const partTuple = z.tuple([
   z.number().int(),
   z.number().int().min(0).max(3), // shape
   z.number().int().min(0).max(31), // color index
-  z.number().int().min(0).max(3), // finish
+  z.number().int().min(0).max(FINISHES.length - 1), // finish
   z.number().int().min(0).max(3), // rot
   z.number().int().min(0).max(MAX_TEXTURE).optional(), // texture (see PartTuple)
 ]);

@@ -94,6 +94,23 @@ export function sfxPersonalBest(at = 0.5) {
 }
 
 /**
+ * Touched the lava.
+ *
+ * A sizzle — bright noise choked down through a falling lowpass — under a
+ * short low thump, ducked so the footstep it interrupts does not sit on top
+ * of it. Distinct from a fall, which is silent by design: the void is the
+ * absence of a floor, but a hazard is a thing, and a thing you touched
+ * should answer.
+ */
+export function sfxHazard() {
+  duckBus("impact", 0.4, 0.15, 0.25);
+  noiseHit(0.05, 6500, 0.22, { bus: GAME, voice: "hazard", maxVoices: 1 });
+  noiseHit(0.22, 2400, 0.18, { bus: GAME, at: 0.03, voice: "hazard", maxVoices: 1 });
+  noiseHit(0.35, 700, 0.12, { bus: GAME, at: 0.1, voice: "hazard", maxVoices: 1 });
+  toneHit(110, 0.22, 0.14, "sine", { bus: GAME, glide: 0.5 });
+}
+
+/**
  * The ghost changed places with the player.
  *
  * A whoosh — noise swept through a rising or falling lowpass — panned to the

@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { PARKOUR_COURSES } from "@/lib/built-in-worlds";
-import { DAILY_BONUS, dailyPick, dayEndsAt } from "@/lib/daily";
+import { DAILY_BONUS, dailyPick, dayEndsAt, dayKey } from "@/lib/daily";
+import { current, doneToday, onStreakChange, readStreak } from "@/lib/streak";
 import { medalTimes, MEDAL_LABELS } from "@/lib/medals";
 import { formatTime } from "@/components/play/course";
 import covers from "@/lib/world-covers.json";
@@ -40,7 +41,20 @@ function daySnapshot(): string {
   const now = new Date();
   const slug = dailyPick(PARKOUR_COURSES, now)?.slug ?? "";
   const hoursLeft = Math.max(1, Math.ceil((dayEndsAt(now).getTime() - now.getTime()) / 3_600_000));
-  return `${slug}|${hoursLeft}`;
+  // The streak rides in the same snapshot: it changes when a finish is
+  // recorded (a listener) or when the day rolls (the poll), and both are
+  // already what this store watches.
+  const streak = readStreak();
+  const today = dayKey(now);
+  return `${slug}|${hoursLeft}|${current(streak, today)}|${doneToday(streak, today) ? 1 : 0}`;
+}
+function subscribeAll(cb: () => void) {
+  const stopDay = subscribeDay(cb);
+  const stopStreak = onStreakChange(cb);
+  return () => {
+    stopDay();
+    stopStreak();
+  };
 }
 const dayServerSnapshot = () => null;
 
@@ -53,8 +67,10 @@ const dayServerSnapshot = () => null;
 const CARD_MIN_H = "min-h-[7.25rem] sm:min-h-[7.75rem]";
 
 export function DailyChallenge() {
-  const today = useSyncExternalStore(subscribeDay, daySnapshot, dayServerSnapshot);
-  const [slug, hours] = (today ?? "|").split("|");
+  const today = useSyncExternalStore(subscribeAll, daySnapshot, dayServerSnapshot);
+  const [slug, hours, streakStr, doneStr] = (today ?? "|||").split("|");
+  const streak = Number(streakStr) || 0;
+  const done = doneStr === "1";
   const course = PARKOUR_COURSES.find((c) => c.slug === slug);
 
   if (!course) {
@@ -82,13 +98,16 @@ export function DailyChallenge() {
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 p-4">
-        <span className="hud-label text-accent">Daily challenge · resets in {hoursLeft}h</span>
+        <span className="hud-label text-accent">
+          Daily challenge · {done ? "done today" : `resets in ${hoursLeft}h`}
+          {streak > 1 && ` · ${streak}-day streak`}
+        </span>
         <h3 className="text-ink truncate text-base font-semibold">{course.name}</h3>
         <p className="text-dim line-clamp-2 text-sm">{course.blurb}</p>
         <p className="hud-label num text-dim mt-1">
           {course.tier}
           {gold && ` · ${MEDAL_LABELS.gold} ${formatTime(gold.ms)}`}
-          {` · finish for + ⬤ ${DAILY_BONUS}`}
+          {done ? " · bonus collected" : ` · finish for + ⬤ ${DAILY_BONUS}`}
         </p>
       </div>
     </Link>

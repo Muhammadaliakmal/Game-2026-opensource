@@ -221,6 +221,8 @@ export const AUTHOR_MS: Record<string, number> = {
   filament: 28_638,
   arclight: 30_532,
   lattice: 34_684,
+  // Obby. Long by design; the ladder is tuned per-map by HUMAN, not per tier.
+  magma: 59_899,
 };
 
 /** Every medal time for a shipped map, best first. Null if it has no Author time. */

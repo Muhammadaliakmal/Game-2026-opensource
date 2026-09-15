@@ -229,6 +229,38 @@ the route, and — the one that matters — that the goal is still reachable *fr
 every checkpoint*, because a resume point you cannot continue from is a soft
 lock rather than a mercy.
 
+### Hazards, and the one course made of them
+
+The fifth finish is `hazard` (`HAZARD_FINISH` in `worlddoc.ts`; `isHazard`
+is the predicate). It glows like `emissive`, pulses in Play (`HazardPulse`
+walks `HAZARD_MATERIALS`; the editor renders on demand and never pulses),
+and **kills on touch**. Five things hang off that one bit:
+
+- **The route solver does not stand on it.** `surfaces()` in
+  `course-graph.ts` skips hazard parts as landings (they still block
+  headroom), so a floor solved over lava is a floor that avoids it. That
+  makes the hazard bit the ONE field beside the position `courseKey` must
+  hash — painting a pad to lava moves the floor and resets the board. The
+  key's version prefix went `1:` → `2:` for it.
+- **Touch is two tests, not one** (`play/hazard.ts`). The floor is judged
+  under the capsule's centre, through the float gap; the body is judged at
+  the radius from the shins up. So standing on a one-cell safe tile between
+  lava tiles is safe to its edge, and brushing a lava pillar is death. Get
+  this backwards and the tile floor becomes a pixel hunt.
+- **A death is a respawn with a cause** (`RespawnCause`): the wash is red
+  for lava, `useCourse.deaths` counts falls and lava but not R, and the
+  finish panel says "Deathless" or "Died n times". Not counted after the
+  finish: walking off the podium is not a death the panel should recount.
+- **Lava is never dressed.** `dressParts` touches matte and metal only, so
+  a generator writes the crust itself: `Course.lava()` and `.hazard()` pass
+  `LAVA_SURFACE` (the `stone` index) as the eighth field. `put()` grew an
+  optional `texture` for exactly this.
+- **`Obby` is the sixth tier**, after Expert, and is a different axis:
+  traps over length, not smaller landings. `courses/obby.ts` is Magma
+  Gauntlet — seven stages folded over one sheet of lava at y=0 (a single
+  merged collider). Its test proves the tile floor is gated by its path:
+  paint the safe tiles to lava and the goal must become unreachable.
+
 ## Authoring a course in the editor
 
 `goal` and `checkpoints` are the two fields that turn a world into a course,

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ShaderChunk, ShaderLib } from "three";
-import { createFinishMaterial, EMISSIVE_FINISH, FINISH_PARAMS } from "./shapes";
+import { createFinishMaterial, EMISSIVE_FINISH, FINISH_PARAMS, HAZARD_FINISH, HAZARD_MATERIALS, releaseFinishMaterial } from "./shapes";
 
 /**
  * Guards the emissive shader patch.
@@ -93,12 +93,12 @@ test("the patch is guarded by exactly the defines three declares vColor under", 
   }
 });
 
-test("only the emissive finish patches its shader", () => {
+test("only the lit finishes patch their shader", () => {
   // Every other finish should compile as a stock MeshStandardMaterial; a
   // stray patch is a stray chance to break the program.
   for (let finish = 0; finish < FINISH_PARAMS.length; finish++) {
     const material = createFinishMaterial(finish);
-    if (finish === EMISSIVE_FINISH) continue;
+    if (finish === EMISSIVE_FINISH || finish === HAZARD_FINISH) continue;
     assert.equal(
       typeof material.onBeforeCompile === "function" &&
         material.onBeforeCompile.length > 0 &&
@@ -107,4 +107,20 @@ test("only the emissive finish patches its shader", () => {
       `finish ${finish} should not patch its shader`
     );
   }
+});
+
+test("a hazard material is registered for the pulse and released with the bucket", () => {
+  const before = HAZARD_MATERIALS.size;
+  const material = createFinishMaterial(HAZARD_FINISH);
+  assert.equal(HAZARD_MATERIALS.size, before + 1);
+  assert.ok(HAZARD_MATERIALS.has(material));
+  // Brighter than the marker finish: it has to read from the air.
+  assert.ok(
+    FINISH_PARAMS[HAZARD_FINISH].emissiveIntensity > FINISH_PARAMS[EMISSIVE_FINISH].emissiveIntensity
+  );
+  releaseFinishMaterial(material);
+  assert.equal(HAZARD_MATERIALS.size, before);
+  // No other finish is pulsed.
+  createFinishMaterial(EMISSIVE_FINISH);
+  assert.equal(HAZARD_MATERIALS.size, before);
 });

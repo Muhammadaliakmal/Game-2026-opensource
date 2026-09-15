@@ -15,6 +15,7 @@ import { EASY_COURSES } from "./courses/easy";
 import { MEDIUM_COURSES } from "./courses/medium";
 import { HARD_COURSES } from "./courses/hard";
 import { EXPERT_COURSES } from "./courses/expert";
+import { OBBY_COURSES } from "./courses/obby";
 
 /**
  * The tiered parkour set — SPEC phase 6d.
@@ -395,4 +396,5 @@ export const TIERED_COURSES: CourseEntry[] = [
     build: (ownerId) => overclock("overclock", ownerId, "Overclock"),
   },
   ...EXPERT_COURSES,
+  ...OBBY_COURSES,
 ];

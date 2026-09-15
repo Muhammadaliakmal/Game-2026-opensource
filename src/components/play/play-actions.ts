@@ -45,14 +45,21 @@ export function consumeRestart(): boolean {
  * wash). Separate from the request flag above: that is a command going INTO
  * the frame loop, this is an event coming OUT of it.
  */
-const respawnListeners = new Set<() => void>();
+/**
+ * Why the run resumed. `fall` is the void, `hazard` is a block that kills,
+ * `manual` is R, the button, or a restart. The wash colours itself by it and
+ * the course counts the first two as deaths.
+ */
+export type RespawnCause = "fall" | "hazard" | "manual";
 
-export function onRespawned(fn: () => void): () => void {
+const respawnListeners = new Set<(cause: RespawnCause) => void>();
+
+export function onRespawned(fn: (cause: RespawnCause) => void): () => void {
   respawnListeners.add(fn);
   return () => void respawnListeners.delete(fn);
 }
 
 /** Called by the player the moment it actually teleports. */
-export function notifyRespawned() {
-  for (const fn of respawnListeners) fn();
+export function notifyRespawned(cause: RespawnCause) {
+  for (const fn of respawnListeners) fn(cause);
 }

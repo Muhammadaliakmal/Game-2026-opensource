@@ -1,5 +1,5 @@
 import { routeFloorMs } from "./medals";
-import type { Vec3, WorldDoc } from "./worlddoc";
+import { isHazard, type Vec3, type WorldDoc } from "./worlddoc";
 
 /**
  * The route floor of a course, and the fingerprint that says when to recompute it.
@@ -85,9 +85,12 @@ const cellOf = (p: Vec3) =>
  * A fingerprint of everything `routeFloorMs` looks at, and nothing else.
  *
  * Three inputs reach the solver: the set of occupied cells (`surfaces` reads
- * `p[0..2]` of each part and never the shape, colour, finish or rotation
- * beside them, and never touches `props`), the spawn, and the goal. Anything
- * else in the document may change freely without moving the floor.
+ * `p[0..2]` of each part and, of everything beside them, only whether the
+ * finish is the hazard — a cell you cannot stand on is a different graph —
+ * and never the shape, colour, rotation or `props`), the spawn, and the
+ * goal. Anything else in the document may change freely without moving the
+ * floor. Painting a pad to lava is therefore an edit that resets a board,
+ * and painting it back is another; the hash carries the bit so it can say so.
  *
  * The parts are combined by ADDITION rather than by hashing the array in
  * order, because they are a set and the editor makes no promise about their
@@ -100,15 +103,15 @@ export function courseKey(doc: WorldDoc): string {
   let a = 0;
   let b = 0;
   for (const p of doc.parts) {
-    const cell = `${p[0]},${p[1]},${p[2]}`;
+    const cell = `${p[0]},${p[1]},${p[2]}${isHazard(p) ? "!" : ""}`;
     a = (a + fnv1a(cell, FNV_BASIS)) >>> 0;
     b = (b + fnv1a(cell, FNV_BASIS_B)) >>> 0;
   }
   const goal = doc.goal ? cellOf(doc.goal) : "-";
   // The version prefix is what lets this change later: bump it and every
   // stored key stops matching, which recomputes every floor once and then
-  // costs nothing again.
-  return `1:${doc.parts.length}:${hex(a)}${hex(b)}:${cellOf(doc.spawn)}:${goal}`;
+  // costs nothing again. 2: the hazard bit joined the hash.
+  return `2:${doc.parts.length}:${hex(a)}${hex(b)}:${cellOf(doc.spawn)}:${goal}`;
 }
 
 /**

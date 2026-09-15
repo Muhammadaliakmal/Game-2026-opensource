@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import type { GhostTrack } from "./ghost";
 import type { Medal } from "./medals";
+import { dayKey } from "./daily";
+import { recordFinish } from "./streak";
 
 /**
  * The leaderboard and the ghost, client side.
@@ -186,6 +188,9 @@ export const useRuns = create<RunsState>((set, get) => ({
         lucky: r.lucky === true,
         daily: r.daily && r.daily > 0 ? r.daily : null,
       });
+      // The server paid today's bonus, which is the one fact the streak is
+      // built on: it only ever pays once a day, so this is once a day too.
+      if (r.daily && r.daily > 0) recordFinish(dayKey());
       // The balance moved, so anything showing it is now stale. Written
       // straight in rather than refetched: the server just told us the answer.
       if (typeof r.coins === "number") {

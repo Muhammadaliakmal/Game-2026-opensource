@@ -194,7 +194,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 /** Facing away from the moon: the worst case, and where black first appears. */
 const AWAY = moonDirection().clone().negate().setY(0).normalize();
 
-const FINISHES = ["matte", "glossy", "metal", "emissive"];
+const FINISHES = ["matte", "glossy", "metal", "emissive", "hazard"];
 
 /** The surfaces that actually decide whether the game is playable. */
 const CASES: { what: string; color: number; finish: number }[] = [

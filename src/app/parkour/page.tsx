@@ -58,6 +58,7 @@ const TIER_NOTE: Record<Tier, string> = {
   Medium: "Learn to turn",
   Hard: "One-block landings",
   Expert: "On the limit",
+  Obby: "Lava, traps, a lot of dying",
 };
 
 export default function ParkourPage() {

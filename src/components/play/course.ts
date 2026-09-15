@@ -48,6 +48,12 @@ export interface CourseState {
   checkpoint: number;
   /** How many the course has, so the HUD can say 2/5 rather than just 2. */
   checkpointCount: number;
+  /**
+   * Deaths this attempt: falls and hazards, not manual respawns. An obby's
+   * scoreboard is its death count as much as its clock, and a finish panel
+   * that says "died 23 times" is the one line that gets a rematch.
+   */
+  deaths: number;
 
   /** Begin a fresh run: clock from zero, no checkpoints held. */
   begin(worldId: string): void;
@@ -66,6 +72,8 @@ export interface CourseState {
   setAuthorMs(worldId: string, ms: number | null): void;
   /** A checkpoint was reached. Forward-only; the caller has already checked. */
   reachCheckpoint(index: number): void;
+  /** The runner fell or touched a hazard. Counted whether or not a run is on. */
+  died(): void;
   /**
    * The runner died and came back.
    *
@@ -121,12 +129,14 @@ export const useCourse = create<CourseState>((set, get) => ({
   authorWorldId: null,
   checkpoint: -1,
   checkpointCount: 0,
+  deaths: 0,
 
   begin: (worldId) =>
     set((s) => ({
       startedAt: performance.now(),
       finishedMs: null,
       checkpoint: -1,
+      deaths: 0,
       // Re-read only when the world actually changes, so a respawn does not
       // hit storage on every fall.
       best: s.worldId === worldId ? s.best : readBest(worldId),
@@ -143,7 +153,7 @@ export const useCourse = create<CourseState>((set, get) => ({
   },
 
   clear: () =>
-    set({ startedAt: null, finishedMs: null, checkpoint: -1, checkpointCount: 0 }),
+    set({ startedAt: null, finishedMs: null, checkpoint: -1, checkpointCount: 0, deaths: 0 }),
 
   setCheckpointCount: (n) => set({ checkpointCount: n, checkpoint: -1 }),
 
@@ -152,6 +162,10 @@ export const useCourse = create<CourseState>((set, get) => ({
   reachCheckpoint: (index) =>
     set((s) => (index > s.checkpoint ? { checkpoint: index } : s)),
 
+  // Not after the finish: walking off the podium is not a death the panel
+  // that is already up should start recounting.
+  died: () => set((s) => (s.finishedMs === null ? { deaths: s.deaths + 1 } : s)),
+
   respawned: () => {
     const s = get();
     if (s.worldId === null) return;
@@ -159,13 +173,13 @@ export const useCourse = create<CourseState>((set, get) => ({
     // would make every fall erase the time you had already put in, which is
     // the opposite of what a checkpoint is for.
     if (s.checkpoint >= 0) return;
-    set({ startedAt: performance.now(), finishedMs: null });
+    set({ startedAt: performance.now(), finishedMs: null, deaths: 0 });
   },
 
   restart: () => {
     const s = get();
     if (s.worldId === null) return;
-    set({ startedAt: performance.now(), finishedMs: null, checkpoint: -1 });
+    set({ startedAt: performance.now(), finishedMs: null, checkpoint: -1, deaths: 0 });
   },
 }));
 

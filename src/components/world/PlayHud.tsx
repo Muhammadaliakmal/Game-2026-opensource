@@ -480,6 +480,7 @@ function CourseComplete({
       )}
 
       <GhostDelta finishedMs={finishedMs} />
+      <Deaths />
 
       {/* Only when something was actually earned. A course pays for reaching a
           medal tier the first time and nothing for running it again, so on
@@ -524,6 +525,21 @@ function CourseComplete({
         </Link>
       </div>
     </div>
+  );
+}
+
+/**
+ * How many times the run died on the way. An obby is scored in deaths as
+ * much as in seconds, and a clean run says so with the only number that
+ * feels better than a fast one.
+ */
+function Deaths() {
+  const deaths = useCourse((s) => s.deaths);
+  if (deaths === 0) return <span className="hud-label text-accent">Deathless</span>;
+  return (
+    <span className="hud-label num">
+      Died {deaths} {deaths === 1 ? "time" : "times"}
+    </span>
   );
 }
 
@@ -947,13 +963,18 @@ function EscHint() {
  */
 function RespawnFade() {
   const [visible, setVisible] = useState(false);
+  const [burned, setBurned] = useState(false);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
-    const off = onRespawned(() => {
+    const off = onRespawned((cause) => {
+      // The lava's wash is red, and a shade longer: a death by a thing you
+      // touched should look different from a fall off the edge, or the
+      // player cannot learn which one it was.
+      setBurned(cause === "hazard");
       setVisible(true);
       clearTimeout(timer);
-      timer = setTimeout(() => setVisible(false), 180);
+      timer = setTimeout(() => setVisible(false), cause === "hazard" ? 260 : 180);
     });
     return () => {
       clearTimeout(timer);
@@ -964,9 +985,10 @@ function RespawnFade() {
   return (
     <div
       aria-hidden
-      className={`bg-base pointer-events-none absolute inset-0 z-10 transition-opacity duration-200 ${
-        visible ? "opacity-60" : "opacity-0"
-      }`}
+      className={`pointer-events-none absolute inset-0 z-10 transition-opacity duration-200 ${
+        burned ? "" : "bg-base"
+      } ${visible ? "opacity-60" : "opacity-0"}`}
+      style={burned ? { background: "rgb(190 40 20)" } : undefined}
     />
   );
 }

@@ -10,6 +10,9 @@ import { useJoystickStore } from "ecctrl/input";
 import { FEEL } from "@/lib/feel";
 import type { Checkpoint, Vec3 } from "@/lib/worlddoc";
 import { resumePose } from "@/lib/checkpoints";
+import { useEditorStore } from "@/stores/editor-store";
+import { touchingHazard } from "./hazard";
+import { sfxHazard } from "@/lib/sfx/parkour";
 import { useCoarsePointer, useTouchControls } from "@/lib/use-media-query";
 import { useJumpFeel } from "./feel/useJumpFeel";
 import { useFootstepAudio } from "./feel/useFootstepAudio";
@@ -24,6 +27,7 @@ import {
   notifyRespawned,
   requestRespawn,
   requestRestart,
+  type RespawnCause,
 } from "./play-actions";
 import { bound } from "@/lib/keybinds";
 import { reducedMotion } from "@/lib/motion";
@@ -617,9 +621,11 @@ export function Player({
   usePlayHotkeys();
   useFootstepAudio(ref);
 
-  // Respawn on falling out of the world, or on demand. Near-instant by design:
-  // when failure costs almost nothing, players keep trying instead of quitting.
+  // Respawn on falling out of the world, on touching a hazard, or on demand.
+  // Near-instant by design: when failure costs almost nothing, players keep
+  // trying instead of quitting. `cause` is what the timer was started for.
   const respawnTimer = useRef(0);
+  const cause = useRef<RespawnCause>("manual");
   useFrame((_, dt) => {
     const h = ref.current;
     if (!h) return;
@@ -662,7 +668,8 @@ export function Player({
         // looking back down the course you just climbed means every attempt
         // starts by spinning round.
         look.yaw = yaw;
-        notifyRespawned();
+        if (cause.current !== "manual") useCourse.getState().died();
+        notifyRespawned(cause.current);
       }
       return;
     }
@@ -674,6 +681,7 @@ export function Player({
     // and only then told the run is over.
     if (consumeRestart()) {
       useCourse.getState().restart();
+      cause.current = "manual";
       respawnTimer.current = Number.EPSILON;
       return;
     }
@@ -681,6 +689,7 @@ export function Player({
     // A manual respawn is immediate — the delay exists to let a fall read as a
     // failure, and someone who asked to reset has already accepted that.
     if (consumeRespawn()) {
+      cause.current = "manual";
       respawnTimer.current = Number.EPSILON;
       return;
     }
@@ -690,7 +699,22 @@ export function Player({
       // respawn that leaves gravity off would drop the player into a hover at
       // the spawn point and no way to explain it.
       useMoveMode.getState().setFlying(false);
+      cause.current = "fall";
       respawnTimer.current = FEEL.respawnDelay;
+      return;
+    }
+
+    // A hazard block. Same delay as the void, so the death reads as one —
+    // the sizzle and the red wash are what say it was the lava and not the
+    // edge. Not while flying: the builder's fly-through of their own lava is
+    // not a run. Checked last, so a manual respawn this frame wins.
+    if (
+      !useMoveMode.getState().flying &&
+      touchingHazard(useEditorStore.getState().parts, h.currPos.x, h.currPos.y, h.currPos.z)
+    ) {
+      cause.current = "hazard";
+      respawnTimer.current = FEEL.respawnDelay;
+      sfxHazard();
     }
   });
 

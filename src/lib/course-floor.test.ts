@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildBuiltInDoc } from "./built-in-worlds";
 import { courseFloorFor, courseKey, floorMoved, NOT_A_COURSE } from "./course-floor";
+import { HAZARD_FINISH } from "./worlddoc";
 import { routeFloorMs } from "./medals";
 import type { PartTuple, WorldDoc } from "./worlddoc";
 
@@ -36,6 +37,13 @@ test("cosmetic edits cannot move the fingerprint", () => {
     (p) => [p[0], p[1], p[2], 1, (p[4] + 7) % 32, 3, (p[6] + 1) % 4] as PartTuple
   );
   assert.equal(courseKey(edit(doc, { parts: repainted })), key);
+
+  // Except the hazard finish, which is the one paint the solver reads: a
+  // cell you cannot stand on is a different graph, so it is a different key.
+  const lava = doc.parts.map(
+    (p, i) => (i === 0 ? ([p[0], p[1], p[2], p[3], p[4], HAZARD_FINISH, p[6]] as PartTuple) : p)
+  );
+  assert.notEqual(courseKey(edit(doc, { parts: lava })), key);
 
   // And everything outside the parts array that the solver never reads.
   assert.equal(courseKey(edit(doc, { name: "Renamed" })), key);

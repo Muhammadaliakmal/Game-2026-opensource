@@ -1,6 +1,6 @@
 import { FEEL } from "./feel";
 import { airTime, canClear } from "./jump-arc";
-import type { PartTuple, Vec3 } from "./worlddoc";
+import { isHazard, type PartTuple, type Vec3 } from "./worlddoc";
 
 /**
  * A course as a graph of places you can stand.
@@ -61,6 +61,12 @@ export function surfaces(parts: readonly PartTuple[]): Surfaces {
   const byCell = new Map<string, Surface>();
   const byColumn = new Map<string, Surface[]>();
   for (const p of parts) {
+    // A hazard is solid — it still blocks headroom above the cell below it —
+    // but it is not a place to stand. A route that lands on lava is not a
+    // route, and a floor solved across one would hand out medals for a
+    // course nobody can finish that fast. This is the one field beside the
+    // position the solver reads, and `courseKey` hashes it for that reason.
+    if (isHazard(p)) continue;
     const [x, y, z] = p;
     let clear = true;
     for (let h = 1; h <= HEADROOM; h++) {

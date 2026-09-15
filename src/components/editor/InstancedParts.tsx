@@ -10,7 +10,7 @@ import { reducedMotion } from "@/lib/motion";
 import { keyOf } from "@/lib/grid";
 import { occlusionIndex } from "@/lib/occlusion";
 import { punches } from "./punch";
-import { createFinishMaterial, shapeGeometries } from "./shapes";
+import { createFinishMaterial, releaseFinishMaterial, shapeGeometries } from "./shapes";
 import { useRenderQuality } from "@/lib/quality";
 import { useBlockArrays } from "@/lib/textures/block-arrays";
 import { ownedGeometry, writeInstanceTextures } from "@/lib/textures/instance-texture";
@@ -139,7 +139,7 @@ function Bucket({
   // Dispose the material and the owned geometry when this bucket unmounts —
   // R3F only auto-disposes what it created declaratively, not objects built
   // in a useMemo.
-  useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => () => releaseFinishMaterial(material), [material]);
   useEffect(() => () => geometry.dispose(), [geometry]);
 
   useEffect(() => {

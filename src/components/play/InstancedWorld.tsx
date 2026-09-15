@@ -3,7 +3,7 @@
 import * as THREE from "three";
 import { useEffect, useMemo, useRef } from "react";
 import { PALETTE, type PartTuple } from "@/lib/worlddoc";
-import { createFinishMaterial, shapeGeometries } from "@/components/editor/shapes";
+import { createFinishMaterial, releaseFinishMaterial, shapeGeometries } from "@/components/editor/shapes";
 import { useRenderQuality } from "@/lib/quality";
 import { useBlockArrays } from "@/lib/textures/block-arrays";
 import { ownedGeometry, writeInstanceTextures } from "@/lib/textures/instance-texture";
@@ -44,7 +44,7 @@ function Bucket({
     [quality.blockDetail, shape, capacity]
   );
 
-  useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => () => releaseFinishMaterial(material), [material]);
   useEffect(() => () => geometry.dispose(), [geometry]);
 
   useEffect(() => {

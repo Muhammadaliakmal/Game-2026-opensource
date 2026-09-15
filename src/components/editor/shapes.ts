@@ -187,12 +187,34 @@ export const COLLIDER_GEOMETRIES: THREE.BufferGeometry[] = [
 
 export const SHAPE_NAMES = ["Block", "Slab", "Ramp", "Wedge"] as const;
 
-/** Index into FINISHES — the one finish that glows. */
+/** Index into FINISHES — the finish that glows. */
 export const EMISSIVE_FINISH = 3;
+/** The finish that glows AND kills. Same shader patch, a pulse on top. */
+export const HAZARD_FINISH = 4;
+
+/** Both lit finishes share the emissive patch below. */
+const glows = (finish: number) => finish === EMISSIVE_FINISH || finish === HAZARD_FINISH;
+
+/**
+ * Every live hazard material, so one frame loop can pulse them together.
+ *
+ * A bucket owns its material and disposes it on unmount, so the set is kept
+ * in step by the same two places: `createFinishMaterial` adds, the bucket's
+ * dispose removes (`releaseFinishMaterial`). `HazardPulse` in Play walks it
+ * each frame; the editor renders on demand and never does, which is right —
+ * a block being placed should not blink.
+ */
+export const HAZARD_MATERIALS = new Set<THREE.MeshStandardMaterial>();
+
+/** Dispose a bucket's material and forget it if it was pulsing. */
+export function releaseFinishMaterial(material: THREE.MeshStandardMaterial) {
+  HAZARD_MATERIALS.delete(material);
+  material.dispose();
+}
 
 /**
  * Material parameters per finish index, matching FINISHES in worlddoc.ts:
- * matte / glossy / metal / emissive.
+ * matte / glossy / metal / emissive / hazard.
  *
  * Values are tuned against the scene's room environment map — without one,
  * `metal` in particular renders as a flat dark patch because there is nothing
@@ -207,6 +229,8 @@ export const FINISH_PARAMS: Array<{
   { roughness: 0.12, metalness: 0.2, emissiveIntensity: 0 }, // glossy
   { roughness: 0.22, metalness: 1.0, emissiveIntensity: 0 }, // metal
   { roughness: 0.5, metalness: 0.0, emissiveIntensity: 1.4 }, // emissive
+  // Brighter than a marker and the base of a pulse; HazardPulse moves it.
+  { roughness: 0.6, metalness: 0.0, emissiveIntensity: 2.0 }, // hazard
 ];
 
 /**
@@ -241,7 +265,7 @@ export function createFinishMaterial(
     emissiveIntensity: p.emissiveIntensity,
   });
 
-  if (finish === EMISSIVE_FINISH) {
+  if (glows(finish)) {
     // White, so the multiply below is what decides the colour.
     material.emissive.setRGB(1, 1, 1);
     material.onBeforeCompile = (shader) => {
@@ -274,9 +298,10 @@ export function createFinishMaterial(
   // material's own parameters plus this string. Every combination that
   // produces different GLSL — emissive or not, and which texture mode — has
   // to spell itself out here.
-  const emissive = finish === EMISSIVE_FINISH ? "emissive" : "lit";
+  const emissive = glows(finish) ? "emissive" : "lit";
   const key = `blockworld-${emissive}-${textured ? textureCacheKey(mode) : "tex-flat"}`;
   material.customProgramCacheKey = () => key;
 
+  if (finish === HAZARD_FINISH) HAZARD_MATERIALS.add(material);
   return material;
 }

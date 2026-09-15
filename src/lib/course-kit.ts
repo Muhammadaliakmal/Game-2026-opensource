@@ -34,6 +34,16 @@ export const MATTE = 0;
 export const GLOSSY = 1;
 export const METAL = 2;
 export const GLOW = 3;
+/** The finish that kills. `worlddoc.ts` owns the number; see `isHazard`. */
+export const HAZARD = 4;
+/**
+ * The surface a sheet of lava carries: the cracked-rock luminance of `stone`
+ * under the orange glow reads as crust. Named by index here because this
+ * module imports nothing that could resolve a name, and the dressing pass
+ * never touches a hazard (see `dressParts`), so it has to be written at
+ * generation. `texture-list.test.ts` holds the index to the name.
+ */
+export const LAVA_SURFACE = 3;
 
 /**
  * Palette indices used across the set (see PALETTE in worlddoc.ts).
@@ -99,7 +109,14 @@ export class Course {
   private readonly cells = new Map<string, PartTuple>();
   readonly checkpoints: Checkpoint[] = [];
 
-  /** One part, replacing anything already in that cell. */
+  /**
+   * One part, replacing anything already in that cell.
+   *
+   * `texture` is the optional eighth field. Almost nothing passes it — the
+   * shipped worlds are dressed by colour afterwards (`surface-dressing.ts`)
+   * — but a generator that wants a surface the dressing will not give it
+   * (lava, which is a hazard and so never dressed) writes it here.
+   */
   put(
     x: number,
     y: number,
@@ -107,10 +124,16 @@ export class Course {
     shape: Shape,
     color: number,
     finish: number,
-    rot = 0
+    rot = 0,
+    texture?: number
   ): this {
     if (y < 0) throw new RangeError(`part below the grid floor at y=${y}`);
-    this.cells.set(`${x},${y},${z}`, [x, y, z, shape, color, finish, rot]);
+    this.cells.set(
+      `${x},${y},${z}`,
+      texture === undefined
+        ? [x, y, z, shape, color, finish, rot]
+        : [x, y, z, shape, color, finish, rot, texture]
+    );
     return this;
   }
 
@@ -261,6 +284,24 @@ export class Course {
     return this;
   }
 
+  /**
+   * A `w` x `d` sheet of lava — hazard blocks in one colour. A block
+   * finished this way kills on touch and is not a surface to the route
+   * solver, so a sheet of it under a jump is a pit and a strip of it across
+   * a deck is a wall the runner has to find the gap in.
+   */
+  lava(x: number, y: number, z: number, w: number, d: number, color: number = HUE.orange): this {
+    for (let i = 0; i < w; i++) {
+      for (let k = 0; k < d; k++) this.put(x + i, y, z + k, BLOCK, color, HAZARD, 0, LAVA_SURFACE);
+    }
+    return this;
+  }
+
+  /** One kill block — a pillar, a gate post. Same crust as the sea. */
+  hazard(x: number, y: number, z: number, color: number = HUE.red): this {
+    return this.put(x, y, z, BLOCK, color, HAZARD, 0, LAVA_SURFACE);
+  }
+
   /** Everything placed, in insertion order. */
   parts(): PartTuple[] {
     return [...this.cells.values()];
@@ -282,8 +323,16 @@ export const goalOver = (x: number, y: number, z: number): Vec3 => [
   center(z),
 ];
 
-/** Difficulty tiers, in ladder order. */
-export const TIERS = ["Tutorial", "Easy", "Medium", "Hard", "Expert"] as const;
+/**
+ * Difficulty tiers, in ladder order.
+ *
+ * `Obby` is the sixth and is a different axis from the five before it: not
+ * harder jumps or smaller landings but *traps* — lava that kills on touch —
+ * over a course long enough to be an expedition. It sits after Expert
+ * because it assumes every jump the ladder teaches, not because its jumps
+ * are worse.
+ */
+export const TIERS = ["Tutorial", "Easy", "Medium", "Hard", "Expert", "Obby"] as const;
 export type Tier = (typeof TIERS)[number];
 
 /** Assemble a course's geometry into the WorldDoc the app loads. */
