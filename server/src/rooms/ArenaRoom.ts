@@ -125,7 +125,7 @@ export class ArenaRoom extends Room<{ state: ArenaState }> {
           entrants: this.match.fighters.size,
         })
         .then((paid) => {
-          if (paid && paid.earned > 0) client.send("coins", paid);
+          if (paid && paid.earned > 0 && this.clients.includes(client)) client.send("coins", paid);
         })
         .catch((error) => console.error(`[arena ${this.roomId}] reward failed`, error));
     }

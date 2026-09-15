@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { recenterPitch, useViewStore } from "@/components/play/camera-rig";
 import { useMoveMode } from "@/components/play/move-mode";
 import {
@@ -554,13 +555,21 @@ function GhostDelta({ finishedMs }: { finishedMs: number }) {
  * "Beat my time" — one press, one link.
  *
  * The link is the course with `?vs=<you>` on it, which loads your best as
- * the ghost for whoever opens it (`RunRecorder`). It needs your row on the
- * board — so a signed-out player does not get the button, because there is
- * no run of theirs on the server for a link to point at. The system share
- * sheet where there is one (a phone), the clipboard where there is not.
+ * the ghost for whoever opens it (`RunRecorder`). Who "you" are comes from
+ * the session, not from the board row: on the weekly board a player with no
+ * run this week has no row, and the button must not vanish with it. A
+ * signed-out player has no run on the server for a link to point at, so
+ * they do not get the button. The system share sheet where there is one (a
+ * phone), the clipboard where there is not.
  */
 function ShareRun({ worldId }: { worldId: string | null }) {
-  const me = useRuns((s) => s.board?.me ?? null);
+  const { userId } = useAuth();
+  // The server's number when the board has it, the browser's otherwise: the
+  // link races what the server holds, and the two agree except in the
+  // moment before a post has landed.
+  const posted = useRuns((s) => s.board?.me?.timeMs ?? null);
+  const local = useCourse((s) => s.best);
+  const best = posted ?? local;
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -569,11 +578,11 @@ function ShareRun({ worldId }: { worldId: string | null }) {
     return () => clearTimeout(t);
   }, [copied]);
 
-  if (!me || !worldId) return null;
+  if (!userId || !worldId || best === null) return null;
 
   const share = async () => {
-    const url = `${window.location.origin}/play/${encodeURIComponent(worldId)}?vs=${encodeURIComponent(me.userId)}`;
-    const text = `Beat my ${formatTime(me.timeMs)} on Spec Driven Games`;
+    const url = `${window.location.origin}/play/${encodeURIComponent(worldId)}?vs=${encodeURIComponent(userId)}`;
+    const text = `Beat my ${formatTime(best)} on Spec Driven Games`;
     sfxUiConfirm();
     try {
       if (typeof navigator.share === "function") {

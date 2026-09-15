@@ -93,9 +93,11 @@ export const useRaceStore = create<RaceStoreState>((set) => ({
       countdownMs,
       target,
       riders,
-      // A new race is a new payout. Cleared on the way back to the grid
-      // rather than on finish, so the line stays up while the panel does.
-      earned: phase === "finished" ? s.earned : null,
+      // A new race is a new payout. Cleared only when the grid re-forms —
+      // the room pays a rider on THEIR line, while the phase is still
+      // "racing" for everyone else, so clearing on anything but "finished"
+      // wiped the line before the results panel could show it.
+      earned: phase === "waiting" || phase === "countdown" ? null : s.earned,
     })),
 
   setEarned: (earned) => set({ earned }),

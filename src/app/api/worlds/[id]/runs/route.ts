@@ -264,11 +264,14 @@ export async function POST(req: Request, { params }: Params) {
     .returning({ timeMs: runs.timeMs });
 
   // Improved means the all-time best moved, which is what decides both the
-  // refetch and the payout. Judged against the row read above rather than
-  // in the statement; the window in which two tabs of one player could both
-  // read the old best is milliseconds wide, and what it would double is a
-  // cosmetic — see `lib/coins.ts` on what this guard is and is not.
-  const improved = previous === undefined || timeMs < previous.timeMs;
+  // refetch and the payout. Two halves: the row now holds this run's time
+  // (so a concurrent faster run from another tab did not win the LEAST),
+  // and that time beats what was held before the statement. The second
+  // half is a read from before the write, and the window in which two tabs
+  // of one player could both pass it is milliseconds wide; what it would
+  // double is a cosmetic — see `lib/coins.ts` on what this guard is not.
+  const improved =
+    row.timeMs === timeMs && (previous === undefined || timeMs < previous.timeMs);
 
   // Coins are only paid when the run actually landed. A slower attempt —
   // which is most attempts — pays nothing, and paying for one would make the

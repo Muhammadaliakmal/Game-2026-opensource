@@ -58,6 +58,13 @@ export class RaceRoom extends Room<{ state: RaceState }> {
 
   race!: Race;
   worldDoc!: WorldDoc;
+  /**
+   * How many riders the lights went out for. Read when a finish is paid,
+   * rather than `riders.size` at that moment: a winner who leaves the room
+   * the second they cross the line would otherwise turn everybody behind
+   * them into a "time trial" and pay them as one.
+   */
+  private entrants = 0;
 
   static async onAuth(token: string) {
     return verifyJoin(token);
@@ -178,9 +185,12 @@ export class RaceRoom extends Room<{ state: RaceState }> {
     const who = client.auth as RoomIdentity | undefined;
     if (!who || who.guest) return;
     getRewardSink()
-      .pay({ userId: who.userId, mode: "race", place, entrants: this.race.riders.size })
+      .pay({ userId: who.userId, mode: "race", place, entrants: this.entrants })
       .then((paid) => {
-        if (paid && paid.earned > 0) client.send("coins", paid);
+        // The wallet answered after the rider may have left. Colyseus throws
+        // on a send to a closed transport, and a payout that arrived after
+        // its rider is not worth a stack trace.
+        if (paid && paid.earned > 0 && this.clients.includes(client)) client.send("coins", paid);
       })
       .catch((error) => console.error(`[race ${this.roomId}] reward failed`, error));
   }
@@ -256,5 +266,9 @@ export class RaceRoom extends Room<{ state: RaceState }> {
     this.state.phase = this.race.phase;
     this.state.target = this.race.target;
     for (const id of this.race.riders.keys()) this.syncRider(id);
+    // The grid is counted while it forms and frozen once it is off; a
+    // rematch goes back through "waiting" and counts again.
+    if (this.race.phase === "waiting") this.entrants = 0;
+    else if (this.race.phase === "countdown") this.entrants = Math.max(this.entrants, this.race.riders.size);
   }
 }

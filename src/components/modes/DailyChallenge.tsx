@@ -44,20 +44,29 @@ function daySnapshot(): string {
 }
 const dayServerSnapshot = () => null;
 
+/**
+ * The card's height, reserved before the client has picked a course. The
+ * server renders the frame and nothing in it; without the reservation the
+ * three mode covers below hydrate a card's height lower than they were
+ * painted, which is the layout shift this page is otherwise free of.
+ */
+const CARD_MIN_H = "min-h-[7.25rem] sm:min-h-[7.75rem]";
+
 export function DailyChallenge() {
   const today = useSyncExternalStore(subscribeDay, daySnapshot, dayServerSnapshot);
-  if (today === null) return null;
-
-  const [slug, hours] = today.split("|");
+  const [slug, hours] = (today ?? "|").split("|");
   const course = PARKOUR_COURSES.find((c) => c.slug === slug);
-  if (!course) return null;
+
+  if (!course) {
+    return <div className={`card border-accent/40 ${CARD_MIN_H}`} aria-hidden />;
+  }
   const hoursLeft = Number(hours);
   const gold = medalTimes(course.slug)?.find((t) => t.medal === "gold");
 
   return (
     <Link
       href={`/play/${course.slug}`}
-      className="group card hover:border-accent/70 focus-visible:border-accent/70 border-accent/40 flex overflow-hidden transition-colors"
+      className={`group card hover:border-accent/70 focus-visible:border-accent/70 border-accent/40 flex overflow-hidden transition-colors ${CARD_MIN_H}`}
     >
       <div className="relative w-32 shrink-0 bg-[#0b1030] sm:w-44">
         {COVERS[course.slug] && (
