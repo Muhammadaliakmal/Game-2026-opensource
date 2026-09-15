@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createFrameGate } from "./frame-cap";
+import { UNCAPPED, createFrameGate } from "./frame-cap";
 
 /**
  * Simulates a display of a given refresh rate for a number of seconds and
@@ -173,4 +173,69 @@ test("overlapping holds do not add up", () => {
   gate.hold(0.05);
   t += 60; // past 50ms
   assert.ok(gate.tick(t)! > before, "two 50ms holds are still one 50ms hold");
+});
+
+/**
+ * Uncapped: the gate stops choosing ticks.
+ *
+ * Why this mode exists is in `UNCAPPED`'s own comment, and the short version
+ * is pacing rather than throughput. A gate holding 60 on a 144Hz panel has to
+ * alternate two ticks and three, so the frames it lets through land 13.9ms and
+ * 20.8ms apart — a true 60 average made of unevenly spaced frames, which is
+ * what judder is. Handing the spacing back to vsync is the only fix, because
+ * 60 does not divide 144 and no amount of tuning changes that.
+ */
+test("uncapped renders every tick the display offers", () => {
+  for (const hz of [60, 90, 120, 144, 165, 240]) {
+    const { count } = simulate(UNCAPPED, hz, 1);
+    assert.ok(
+      count >= hz - 1 && count <= hz,
+      `${hz}Hz should render ~${hz} frames uncapped, got ${count}`
+    );
+  }
+});
+
+test("uncapped frames are evenly spaced", () => {
+  // The property the whole mode is for. Capped at 60 on a 144Hz panel the gaps
+  // alternate; uncapped they are all one display period.
+  const { accepted } = simulate(UNCAPPED, 144, 1);
+  const gaps = accepted.slice(1).map((t, i) => t - accepted[i]);
+  const spread = Math.max(...gaps) - Math.min(...gaps);
+  assert.ok(spread < 0.01, `gaps should be identical, spread was ${spread.toFixed(3)}ms`);
+
+  // And the comparison that motivates it, asserted rather than asserted about.
+  const capped = simulate(60, 144, 1).accepted;
+  const cappedGaps = capped.slice(1).map((t, i) => t - capped[i]);
+  const cappedSpread = Math.max(...cappedGaps) - Math.min(...cappedGaps);
+  assert.ok(
+    cappedSpread > 5,
+    `capping 60 onto 144Hz should produce uneven gaps; spread was ${cappedSpread.toFixed(1)}ms`
+  );
+});
+
+test("uncapped still clamps a wake-from-sleep step", () => {
+  // The clamp is about what the scene is told, not about which frames are
+  // drawn, so losing the cap must not lose it. A 30-second step flings a bike
+  // across the map whatever the frame rate is.
+  const gate = createFrameGate(UNCAPPED);
+  const first = gate.tick(1000)!;
+  const after = gate.tick(31000)!;
+  assert.ok(after - first <= 0.1 + 1e-9, `step should be clamped, got ${after - first}s`);
+});
+
+test("uncapped still honours a hit-stop", () => {
+  const gate = createFrameGate(UNCAPPED);
+  const step = 1000 / 144;
+  let t = 1000;
+  gate.tick(t);
+  t += step;
+  const before = gate.tick(t)!;
+
+  gate.hold(0.06);
+  for (let i = 0; i < 3; i++) {
+    t += step;
+    const v = gate.tick(t);
+    assert.notEqual(v, null, "frames keep being drawn while frozen");
+    assert.equal(v, before, "no simulation time passed");
+  }
 });

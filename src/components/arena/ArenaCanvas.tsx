@@ -22,6 +22,7 @@ import { FootKeyboard } from "@/components/play/FootKeyboard";
 import { playerFocus } from "@/components/play/camera-rig";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
+import { FirstFrame, useFirstPaint } from "@/components/FirstFrame";
 import { BlockSurfaces } from "@/components/BlockSurfaces";
 import { ArenaHud } from "./ArenaHud";
 import { PerfProbe } from "@/components/perf/PerfProbe";
@@ -52,7 +53,9 @@ export default function ArenaCanvas({
   worldId: string;
 }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [painted, setPainted] = useState(false);
+  // Cleared on the first frame that has the world in it, never on `onCreated`
+  // -- see components/FirstFrame.tsx for the black screen that caused.
+  const [painted, onPainted] = useFirstPaint();
   const quality = useRenderQuality();
   const error = useArenaStore((s) => s.error);
 
@@ -130,12 +133,11 @@ export default function ArenaCanvas({
           pmrem.dispose();
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.05;
-          setPainted(true);
         }}
       >
         {/* First child, so the loop is running before anything below it has a
             frame to be rendered in. */}
-        <FrameLimiter fps={60} />
+        <FrameLimiter />
         <ContextGuard />
 
         <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
@@ -157,6 +159,10 @@ export default function ArenaCanvas({
             </>
           )}
         </Physics>
+
+        {/* Gated on the snapshot so the frame it reports is a frame with the
+            world in it, not the first frame of an empty scene. */}
+        {snapshot && <FirstFrame onPainted={onPainted} />}
         {/* Same reasoning as the race and Play canvases: last child, and
             inert unless ?perf=1 is on the URL. */}
         <PerfProbe />

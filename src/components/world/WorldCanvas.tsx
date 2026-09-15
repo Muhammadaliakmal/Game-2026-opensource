@@ -7,7 +7,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Physics, RigidBody } from "@react-three/rapier";
 
@@ -61,6 +61,7 @@ import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
 import { PlayHud } from "./PlayHud";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
+import { FirstFrame, useFirstPaint } from "@/components/FirstFrame";
 import { BlockSurfaces } from "@/components/BlockSurfaces";
 import { PostFX } from "@/components/PostFX";
 import { FootKeyboard } from "@/components/play/FootKeyboard";
@@ -158,16 +159,6 @@ function LivePlacedProps() {
 }
 
 /**
- * Fires once, on the first rendered frame. Standing up Rapier and thousands of
- * instances takes noticeably longer than the fetch on a phone — long enough
- * that the loading cover used to clear onto an unpainted canvas.
- */
-function FirstFrame({ onPainted }: { onPainted: () => void }) {
-  useFrame(() => onPainted());
-  return null;
-}
-
-/**
  * Keeps the key light's shadow camera over whatever is being looked at.
  *
  * Two lights in one, because the two modes want opposite things. Building
@@ -262,7 +253,7 @@ export default function WorldCanvas({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lockedReason, setLockedReason] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(isDraft);
-  const [painted, setPainted] = useState(false);
+  const [painted, onPainted] = useFirstPaint();
 
   /**
    * The world Rapier is standing on. Snapshotted at the moment Play begins
@@ -285,14 +276,6 @@ export default function WorldCanvas({
   // Stashed from the Canvas's onCreated rather than read via useThree: save()
   // runs in this outer component, outside the R3F tree that hook needs.
   const glRef = useRef<THREE.WebGLRenderer | null>(null);
-
-  // Drop the loading cover once the scene has painted, or after a hard
-  // timeout, so a device that never gets a WebGL context is not stranded.
-  useEffect(() => {
-    if (painted) return;
-    const t = setTimeout(() => setPainted(true), 8000);
-    return () => clearTimeout(t);
-  }, [painted]);
 
   // ── Load ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -618,7 +601,7 @@ export default function WorldCanvas({
             the editor is idle — a limiter there would be a loop whose whole job
             is to not run. Mounted first so the loop exists before anything
             below it has a frame to be rendered in. */}
-        {playing && <FrameLimiter fps={60} pauseForArcade />}
+        {playing && <FrameLimiter pauseForArcade />}
         <ContextGuard />
 
         {/* Build keeps the neutral studio fill it has always had. Play gets
@@ -633,7 +616,7 @@ export default function WorldCanvas({
         )}
         <Sun mode={mode} />
         <CameraHandoff mode={mode} />
-        {!painted && <FirstFrame onPainted={() => setPainted(true)} />}
+        {!painted && <FirstFrame onPainted={onPainted} />}
 
         {/* One renderer for both modes: the world can never flash or disagree
             with itself on the way through the transition. */}

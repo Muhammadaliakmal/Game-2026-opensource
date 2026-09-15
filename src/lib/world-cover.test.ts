@@ -108,3 +108,38 @@ test("nothing in a cover lands outside its frame", () => {
     }
   }
 });
+
+test("a block ten cells up is drawn above one on the ground", () => {
+  // The bug this exists for: `basis()` built screen-up as `right × dir`,
+  // which is the negative of the correct `dir × right`. Every cover came out
+  // vertically mirrored — terrain hanging from the top of the card, sky
+  // underneath — and the whole suite passed, because a mirror keeps every
+  // point inside the frame, keeps the painter's depth order correct (`d` does
+  // not depend on `up`) and is perfectly deterministic.
+  //
+  // So the assertion has to be about orientation itself, and the only
+  // statement that pins it down is a comparison between two known heights.
+  const svg = coverSvg(
+    [
+      [0, 0, 0, 0, 1, 0, 0],
+      [0, 10, 0, 0, 2, 0, 0],
+    ],
+    { width: 640, height: 400 }
+  );
+
+  // Mean screen-y per quad, in paint order. Far first, and for this rig
+  // "far" is "low" — `dir` has a positive Y, so a block higher up is nearer
+  // the camera and paints last.
+  const meanY = [...svg.matchAll(/points="([^"]+)"/g)].map((m) => {
+    const ys = m[1].split(" ").map((p) => Number(p.split(",")[1]));
+    return ys.reduce((a, b) => a + b, 0) / ys.length;
+  });
+  assert.equal(meanY.length, 6, "expected three visible faces per block");
+
+  const ground = Math.min(...meanY.slice(0, 3));
+  const high = Math.max(...meanY.slice(3));
+  assert.ok(
+    high < ground,
+    `the block at y=10 drew at screen-y ${high.toFixed(1)}, below the ground block at ${ground.toFixed(1)} — the picture is upside down`
+  );
+});

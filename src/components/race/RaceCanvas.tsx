@@ -18,6 +18,7 @@ import { WorldColliders } from "@/components/play/WorldColliders";
 import { PropColliders } from "@/components/play/PropColliders";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
+import { FirstFrame, useFirstPaint } from "@/components/FirstFrame";
 import { BlockSurfaces } from "@/components/BlockSurfaces";
 import { PostFX } from "@/components/PostFX";
 import { SunsetSky } from "@/components/sky/SunsetSky";
@@ -80,7 +81,9 @@ export default function RaceCanvas({
   track?: string;
 }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [painted, setPainted] = useState(false);
+  // Cleared on the first frame that has the track in it, never on `onCreated`
+  // -- see components/FirstFrame.tsx for the black screen that caused.
+  const [painted, onPainted] = useFirstPaint();
   const touch = useCoarsePointer();
   const quality = useRenderQuality();
   // Read here as well as in the HUD: a connection that never happens must not
@@ -179,13 +182,11 @@ export default function RaceCanvas({
           scene.environmentIntensity = 0.4;
           pmrem.dispose();
           if (!MAP_V2) scene.background = new THREE.Color("#14171a");
-
-          setPainted(true);
         }}
       >
         {/* First child, so the loop is running before anything below it has a
             frame to be rendered in. */}
-        <FrameLimiter fps={60} />
+        <FrameLimiter />
         <ContextGuard />
 
         {/* Night is the look. The sky owns the fill, the ambient, the fog and
@@ -253,6 +254,12 @@ export default function RaceCanvas({
             </>
           )}
         </Physics>
+
+        {/* Gated on the snapshot so the frame it reports is a frame with the
+            track in it. Mounted with an empty scene it would report the first
+            frame of that empty scene -- which is the black the cover is
+            covering. */}
+        {snapshot && <FirstFrame onPainted={onPainted} />}
 
         <BlockSurfaces precompile adaptive />
         <PostFX />

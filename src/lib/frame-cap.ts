@@ -66,8 +66,30 @@ export interface FrameGate {
   hold: (seconds: number) => void;
 }
 
+/**
+ * A cap of "do not cap": render on every tick the display offers.
+ *
+ * Pass this and the gate stops deciding which ticks get through, which hands
+ * pacing back to the browser's own vsync — the only scheduler that can be
+ * perfectly even, because it is the one the frames are actually shown by. A
+ * cap of 60 on a 144Hz panel cannot be: 60 frames do not divide 144 ticks, so
+ * the gate has to alternate two ticks and three, and the frames land 13.9 ms
+ * and 20.8 ms apart forever. The average is a true 60 and the motion still
+ * judders, because what the eye reads is the spacing, not the mean.
+ *
+ * Not the default, and the reason is the one the cap was written for: a phone
+ * rendering a fragment-bound voxel world at 120 gets hot and then throttles to
+ * well under 60, which is worse than having been held at 60 throughout. So a
+ * coarse-pointer device keeps the cap and everything else runs free — see
+ * `useFrameCap` in lib/quality.ts.
+ */
+export const UNCAPPED = Infinity;
+
 export function createFrameGate(fps: number): FrameGate {
-  const interval = 1000 / fps;
+  // Anything non-finite or nonsensical means "every tick" rather than an
+  // interval of zero, which would make the schedule arithmetic meaningless.
+  const uncapped = !Number.isFinite(fps) || fps <= 0;
+  const interval = uncapped ? 0 : 1000 / fps;
 
   /** When the next frame is allowed, on the rAF timebase. */
   let due = 0;
@@ -89,7 +111,10 @@ export function createFrameGate(fps: number): FrameGate {
     },
 
     tick(nowMs: number): number | null {
-      if (started && nowMs < due - TOLERANCE_MS) return null;
+      // Uncapped: every tick is due. The clamping and the hit-stop below still
+      // apply — they are about what the scene is told, not about which frames
+      // are drawn.
+      if (!uncapped && started && nowMs < due - TOLERANCE_MS) return null;
 
       if (!started) {
         // First tick always renders, and starts the schedule from here rather
@@ -97,7 +122,9 @@ export function createFrameGate(fps: number): FrameGate {
         due = nowMs + interval;
         prev = nowMs;
         started = true;
-        elapsed += interval / 1000;
+        // Uncapped has no nominal interval to seed the clock with. One 60Hz
+        // frame is the safest first delta for a frame nothing has measured.
+        elapsed += (uncapped ? 1000 / 60 : interval) / 1000;
         return elapsed;
       }
 
@@ -108,7 +135,9 @@ export function createFrameGate(fps: number): FrameGate {
       // settle at 72 — over the cap.
       //
       // Unless we are far behind, in which case resync instead of catching up.
-      due = nowMs - due > interval * CATCHUP_FRAMES ? nowMs + interval : due + interval;
+      if (!uncapped) {
+        due = nowMs - due > interval * CATCHUP_FRAMES ? nowMs + interval : due + interval;
+      }
 
       const stepMs = Math.min(nowMs - prev, MAX_STEP_MS);
       prev = nowMs;

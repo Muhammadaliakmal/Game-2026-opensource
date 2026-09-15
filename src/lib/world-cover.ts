@@ -94,12 +94,16 @@ function basis() {
   // Screen right: perpendicular to the view direction, level with the ground.
   const rl = Math.hypot(dir.z, -dir.x) || 1;
   const right = { x: dir.z / rl, y: 0, z: -dir.x / rl };
-  // Screen up: completes the frame. right × dir, which for this rig points
-  // out of the ground plane rather than along it.
+  // Screen up: completes the frame, and the order of this cross product is
+  // the whole picture's orientation. `dir` points from the world toward the
+  // camera, so it is the camera's +Z; with `right` as +X, a right-handed
+  // frame makes up = dir × right. The other order, right × dir, is its
+  // negative — it still points out of the ground plane, which is what makes
+  // it survive a glance, and it draws every world upside down.
   const up = {
-    x: right.y * dir.z - right.z * dir.y,
-    y: right.z * dir.x - right.x * dir.z,
-    z: right.x * dir.y - right.y * dir.x,
+    x: dir.y * right.z - dir.z * right.y,
+    y: dir.z * right.x - dir.x * right.z,
+    z: dir.x * right.y - dir.y * right.x,
   };
   return { dir, right, up };
 }

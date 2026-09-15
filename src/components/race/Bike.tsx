@@ -283,6 +283,33 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
   const eye = useRef(new THREE.Vector3());
   const want = useRef(new THREE.Vector3());
   const view = useRef(new THREE.Vector3());
+  /**
+   * Where the bike is DRAWN, as opposed to where it is simulated.
+   *
+   * These are not the same point, and the gap between them is what made the
+   * bike shimmer at speed. `@react-three/rapier` runs a fixed 1/60 step and
+   * interpolates the mesh between the last two simulated poses by
+   * `accumulator / timeStep`; `body.translation()` is the newer of those two
+   * poses, undiluted. So the mesh sits somewhere between one step behind the
+   * body and level with it, and which one depends on how much time was left
+   * in the accumulator this frame.
+   *
+   * A camera aimed at `translation()` therefore aims at a point the bike is
+   * not at, by an amount that changes every frame. At 18 u/s a step is 0.3
+   * units, so the bike slides back and forth in frame by up to a third of a
+   * block — small enough to look like a rendering fault rather than a
+   * mistake, and very visible when the whole screen is moving.
+   *
+   * An empty group parented to the rigid body reads the pose the renderer is
+   * about to use, because the physics step has already written it by the time
+   * this frame loop runs. Aiming at that pins the bike in frame exactly.
+   *
+   * Only the camera uses it. Everything else here — the off-track test, the
+   * ground sample, the steering assist, what goes on the wire — wants the
+   * simulation's own answer, not the one chosen to look smooth.
+   */
+  const drawnAt = useRef<THREE.Group>(null);
+  const drawn = useRef(new THREE.Vector3());
   const primed = useRef(false);
   const safe = useRef<Pose | null>(null);
   const steer = useRef(0);
@@ -633,15 +660,20 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       sendMove(p.x, p.y, p.z, heading.current);
 
       // ── Chase camera ────────────────────────────────────────────────────
+      // The drawn pose, not the simulated one — see `drawnAt`. Falls back to
+      // the body on the first frame, before the group has a parent.
+      const shown = drawnAt.current
+        ? drawnAt.current.getWorldPosition(drawn.current)
+        : p;
       const cam = CAMERA_MODES[camMode.current];
       // Look-back puts the eye in FRONT of the bike, still aimed at it — so
       // the view down the barrel of the camera is the road you just left,
       // which is what "who is behind me" actually means.
       const back = lookingBack ? -cam.back : cam.back;
       want.current.set(
-        p.x - fx * back,
-        p.y + cam.height,
-        p.z - fz * back
+        shown.x - fx * back,
+        shown.y + cam.height,
+        shown.z - fz * back
       );
 
       // A swing through the bike on the way to the other side is nausea, so
@@ -677,7 +709,7 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
         eye.current.y + shakeY,
         eye.current.z
       );
-      camera.lookAt(p.x, p.y + cam.aim, p.z);
+      camera.lookAt(shown.x, shown.y + cam.aim, shown.z);
     } catch (e) {
       // Once, not every frame: a fault here repeats at the frame rate, and a
       // console flooded sixty times a second hides the first occurrence, which
@@ -705,6 +737,9 @@ export function Bike({ spawn }: { spawn: [number, number, number] }) {
       angularDamping={0}
       ccd
     >
+      {/* Empty, and parented to the body so it carries the interpolated pose
+          the mesh is drawn with. Costs one Object3D and no draw call. */}
+      <group ref={drawnAt} />
       <CuboidCollider args={[0.25, HALF_HEIGHT, 0.85]} />
       <BikeModel color={color} />
       <Rider

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import { createFrameGate } from "@/lib/frame-cap";
+import { useFrameCap } from "@/lib/quality";
 import { takeHitStop } from "@/lib/hit-stop";
 import { useArcade } from "@/arcade/store";
 
@@ -68,7 +69,16 @@ import { useArcade } from "@/arcade/store";
  * for anything that reaches it by mistake.
  */
 export function FrameLimiter({
-  fps = 60,
+  /**
+   * Frames a second, or omitted to take the device's own answer.
+   *
+   * Omit it for anything the player is playing: `useFrameCap` holds a phone at
+   * 60 and lets a desktop run at its panel, which is the only way frames land
+   * evenly on a display whose rate is not a multiple of 60. Pass a number only
+   * where more frames could not possibly be worth their cost — the shop's
+   * turntable, for one, which is a single model on a still background.
+   */
+  fps,
   /**
    * Stop the loop entirely while an arcade cabinet is open.
    *
@@ -92,6 +102,9 @@ export function FrameLimiter({
   fps?: number;
   pauseForArcade?: boolean;
 }) {
+  // The player is playing on this device, not on the one this was written on.
+  const deviceFps = useFrameCap();
+  const cap = fps ?? deviceFps;
   const advance = useThree((s) => s.advance);
   const invalidate = useThree((s) => s.invalidate);
   const frameloop = useThree((s) => s.frameloop);
@@ -122,8 +135,9 @@ export function FrameLimiter({
     // Which ticks get through, and the seconds to advance with, are decided by
     // lib/frame-cap.ts — a pure function so the cadence can actually be
     // asserted. See frame-cap.test.ts: exactly 60 on a 60, 75, 90, 120, 144,
-    // 165 and 240Hz panel, and never more.
-    const gate = createFrameGate(fps);
+    // 165 and 240Hz panel when a cap is in force, and every tick when it is
+    // not — see `UNCAPPED` for why a desktop is better off without one.
+    const gate = createFrameGate(cap);
     let raf = 0;
 
     const loop = (t: number) => {
@@ -146,7 +160,7 @@ export function FrameLimiter({
       // is free; a frozen editor is not.
       queueMicrotask(() => invalidate());
     };
-  }, [advance, invalidate, frameloop, fps, arcadeOpen, pauseForArcade]);
+  }, [advance, invalidate, frameloop, cap, arcadeOpen, pauseForArcade]);
 
   return null;
 }

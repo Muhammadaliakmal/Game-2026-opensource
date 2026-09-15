@@ -561,6 +561,9 @@ function ChoiceRow<V extends string>({
  * choice is made against a known value rather than a blank.
  */
 function GraphicsSettings() {
+  // Only for the Frame rate row's Auto label, which has to say what this
+  // device actually gets rather than a fixed word.
+  const coarse = useCoarsePointer();
   const override = useTierOverride();
   const detected = useDetectedTier();
   const prefs = useGraphicsPrefs();
@@ -633,6 +636,20 @@ function GraphicsSettings() {
           ["off", "Off"],
         ]}
         onPick={(v) => pick("shadows")(fromOnOff(v))}
+      />
+      <ChoiceRow<"60" | "display">
+        label="Frame rate"
+        value={prefs.frameRate ?? null}
+        /* What Auto resolves to here: a touch device is held at 60 so it does
+           not cook, and everything else runs at the panel — which is the only
+           way frames land evenly on a display whose rate is not a multiple of
+           60. See useFrameCap in lib/quality.ts. */
+        auto={coarse ? "60" : "Display"}
+        options={[
+          ["60", "60"],
+          ["display", "Display"],
+        ]}
+        onPick={pick("frameRate")}
       />
       <ChoiceRow<"fast">
         label="Render scale"

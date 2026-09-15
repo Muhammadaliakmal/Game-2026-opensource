@@ -2,6 +2,7 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { useCoarsePointer } from "./use-media-query";
+import { UNCAPPED } from "./frame-cap";
 import type { TextureMode } from "./textures/block-shader";
 
 /**
@@ -267,10 +268,17 @@ export interface GraphicsPrefs {
    * length hides a soft pixel far better than text does.
    */
   performanceScale?: boolean;
+  /**
+   * How many frames a second the render loop is allowed to draw.
+   *
+   * `"60"` holds the old hard cap; `"display"` renders on every tick the panel
+   * offers. Absent means Auto — see `useFrameCap` for what the device gets.
+   */
+  frameRate?: "60" | "display";
 }
 
 const PREFS_KEY = "render_prefs_v1";
-const PREF_KEYS = ["textures", "post", "shadows", "performanceScale"] as const;
+const PREF_KEYS = ["textures", "post", "shadows", "performanceScale", "frameRate"] as const;
 const TEXTURE_MODES: readonly TextureMode[] = ["flat", "surface", "full"];
 
 /** The stored object, or an empty one, with anything unrecognised dropped. */
@@ -284,6 +292,7 @@ function readPrefs(): GraphicsPrefs {
     if (typeof v.post === "boolean") out.post = v.post;
     if (typeof v.shadows === "boolean") out.shadows = v.shadows;
     if (typeof v.performanceScale === "boolean") out.performanceScale = v.performanceScale;
+    if (v.frameRate === "60" || v.frameRate === "display") out.frameRate = v.frameRate;
     return out;
   } catch {
     return EMPTY_PREFS;
@@ -390,6 +399,39 @@ export function useRenderQuality(): RenderQuality {
       dpr: prefs.performanceScale ? [1, 1] : base.dpr,
     };
   }, [override, ceiling, coarse, prefs]);
+}
+
+/**
+ * Frames per second the render loop may draw, for this device and this player.
+ *
+ * ── Why a coarse pointer decides it ──────────────────────────────────────
+ *
+ * The 60 cap was written against one failure, and it is a phone failure: a
+ * fragment-bound voxel world rendered at the panel's 120 does double the GPU
+ * work for frames the game does not use, heats the device, and is then
+ * throttled to something well under 60 — worse than having been held at 60 all
+ * along. None of that argument survives on a desktop. A tower is mains-powered
+ * and actively cooled, and the cap there buys nothing and costs the thing it
+ * was never weighed against: **pacing**.
+ *
+ * Sixty frames do not divide 144 ticks. A gate holding a true 60 average on a
+ * 144Hz panel must alternate two ticks and three, so frames land 13.9 ms and
+ * 20.8 ms apart, forever, and each one is rendered with the delta of the gap
+ * before it rather than the gap it will be shown for. That mismatch is what
+ * judder is. It cannot be tuned out — it is arithmetic — and the only way to
+ * remove it is to stop choosing ticks at all and let vsync space the frames,
+ * which is exactly what `UNCAPPED` does.
+ *
+ * So: coarse pointer keeps the cap, everything else runs at the display. The
+ * player can say otherwise, and the setting is worth having because a gaming
+ * laptop is a desktop by this test and a hot one by every other.
+ */
+export function useFrameCap(): number {
+  const coarse = useCoarsePointer();
+  const prefs = useGraphicsPrefs();
+  if (prefs.frameRate === "60") return 60;
+  if (prefs.frameRate === "display") return UNCAPPED;
+  return coarse ? 60 : UNCAPPED;
 }
 
 /** The tiers, for a settings UI to enumerate. */

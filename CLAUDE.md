@@ -248,6 +248,33 @@ one any more — but the procedural one is still there and still matters.
   Both are built to `SADDLE` and `BARS`, so a GLB arriving mid-race does not
   move its rider.
 
+### Where the bike is, and where it is drawn
+
+These are two different points and the chase camera must use the second one.
+
+`-three/rapier` runs a fixed `timeStep` and draws every rigid body at
+`lerp(previousPose, currentPose, accumulator / timeStep)`. `body.translation()`
+is `currentPose` undiluted — so the mesh sits somewhere between one step behind
+the body and level with it, and which one depends on how much time was left in
+the accumulator this frame. Frame deltas are never exactly `timeStep`, so that
+fraction moves every frame.
+
+A camera aimed at `translation()` therefore aims at a point the bike is not
+drawn at, by an amount that changes every frame. At 18 u/s one step is 0.3
+units, so the bike slid back and forth in frame by up to a third of a block —
+small enough to read as a rendering fault rather than a mistake, and very
+visible when the whole screen is already moving.
+
+So `Bike.tsx` keeps an empty `<group ref={drawnAt} />` parented to the rigid
+body: it carries the interpolated pose, the physics step has already written it
+by the time the bike's own `useFrame` runs, and the camera reads it with
+`getWorldPosition`. The bike is then pinned in frame and the world moves past
+it, which is the correct relationship.
+
+**Only the camera uses it.** The off-track test, the ground sample, the
+steering assist and what goes on the wire all want the simulation's own
+answer, not the one chosen to look smooth.
+
 ### Riders
 
 `Rider` is a chooser, the same shape as `Avatar`: the shop character you bought
@@ -489,6 +516,15 @@ from `WorldDoc.parts` by `lib/world-cover.ts` and committed as a PNG by
   change cannot alter a flat-shaded quad, so it must not mark every cover
   stale — the same argument `courseKey` makes in `course-floor.ts` about
   which fields can move a route floor.
+- **`basis()` builds screen-up as `dir × right`, and the order is the whole
+  picture's orientation.** It shipped as `right × dir` — the exact negative —
+  and every cover came out vertically mirrored: terrain hanging from the top of
+  the card, start pads above goals. Seven tests passed, because a mirror keeps
+  every point inside the frame, keeps the painter's depth order correct (`d`
+  does not depend on `up`) and is perfectly deterministic. The original comment
+  had even checked the vector — "points out of the ground plane rather than
+  along it", which is true of both orders. Only the sign separates them, so the
+  test that guards it compares two known heights and nothing else.
 
 The output is PNG rather than inline SVG because Vapor Ridge is 10,762 parts
 and just under 30,000 quads — 2.3 MB of markup. Rendered, all 24 covers are
@@ -747,9 +783,30 @@ Still no `shadowBlur`, still no gradient per row, still no allocation in
 ## Frame rate
 
 Every continuously-animating canvas runs `frameloop="never"` with a
-`<FrameLimiter fps={60} />` as its first child. **Never use `"always"`** — that
-renders once per `requestAnimationFrame`, so a 120Hz phone does twice the GPU
-work for frames the game does not use, gets hot, and then throttles to below 60.
+`<FrameLimiter />` as its first child. **Never use `"always"`** — R3F's own
+loop cannot be paced, paused for a cabinet, clamped after a stall or frozen for
+a hit-stop, and all four live in `lib/frame-cap.ts`.
+
+**The cap is a phone rule, not a house rule.** `useFrameCap()` in
+`lib/quality.ts` decides: a coarse-pointer device is held at 60, and everything
+else renders on every tick the panel offers (`UNCAPPED`). Both halves matter.
+
+- A 120Hz phone rendering a fragment-bound voxel world does twice the GPU work
+  for frames the game does not use, gets hot, and is then throttled to below
+  60 — worse than having been held at 60 all along. That is what the cap is
+  for and it is why touch devices keep it.
+- On a desktop the cap buys nothing and costs **pacing**, which is what the
+  original decision was never weighed against. Sixty frames do not divide 144
+  ticks: a gate holding a true 60 average on a 144Hz panel must alternate two
+  ticks and three, so frames land 13.9 ms and 20.8 ms apart forever, each
+  rendered with the delta of the gap before it rather than the gap it will be
+  shown for. That mismatch is judder, it is arithmetic rather than a tuning
+  error, and the only cure is to stop choosing ticks and let vsync space them.
+  `frame-cap.test.ts` asserts the difference rather than describing it.
+
+Pass an explicit `fps` only where more frames could not be worth their cost —
+the shop's turntable is the one. A player who disagrees has a **Frame rate**
+row in Settings; Auto says which way this device went.
 
 Three things about this are easy to get wrong:
 
@@ -767,12 +824,27 @@ Three things about this are easy to get wrong:
 Editing stays on `"demand"` (an idle editor should render nothing), so
 `FrameLimiter` mounts only when playing. The scheduling itself is
 `lib/frame-cap.ts` — pure, and tested to produce exactly 60 on 60/75/90/120/
-144/165/240Hz panels.
+144/165/240Hz panels when a cap is in force, and every tick when it is not.
 
-### Two ways to get a black screen, and what stops each
+### Three ways to get a black screen, and what stops each
 
-Both were live, and neither raised anything — a canvas in `"never"` mode that
+All three were live, and none raised anything — a canvas in `"never"` mode that
 is not being advanced is a black rectangle with no error anywhere.
+
+- **A loading cover cleared on `onCreated`.** `onCreated` fires when the
+  WebGLRenderer has been constructed: before the canvas's children have
+  mounted, before Rapier has built a collider, and — under `"never"` — before
+  anything has been drawn at all, because the first `advance()` comes from
+  `<FrameLimiter>` on a later rAF. A cover that clears there clears onto black.
+  It is invisible on a desktop with a warm cache and is the better part of a
+  second on a phone loading a 10,762-part track. **`components/FirstFrame.tsx`
+  owns both halves of the fix and every canvas with a cover uses it:**
+  `useFirstPaint()` for the state (with the 8s fallback, so a device whose
+  first frame never arrives is not stranded on a spinner), and `<FirstFrame>`
+  inside the Canvas, **mounted only once the world is in the scene** — mounted
+  against an empty scene it reports the first frame of that empty scene, which
+  clears the cover onto exactly the black it was covering. Play had learned
+  this; the race and the arena had not, which is why it is one module now.
 
 - **`FrameLimiter`'s arcade bridge is opt-in.** It drops the whole rAF loop
   while a cabinet is open, which is right for the one canvas a cabinet can
