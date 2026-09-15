@@ -14,6 +14,7 @@ import {
   authorMsFor,
   floorMs as shippedFloorMs,
   medalForAuthor,
+  minRunMs,
   type Medal,
 } from "@/lib/medals";
 
@@ -175,12 +176,15 @@ export async function POST(req: Request, { params }: Params) {
   }
   const { timeMs, ghost } = parsed.data;
 
-  // A time under the course's own physical floor did not happen here. See
-  // `floorMs` for what this does and does not claim to catch. This used to be
-  // a slug lookup, which meant a course somebody built was the one board in
-  // the game where a hand-written `fetch` with a small number in it landed
-  // unchallenged; the floor now comes from the row for those.
-  if (course.floorMs !== null && timeMs < course.floorMs) {
+  // A time far enough under the course's route floor did not happen here. See
+  // `minRunMs` for the margin and why there is one: the floor itself is a
+  // model of the course and real runs sit within a percent of it, so refusing
+  // at the floor refused the fastest genuine runs and froze the board. This
+  // used to be a slug lookup, which meant a course somebody built was the one
+  // board in the game where a hand-written `fetch` with a small number in it
+  // landed unchallenged; the floor now comes from the row for those.
+  const minMs = minRunMs(course.floorMs);
+  if (minMs !== null && timeMs < minMs) {
     return NextResponse.json({ error: "Impossible time" }, { status: 422 });
   }
 

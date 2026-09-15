@@ -11,6 +11,8 @@ import {
   medalTimes,
   medalTimesFor,
   MEDALS,
+  MIN_RUN_FRACTION,
+  minRunMs,
   nextMedal,
   routeFloorMs,
 } from "./medals";
@@ -114,4 +116,30 @@ test("both kinds of course are checked against the same floor, to a millisecond"
     );
     assert.equal(authorFromFloor(solved), AUTHOR_MS[w.slug], w.slug);
   }
+});
+
+test("the submission guard sits well under the route floor, not on it", () => {
+  // The floor is a model of the course, and the board filled with genuine
+  // runs within a percent of it (`steps` 29,382 against a floor of 29,200).
+  // A guard AT the floor therefore refused the fastest real runs, and the
+  // board stopped moving for exactly the players who had got good. The
+  // guard's job is a `fetch` with a zero in it; this pins that it does that
+  // job and nothing more.
+  assert.ok(MIN_RUN_FRACTION < 1, "the guard must leave room under the floor");
+  assert.ok(MIN_RUN_FRACTION > 0, "the guard must still refuse a zero");
+
+  for (const w of BUILT_IN_WORLDS.filter((x) => x.tier)) {
+    const floor = floorFromAuthor(AUTHOR_MS[w.slug]);
+    const min = minRunMs(floor)!;
+    // A run that beats the model by a tenth is a run somebody did.
+    assert.ok(Math.round(floor * 0.9) >= min, `${w.slug}: 90% of floor refused`);
+    // A zero, or anything near it, is not.
+    assert.ok(min > 0, `${w.slug}: a zero would be accepted`);
+    assert.ok(1 < min, `${w.slug}: one millisecond would be accepted`);
+  }
+
+  // A world with no floor has no guard, and that is the same answer for both
+  // ways a floor can be missing.
+  assert.equal(minRunMs(null), null);
+  assert.equal(minRunMs(undefined), null);
 });

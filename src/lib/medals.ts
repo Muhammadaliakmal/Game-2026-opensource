@@ -137,20 +137,45 @@ export function nextMedalFor(
 }
 
 /**
- * The fastest a submitted time is allowed to be, in ms. Null if unknown.
+ * The solver's route time for a shipped course, in ms. Null if unknown.
  *
- * The inverse of `authorFromFloor`: the solver's route is a hard physical
- * floor — instant acceleration, perfect pathing, no aiming — so a time under
- * it did not happen on this geometry, whatever produced it. This is the only
- * validation a run submission can do honestly. It is not anti-cheat: someone
- * determined can post the floor plus a millisecond and there is nothing here
- * that could tell. It is the guard that keeps a board from being ruined by one
- * `fetch` with a zero in it, which is the realistic threat to a game like
- * this, and it costs a lookup rather than a Dijkstra per request.
+ * The inverse of `authorFromFloor`. This is the anchor the medal ladder hangs
+ * off. It is *not* the fastest a run can be — see `minRunMs`.
  */
 export function floorMs(slug: string): number | null {
   const author = AUTHOR_MS[slug];
   return author === undefined ? null : Math.floor(author / HUMAN);
+}
+
+/**
+ * How far under the route floor a submitted run is still believed.
+ *
+ * The floor was written up as a hard physical bound — instant acceleration,
+ * perfect pathing — and the submission guard refused anything under it. The
+ * board then filled with runs at 100.6% of the floor (`steps`: 29,382 against
+ * 29,200; `parkour`: 20,850 against 20,539), which is not what a hard bound
+ * looks like. The solver charges every jump its full-apex airtime, and the
+ * player has `jumpCutMultiplier` and a 3× fall gravity: a human hopping a
+ * one-cell gap is in the air for far less than the solver books. So the best
+ * runs on a course were the ones being refused — with a 422 the client
+ * deliberately swallows — and the board stopped moving exactly when somebody
+ * got good at it.
+ *
+ * The guard exists to keep out a `fetch` with a zero in it, not to adjudicate
+ * a fast run; `POST /runs` says as much. Half the floor still does that job
+ * and leaves every genuine run alone, including one that beats the model by
+ * more than anyone has yet. It is not anti-cheat: someone determined can post
+ * this plus a millisecond and there is nothing here that could tell.
+ */
+export const MIN_RUN_FRACTION = 0.5;
+
+/**
+ * The fastest a submitted time is allowed to be, in ms. Null if the world has
+ * no floor to measure against (a sandbox, or a course nobody has solved).
+ */
+export function minRunMs(floorMs: number | null | undefined): number | null {
+  if (floorMs === null || floorMs === undefined) return null;
+  return Math.floor(floorMs * MIN_RUN_FRACTION);
 }
 
 /**
