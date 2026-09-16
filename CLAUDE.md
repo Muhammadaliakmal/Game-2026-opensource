@@ -841,9 +841,14 @@ source connected to `master` is a source no slider can reach. Connect to
 - **The context suspends on tab blur** and resumes on return, in `audio.ts`.
   Nothing else needs to know.
 - **Continuous sounds are nodes moved by `setTargetAtTime`, built once per
-  mount.** The engine (`race/RaceSounds.tsx`), the sprint wind
-  (`useFootstepAudio.ts`) and the beds (`lib/ambient.ts`) all work this way;
-  none creates a node per frame.
+  mount.** The engine (`race/RaceSounds.tsx`) and the beds (`lib/ambient.ts`)
+  work this way; none creates a node per frame.
+- **Judge a sound on a phone speaker before shipping it.** The sprint wind
+  (broad-band noise, faded in) and the run pulse (a 55 Hz sine under a square
+  gate) both sounded right on headphones and were reported as "distortion
+  when the character moves" from a phone, which cannot carry the low half of
+  either and hears only the hiss and the clicks. The wind is gone; the pulse
+  is gated by a smooth bump.
 - **Events come from the store or from telemetry, never from a component
   re-rendering.** `RaceSounds` and `ArenaSounds` are one `subscribe` each,
   comparing state to previous; the bike publishes a crash as a counter on

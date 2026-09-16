@@ -12,6 +12,7 @@ import type { Checkpoint, Vec3 } from "@/lib/worlddoc";
 import { resumePose } from "@/lib/checkpoints";
 import { useEditorStore } from "@/stores/editor-store";
 import { touchingHazard } from "./hazard";
+import { fallPlaneFor } from "./fall-plane";
 import { sfxHazard } from "@/lib/sfx/parkour";
 import { useCoarsePointer, useTouchControls } from "@/lib/use-media-query";
 import { useJumpFeel } from "./feel/useJumpFeel";
@@ -254,6 +255,8 @@ const FLY_DOUBLE_TAP_MS = 320;
 /** Vertical speed in flight. Roughly the run speed, so it reads as one pace. */
 const FLY_VERTICAL = 5;
 
+/** How far above the character the camera target may trail, in world units. */
+const CAM_MAX_LAG_Y = 1.0;
 /** Never let the eye get closer than this, or it ends up inside the avatar. */
 const CAMERA_MIN_DISTANCE = 0.55;
 /** Stop short of the surface: sitting exactly on it still clips the near plane. */
@@ -322,6 +325,13 @@ function useCameraRig(
     // change character between a 60Hz and a 144Hz display. First person snaps.
     const follow = firstPerson ? 1 : 1 - Math.pow(1 - FEEL.camLag, dt * 60);
     target.current.lerp(desired.current, follow);
+    // The lag is for the eye to trail a runner, not to lose one. At terminal
+    // fall speed the target sits two and a half units above the character,
+    // which on a portrait phone is the character off the bottom of the
+    // screen for the whole fall. A jump never gets near this; a fall does.
+    if (target.current.y > desired.current.y + CAM_MAX_LAG_Y) {
+      target.current.y = desired.current.y + CAM_MAX_LAG_Y;
+    }
 
     // A hard landing is the one impact an on-foot course produces, so it is
     // where the two whole-screen effects go: a couple of frames of freeze so
@@ -711,7 +721,8 @@ export function Player({
       return;
     }
 
-    if (h.currPos.y < FEEL.fallOutY) {
+    // The plane is the world's own floor, not the game's — see fall-plane.ts.
+    if (h.currPos.y < fallPlaneFor(useEditorStore.getState().parts)) {
       // Falling out of the world while flying should not be possible, but a
       // respawn that leaves gravity off would drop the player into a hover at
       // the spawn point and no way to explain it.

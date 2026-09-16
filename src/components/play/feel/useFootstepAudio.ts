@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { RefObject } from "react";
 import type { EcctrlHandle } from "ecctrl";
 import { FEEL } from "@/lib/feel";
-import { audioBus, jitter, noiseHit, noiseLoop, toneHit, type HitOptions } from "@/lib/audio";
+import { jitter, noiseHit, toneHit, type HitOptions } from "@/lib/audio";
 import { keyOf } from "@/lib/cell-key";
 import { TEXTURES } from "@/lib/texture-list";
 import { textureOf } from "@/lib/worlddoc";
 import { useEditorStore } from "@/stores/editor-store";
 import { playerFocus } from "../camera-rig";
-import { useMoveMode } from "../move-mode";
 
 /**
- * Footstep, jump and landing SFX, and the wind of a sprint.
+ * Footstep, jump and landing SFX.
  *
  * Every sound is one short burst of white noise shaped by a lowpass filter and
  * an exponential gain envelope — enough for readable "thud" and "tick" cues,
@@ -37,12 +36,14 @@ import { useMoveMode } from "../move-mode";
  * is below what anyone hears as a change of pitch and above what they hear as
  * a loop.
  *
- * ── The wind ─────────────────────────────────────────────────────────────
+ * ── There is no sprint wind any more ─────────────────────────────────────
  *
- * A looping noise through a bandpass, faded in over the first second of a
- * sprint and out as soon as it ends. Not a sample and not a second graph: the
- * same buffer every hit already uses, kept running and gated by a gain. The
- * node is built once per mount and thrown away with it.
+ * There was: a looping noise through a wide bandpass, faded in over the first
+ * seconds of a sprint. On headphones it was a rush of air. On a phone
+ * speaker — which cannot carry the low half of it — it was four seconds of
+ * swelling static every time the runner set off, and it was reported as
+ * "distortion when the character moves". A sound that reads as a fault on
+ * the device most people play on is not worth what it adds on the other.
  */
 
 /** How a surface sounds underfoot. `tone` adds a pitched knock under the noise. */
@@ -90,36 +91,10 @@ function underfoot(): StepProfile {
 
 const IMPACT: HitOptions = { bus: "impact", voice: "step", maxVoices: 4 };
 
-/** Seconds of sprint before the wind is fully up, and how fast it drops. */
-const WIND_RISE = 1.0;
-const WIND_FALL = 0.25;
-const WIND_GAIN = 0.11;
-
 export function useFootstepAudio(handleRef: RefObject<EcctrlHandle | null>) {
   const stepClock = useRef(0);
   const wasOnGround = useRef(true);
   const wasJumping = useRef(false);
-  const wind = useRef<{ src: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode } | null>(null);
-  const windLevel = useRef(0);
-
-  // The wind's nodes live for the mount. Built lazily on the first frame the
-  // graph exists (it cannot before a gesture), and torn down here.
-  useEffect(() => {
-    const w = wind;
-    return () => {
-      const live = w.current;
-      w.current = null;
-      if (!live) return;
-      try {
-        live.src.stop();
-      } catch {
-        /* never started */
-      }
-      live.src.disconnect();
-      live.filter.disconnect();
-      live.gain.disconnect();
-    };
-  }, []);
 
   useFrame((_, dt) => {
     const h = handleRef.current;
@@ -164,38 +139,6 @@ export function useFootstepAudio(handleRef: RefObject<EcctrlHandle | null>) {
     } else {
       // Land the next step promptly when movement resumes.
       stepClock.current = Math.min(stepClock.current, 0.08);
-    }
-
-    // Sprint wind. `running` is the latch Shift and the RUN button share; the
-    // speed check stops the wind blowing while sprint is armed against a wall.
-    const sprinting = useMoveMode.getState().running && h.isMoving && h.moveSpeed > FEEL.walkSpeed * 1.2;
-    const target = sprinting ? 1 : 0;
-    const k = sprinting ? dt / WIND_RISE : dt / WIND_FALL;
-    windLevel.current += (target - windLevel.current) * Math.min(1, k);
-
-    if (windLevel.current > 0.005 || wind.current) {
-      const a = audioBus();
-      if (!a || a.ctx.state !== "running") return;
-      if (!wind.current) {
-        const src = noiseLoop();
-        if (!src) return;
-        const filter = a.ctx.createBiquadFilter();
-        filter.type = "bandpass";
-        filter.frequency.value = 900;
-        filter.Q.value = 0.6;
-        const gain = a.ctx.createGain();
-        gain.gain.value = 0;
-        src.connect(filter).connect(gain).connect(a.bus.game);
-        src.start();
-        wind.current = { src, gain, filter };
-      }
-      const w = wind.current;
-      const level = windLevel.current;
-      // A curve, not a line: the first tenth of the fade is inaudible on a
-      // linear ramp, and the wind should be felt arriving.
-      w.gain.gain.setTargetAtTime(WIND_GAIN * level * level, a.ctx.currentTime, 0.05);
-      // Opens with the speed — a breath at the start, a rush at full tilt.
-      w.filter.frequency.setTargetAtTime(700 + level * 900, a.ctx.currentTime, 0.1);
     }
   });
 }
