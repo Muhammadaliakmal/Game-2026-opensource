@@ -15,7 +15,7 @@
  *
  * ── Where ads are NOT ────────────────────────────────────────────────────
  *
- * Nowhere a session is running: `/play`, `/race`, `/arena`, `/parkour`'s
+ * Nowhere a session is running: `/play`, `/race`, `/parkour`'s
  * course itself, `/build`. Two reasons, and the second is the load-bearing
  * one. An ad beside a 60fps canvas competes with it for the main thread and
  * for the frame budget 6f measures. And an ad next to a control someone is

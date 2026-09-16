@@ -1,5 +1,5 @@
 /**
- * What a race or a duel is worth.
+ * What a race is worth.
  *
  * ── The third payout rule, and why there are three ───────────────────────
  *
@@ -16,8 +16,8 @@
  *
  * ── Who decides the result ───────────────────────────────────────────────
  *
- * The room server. It runs the lap counter and the knockdown count, and it is
- * the only party that knows a race had two riders in it rather than one. The
+ * The room server. It runs the lap counter, and it is the only party that
+ * knows a race had two riders in it rather than one. The
  * client never posts a match result; the room does, with the service secret,
  * to `/api/rewards/match`. That is what makes a flat payout safe to offer at
  * all — the thing being paid for is a fact the server established.
@@ -38,20 +38,18 @@ const RACE_PLACE: Record<number, number> = { 1: 60, 2: 40, 3: 25, 4: 15 };
 /** Finishing at all, on a grid of one. */
 const RACE_SOLO = 12;
 
-/** A duel: the winner, and the loser who fought it out to the end. */
-const ARENA_WIN = 50;
-const ARENA_LOSS = 10;
-
-export type MatchMode = "race" | "arena";
+/**
+ * One mode today. It stays a union — and the route stays a `z.enum` — so a
+ * second kind of match is a new member and a new branch, not a new endpoint.
+ */
+export type MatchMode = "race";
 
 export interface MatchResult {
   mode: MatchMode;
-  /** 1-based finishing place (race) — ignored for the arena. */
+  /** 1-based finishing place. */
   place?: number;
   /** How many took part. A race of one is a time trial. */
   entrants: number;
-  /** Arena: did this player win. */
-  won?: boolean;
 }
 
 /** What the result is worth before the day's ceiling is applied. */
@@ -61,12 +59,8 @@ export function matchReward(r: MatchResult): number {
     const place = Math.floor(r.place ?? 0);
     return RACE_PLACE[place] ?? 0;
   }
-  if (r.mode === "arena") {
-    if (r.entrants < 2) return 0;
-    return r.won ? ARENA_WIN : ARENA_LOSS;
-  }
   return 0;
 }
 
 /** The most one match can pay. The route refuses anything a room asks above it. */
-export const MAX_MATCH_REWARD = Math.max(RACE_PLACE[1], ARENA_WIN);
+export const MAX_MATCH_REWARD = RACE_PLACE[1];

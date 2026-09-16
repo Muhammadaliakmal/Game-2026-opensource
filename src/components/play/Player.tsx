@@ -175,8 +175,8 @@ function useLookControls() {
  *
  * Bound on `window` rather than the canvas so they work before the pointer has
  * ever entered it, and mounted with the Player so they exist in exactly the
- * modes that have a character: Play and Arena, never the editor (where R and V
- * belong to the build tools).
+ * modes that have a character: Play, never the editor (where R and V belong
+ * to the build tools).
  */
 function usePlayHotkeys() {
   useEffect(() => {

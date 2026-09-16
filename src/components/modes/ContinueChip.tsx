@@ -6,7 +6,6 @@ import { useLastPlayed } from "@/lib/last-played";
 const KIND_LABEL = {
   world: "Continue",
   race: "Back to",
-  arena: "Back to",
   arcade: "Continue",
 } as const;
 

@@ -39,7 +39,7 @@ const DISMISS_FOR_MS = 14 * 24 * 60 * 60 * 1000;
 const DELAY_MS = 2500;
 
 /** Game screens: nothing may pop over these. */
-const IMMERSIVE = /^\/(play|build|race\/|arena\/)/;
+const IMMERSIVE = /^\/(play|build|race\/)/;
 
 function dismissedRecently(): boolean {
   try {

@@ -10,7 +10,7 @@ import { SITE_NAME } from "@/lib/site";
  * There were two shells, written independently and never compared:
  *
  *   home / browse / arcade / parkour / shop   max-w-5xl, px-4 sm:px-6
- *   race / arena / download                   max-w-2xl, px-4 sm:px-8
+ *   race / download                           max-w-2xl, px-4 sm:px-8
  *
  * Both centre their container, so on a wide screen the narrow pages' content
  * starts about 106px further right than the wide ones'. Navigating from Arcade
@@ -75,7 +75,7 @@ export function PageShell({
    * page that will one day forget: `/parkour` is green and `/race` is magenta,
    * and the pages that lead to them should be too.
    */
-  mode?: "build" | "race" | "parkour" | "arena";
+  mode?: "build" | "race" | "parkour";
   width?: "wide" | "prose";
   className?: string;
   /**

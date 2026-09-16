@@ -40,13 +40,6 @@ const MODES: GameEntry[] = [
     terms: ["bike", "bikes", "racing", "drift", "boost", "multiplayer", "grid"],
   },
   {
-    href: "/arena",
-    title: "Arena",
-    blurb: "One opponent, first to five knockdowns.",
-    kind: "mode",
-    terms: ["fight", "duel", "match", "versus", "pvp", "multiplayer", "knockdown"],
-  },
-  {
     href: "/arcade",
     title: "Arcade",
     blurb: "Seven cabinets, a few minutes a go.",

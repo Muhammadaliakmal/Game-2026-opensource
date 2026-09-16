@@ -7,8 +7,8 @@ import { setRoomTokenProvider, type TokenGetter } from "@/lib/net/token";
 /**
  * Hands the room connection a way to mint a Clerk token, and renders nothing.
  *
- * It lives in the root layout because all three room kinds — build, arena and
- * race — reach for a token from outside React, and because registering it once
+ * It lives in the root layout because both room kinds — build and race —
+ * reach for a token from outside React, and because registering it once
  * per app is the only version of this that has no ordering problem. Clerk's
  * `getToken` handles refresh itself, so this holds a getter rather than a
  * token: a socket opened an hour into a session still authenticates with a

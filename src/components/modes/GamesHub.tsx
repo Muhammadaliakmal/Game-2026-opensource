@@ -14,9 +14,8 @@ import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
  *
  * ── What was wrong ───────────────────────────────────────────────────────
  *
- * The front page offered two of the four modes. The arena was on no page and
- * in no menu — it was reachable by typing `/arena`. The arcade was a word in
- * the header, and its four games were a page further behind that with no
+ * The front page offered two of the modes. The arcade was a word in the
+ * header, and its four games were a page further behind that with no
  * address of their own. A visitor who wanted "everything I can play here"
  * had to know it existed first. That is the opposite of a front page.
  *
@@ -30,8 +29,10 @@ import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
  *     return visits, and a returning player wants the game, not the menu.
  *     Under it, today's challenge: the one thing that is different about
  *     the site today, and so the one reason to have come back today.
- *  2. The three modes, as covers. Parkour first (works alone, offline, no
- *     code needed), then Race, then Arena, both of which need a room.
+ *  2. The two modes, as covers. Parkour first (works alone, offline, no
+ *     code needed), then Race, which needs a room. There was an arena — a
+ *     two-player knockdown duel — between them; it was cut in September
+ *     2026, and with it went the third column.
  *  3. The arcade, cabinet by cabinet. Each tile is a link to
  *     `/arcade?play=<id>`, which opens that game on arrival — so a cabinet is
  *     one press from here rather than two pages away.
@@ -54,7 +55,7 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
           </div>
         </div>
         <DailyChallenge />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <ModeCard
             href="/parkour"
             art="parkour"
@@ -72,15 +73,6 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
             blurb="Bikes on a neon loop. Drift to fill the boost, spend it down the straight, send the code to your friends."
             meta={["Multiplayer", "Boost", "Drift"]}
             cta="Open a grid"
-          />
-          <ModeCard
-            href="/arena"
-            art="arena"
-            eyebrow="Two players · First to five"
-            title="Arena"
-            blurb="One world, one opponent. Land five knockdowns to win. Open a match and send the link."
-            meta={["Multiplayer", "Duel", "Any world"]}
-            cta="Open a match"
           />
         </div>
       </section>

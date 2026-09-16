@@ -49,7 +49,7 @@ import { ContextGuard, ContextLostNotice } from "@/components/ContextGuard";
 /**
  * The race canvas.
  *
- * Structurally the arena's twin: the track arrives from the room as one
+ * The track arrives from the room as one
  * snapshot on join, physics is paused until it has, and the world renders
  * through exactly the same InstancedParts the editor and Play use.
  *
@@ -89,15 +89,14 @@ export default function RaceCanvas({
   const touch = useCoarsePointer();
   const quality = useRenderQuality();
   // Read here as well as in the HUD: a connection that never happens must not
-  // leave a spinner claiming to be joining. ArenaCanvas already did this and
-  // this file, copied from it, dropped the branch.
+  // leave a spinner claiming to be joining.
   const error = useRaceStore((s) => s.error);
   const phase = useRaceStore((s) => s.phase);
 
   const onWorld = useCallback((doc: WorldDoc) => {
-    // The track is read-only here, but it goes through the editor store for the
-    // same reason the arena's does: InstancedParts renders from that store, and
-    // a second path into it would be a second way for the two to disagree.
+    // The track is read-only here, but it goes through the editor store:
+    // InstancedParts renders from that store, and a second path into it would
+    // be a second way for the two to disagree.
     useEditorStore.getState().loadDoc(doc);
     useEditorStore.getState().setReadOnly(true);
     setSnapshot({
@@ -203,8 +202,8 @@ export default function RaceCanvas({
             this world is lit in. */}
         {MAP_V2 ? <SunsetSky /> : <NightSky />}
 
-        {/* Wider than the arena's: a bike covers ground fast enough that a
-            tight shadow box pops its edge in front of the rider.
+        {/* A wide shadow box: a bike covers ground fast enough that a tight
+            one pops its edge in front of the rider.
 
             FollowSun stays the shadow-caster in both looks — MAP.md §5.1's
             follow-camera is already what it does. Under MAP_V2 it is pointed

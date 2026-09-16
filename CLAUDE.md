@@ -64,8 +64,8 @@ non-zero when both are true:
 - the media query `(pointer: coarse), (max-width: 900px)` in `tokens.css` — the
   CSS twin of `useTouchControls()`, keep them identical; and
 - `MOUNTS_CONTROLS` in `HudZones.tsx` says this mode has controls at all. Race
-  and parkour do. The builder and the arena do **not** — a mode that reserves a
-  band it does not need floats its own bottom row over empty screen.
+  and parkour do. The builder does **not** — a mode that reserves a band it
+  does not need floats its own bottom row over empty screen.
 
 **Also:** `.text-display` is the fluid headline size, `.hud-panel--readout` is
 the higher-contrast surface for a value read while riding (the sky runs a day
@@ -540,10 +540,12 @@ then the sandboxes. Add a game there and it is on the front page, on
 is hidden again.
 
 The modes are covers you press, not rows with a button after them:
-`/parkour` (the ladder), `/race`, `/arena`. Parkour first — it works alone,
-offline, on the first visit; the other two need a room server and somebody
-else, and leading with the one that can fail to connect is leading with the
-one that can disappoint.
+`/parkour` (the ladder), `/race`. Parkour first — it works alone, offline,
+on the first visit; the race needs a room server and somebody else, and
+leading with the one that can fail to connect is leading with the one that
+can disappoint. There was a third, `/arena` (a two-player knockdown duel);
+it was removed in September 2026 — its room, store, HUD and net client are
+gone, and `MatchMode` is `"race"` alone until something else pays a match.
 
 - `/arcade?play=<id>` opens that cabinet on arrival (`ArcadeAutoOpen`). The
   cabinets open through the store, not a route, and this is what gives each
@@ -624,7 +626,7 @@ while the debounce runs.
 
 ## Perf overlay
 
-`?perf=1` on any live canvas — Play, Race and Arena all mount `PerfProbe` and
+`?perf=1` on any live canvas — Play and Race both mount `PerfProbe` and
 `PerfPanel`. Keep it that way: the reason the parkour courses went unprofiled
 for a phase is that only the race had it, and "profile before optimising" is
 not advice you can follow on a canvas with no instrument.
@@ -668,7 +670,7 @@ of the three big ones**, so the download that matters starts last:
     html -> app js -> hydrate -> discover canvas chunk -> 1.1 MB gz -> wasm init -> join room
 
 `<PrefetchCanvas kind="...">` is the fix, and it is mounted on the pages that
-come *before* a canvas — `/`, `/browse`, `/parkour`, `/race`, `/arena`. On
+come *before* a canvas — `/`, `/browse`, `/parkour`, `/race`. On
 idle it fires the same dynamic import the mount will fire later, so the bytes
 are already in the HTTP cache by the time anyone presses play. Guarded by
 `lib/prefetch.ts`: Data Saver means no, and so does anything slower than 4g.
@@ -850,8 +852,8 @@ source connected to `master` is a source no slider can reach. Connect to
   either and hears only the hiss and the clicks. The wind is gone; the pulse
   is gated by a smooth bump.
 - **Events come from the store or from telemetry, never from a component
-  re-rendering.** `RaceSounds` and `ArenaSounds` are one `subscribe` each,
-  comparing state to previous; the bike publishes a crash as a counter on
+  re-rendering.** `RaceSounds` is one `subscribe`, comparing state to
+  previous; the bike publishes a crash as a counter on
   `raceTelemetry` because a flag cleared by another loop is a race.
 - **Footsteps read the block underfoot** through the parts map, by surface
   *name* (`PROFILES` in `useFootstepAudio.ts`). Adding a surface to

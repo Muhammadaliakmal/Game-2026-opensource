@@ -16,10 +16,10 @@ import { useNetStore } from "@/stores/net-store";
 /**
  * A race connection.
  *
- * Separate from the duel (arena.ts) because it is a different room with
- * different messages — but it reuses the same peer map, so the interpolation
- * that draws the other builder and the other fighter draws the other rider too,
- * with no extra code. Only the model on top of it differs.
+ * Separate from the build room's connection because it is a different room
+ * with different messages — but it reuses the same peer map, so the
+ * interpolation that draws the other builder draws the other rider too, with
+ * no extra code. Only the model on top of it differs.
  */
 
 interface RiderSchema {

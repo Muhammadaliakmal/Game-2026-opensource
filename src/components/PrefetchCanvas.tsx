@@ -46,13 +46,11 @@ import { connectionHint, shouldPrefetch } from "@/lib/prefetch";
 /**
  * The module specifiers must match the ones the mounts use, or the bundler
  * produces a second chunk and this downloads a copy of everything for nothing.
- * They resolve to the same files `WorldMount`, `RaceMount` and `ArenaMount`
- * import.
+ * They resolve to the same files `WorldMount` and `RaceMount` import.
  */
 const LOADERS = {
   world: () => import("@/components/world/WorldCanvas"),
   race: () => import("@/components/race/RaceCanvas"),
-  arena: () => import("@/components/arena/ArenaCanvas"),
 } as const;
 
 export type CanvasKind = keyof typeof LOADERS;

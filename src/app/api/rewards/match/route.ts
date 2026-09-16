@@ -31,7 +31,7 @@ import { dayKey } from "@/lib/daily";
 
 const result = z.object({
   userId: z.string().min(1).max(64),
-  mode: z.enum(["race", "arena"]),
+  mode: z.enum(["race"]),
   entrants: z.number().int().min(1).max(8),
   place: z.number().int().min(0).max(8).optional(),
   won: z.boolean().optional(),

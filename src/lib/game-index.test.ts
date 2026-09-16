@@ -27,7 +27,7 @@ test("every game the site has is reachable from the search index", () => {
     assert.ok(hit, `world ${w.slug} is not in the search index`);
     assert.equal(hit.kind, w.tier ? "course" : "world");
   }
-  for (const href of ["/parkour", "/race", "/arena", "/arcade"]) {
+  for (const href of ["/parkour", "/race", "/arcade"]) {
     assert.ok(
       GAME_INDEX.some((e) => e.href === href),
       `${href} is not in the search index`
@@ -64,9 +64,8 @@ test("search is case- and whitespace-insensitive", () => {
 });
 
 test("a word somebody would type, but that is in no name, still finds the game", () => {
-  // The whole point of `terms`: nothing is called "bikes" or "duel".
+  // The whole point of `terms`: nothing is called "bikes".
   assert.ok(searchIndex("bikes").some((e) => e.href === "/race"));
-  assert.ok(searchIndex("duel").some((e) => e.href === "/arena"));
 });
 
 test("nonsense matches nothing", () => {

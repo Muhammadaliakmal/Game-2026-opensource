@@ -10,8 +10,8 @@ import {
 /**
  * A race: up to four riders, three laps of Neon Circuit.
  *
- * Pure logic, no Colyseus — the same division as arena-match.ts and
- * world-session.ts, and for the same reason: the rules of a race are not a
+ * Pure logic, no Colyseus — the same division as world-session.ts, and for
+ * the same reason: the rules of a race are not a
  * networking concern, and they are only worth trusting if they can be tested
  * without a socket.
  *

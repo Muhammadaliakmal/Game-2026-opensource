@@ -11,8 +11,8 @@ import type { WorldDoc } from "@/lib/worlddoc";
 /**
  * A race room: up to four riders, three laps, found by code.
  *
- * Same shape as ArenaRoom — the rules live in a pure class (race.ts) and this
- * is the transport around them. The two things the room owns that the race
+ * The rules live in a pure class (race.ts) and this is the transport around
+ * them. The two things the room owns that the race
  * cannot are the clock (a countdown ending is not something a rules object can
  * notice) and the world.
  *

@@ -24,13 +24,6 @@ test("an unplaced rider is paid nothing", () => {
   assert.equal(matchReward({ mode: "race", place: 7, entrants: 3 }), 0);
 });
 
-test("a duel pays the winner more, the loser something, and nobody alone", () => {
-  const win = matchReward({ mode: "arena", won: true, entrants: 2 });
-  const loss = matchReward({ mode: "arena", won: false, entrants: 2 });
-  assert.ok(win > loss && loss > 0);
-  assert.equal(matchReward({ mode: "arena", won: true, entrants: 1 }), 0);
-});
-
 test("no single match outpays a Gold on a course, and many fit under the day", () => {
   // A match is a flat payout for a relative result; the course ladder is the
   // game's spine and has to stay the better-paid thing to be good at.

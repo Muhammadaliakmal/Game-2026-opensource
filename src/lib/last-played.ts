@@ -22,7 +22,7 @@ export interface LastPlayed {
   href: string;
   title: string;
   /** What kind of thing it was, for the chip's label. */
-  kind: "world" | "race" | "arena" | "arcade";
+  kind: "world" | "race" | "arcade";
 }
 
 const KEY = "blockworld:last-played:v1";
@@ -45,7 +45,7 @@ function read(): LastPlayed | null {
         typeof v.href === "string" &&
         v.href.startsWith("/") &&
         typeof v.title === "string" &&
-        (v.kind === "world" || v.kind === "race" || v.kind === "arena" || v.kind === "arcade")
+        (v.kind === "world" || v.kind === "race" || v.kind === "arcade")
       ) {
         value = { href: v.href, title: v.title, kind: v.kind };
       }

@@ -3,7 +3,7 @@ import { schema, t, type SchemaType } from "@colyseus/schema";
 /**
  * A race's synchronised state.
  *
- * Same rule as the duel's (arena-state.ts) and the build room's presence: only
+ * Same rule as the build room's presence: only
  * what genuinely changes goes through the encoder, and the world itself still
  * arrives as one snapshot on join.
  *

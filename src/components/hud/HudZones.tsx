@@ -59,14 +59,8 @@ import { usePlayerSettings } from "@/lib/player-settings";
  * gaps between panels; each panel opts back in with `pointer-events-auto`.
  */
 
-/**
- * The modes that own an accent. `arena` is listed because it is a screen with
- * a HUD, not because it has a colour of its own — it shares the race magenta
- * (see the `[data-mode]` rules in globals.css). Both are head-to-head
- * competitive modes, they are never on screen together, and a fourth neon
- * would buy nothing but a wider palette to keep coherent.
- */
-export type HudMode = "build" | "race" | "parkour" | "arena";
+/** The modes that own an accent — see the `[data-mode]` rules in globals.css. */
+export type HudMode = "build" | "race" | "parkour";
 
 export type Zone =
   | "top-left"
@@ -154,10 +148,10 @@ const ZONE_STACK: Record<Zone, string> = {
  * Which modes actually put thumb clusters on the screen.
  *
  * Riding mounts <RaceTouchControls>, and being on foot mounts <TouchControls>;
- * the builder and the arena mount neither. Listing them is not pedantry — a
- * mode that reserves a band it does not need pushes its own bottom row a
- * hundred and fifty pixels up over empty screen, which is how the arena's HIT
- * button would have ended up floating in the middle of a fight.
+ * the builder mounts neither. Listing them is not pedantry — a mode that
+ * reserves a band it does not need pushes its own bottom row a hundred and
+ * fifty pixels up over empty screen (the old arena's HIT button would have
+ * floated in the middle of a fight).
  *
  * This is the React-side twin of the media query that gives `--controls-h` a
  * value: that one answers "is this a touch screen", this one answers "does

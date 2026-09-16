@@ -7,7 +7,7 @@ import { GameLoader } from "@/components/hud/GameLoader";
 /**
  * Browser-only mount for the race canvas — `ssr: false` is only legal inside a
  * Client Component, so the route stays a Server Component (it has to await
- * `params`) and hands the R3F tree to this file. Same split as ArenaMount.
+ * `params`) and hands the R3F tree to this file.
  */
 const RaceCanvas = dynamic(() => import("./RaceCanvas"), {
   ssr: false,

@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
  * Fades between lines rather than cutting: a line that snaps to a new one
  * looks like a glitch on a screen that is otherwise still.
  */
-export type TipKind = "world" | "race" | "arena" | "any";
+export type TipKind = "world" | "race" | "any";
 
 const TIPS: Record<Exclude<TipKind, "any">, string[]> = {
   world: [
@@ -33,17 +33,12 @@ const TIPS: Record<Exclude<TipKind, "any">, string[]> = {
     "Vapor Ridge's crest on the back straight will throw you if you carry too much speed.",
     "Settings → Display → Graphics: drop the render scale first if it stutters.",
   ],
-  arena: [
-    "Five knockdowns win. A fall counts against whoever fell.",
-    "Any world can be an arena — open a match from a course and fight on it.",
-    "Send the link; whoever opens it is your opponent.",
-  ],
 };
 
 const PERIOD_MS = 3400;
 
 export function LoaderTip({ kind = "any" }: { kind?: TipKind }) {
-  const pool = kind === "any" ? [...TIPS.world, ...TIPS.race, ...TIPS.arena] : TIPS[kind];
+  const pool = kind === "any" ? [...TIPS.world, ...TIPS.race] : TIPS[kind];
   // Start position from the clock, not from zero: see the header.
   const [index, setIndex] = useState(() => Math.floor(Date.now() / PERIOD_MS) % pool.length);
   const [visible, setVisible] = useState(true);
