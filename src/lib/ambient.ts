@@ -200,7 +200,21 @@ function pad(bed: Bed) {
   bed.timers.push(t);
 }
 
-/** The run layer: a low pulse gated by a square LFO, silent at intensity 0. */
+/**
+ * The run layer: a low pulse, silent at intensity 0.
+ *
+ * A 55 Hz sine under a gain that rises and falls once a beat. The gain is a
+ * sine LFO pushed through a curve that turns the wave into a narrow, smooth
+ * bump — most of the cycle near silence, a rounded swell at the top — so the
+ * result reads as a beat rather than a tremolo.
+ *
+ * It used to be a square-wave gate, which opened and shut the gain in a
+ * single sample. A sine cut mid-cycle is a click, twice a beat, and on a
+ * phone or laptop speaker that cannot reproduce 55 Hz the click was the only
+ * part of this layer anyone could hear: a crackle that began the moment the
+ * run clock started, which is the moment the character first moves. Every
+ * edge here is now a curve, and there is nothing left to click.
+ */
 function pulse(bed: Bed, rateHz: number) {
   const { ctx } = bed;
   const osc = ctx.createOscillator();
@@ -209,19 +223,24 @@ function pulse(bed: Bed, rateHz: number) {
   const gate = ctx.createGain();
   gate.gain.value = 0;
   const clock = ctx.createOscillator();
-  clock.type = "square";
+  clock.type = "sine";
   clock.frequency.value = rateHz;
-  const depth = ctx.createGain();
-  depth.gain.value = 0.5;
   const shaper = ctx.createWaveShaper();
-  // Square in -1..1 becomes 0..1: the gate is open half the cycle.
-  shaper.curve = new Float32Array([0, 0, 1]);
-  clock.connect(shaper).connect(depth).connect(gate.gain);
+  // Sine in -1..1 → ((x + 1) / 2)^4 in 0..1. The fourth power is what makes
+  // it a bump: a plain half-sine would be open for most of the beat.
+  const N = 256;
+  const curve = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const x = (i / (N - 1)) * 2 - 1;
+    curve[i] = Math.pow((x + 1) / 2, 4);
+  }
+  shaper.curve = curve;
+  clock.connect(shaper).connect(gate.gain);
   osc.connect(gate).connect(bed.pulseGain);
   osc.start();
   clock.start();
   bed.sources.push(osc, clock);
-  bed.nodes.push(gate, depth, shaper);
+  bed.nodes.push(gate, shaper);
 }
 
 function build(mood: Mood): Bed | null {

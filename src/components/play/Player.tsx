@@ -19,6 +19,7 @@ import { useFootstepAudio } from "./feel/useFootstepAudio";
 import { JumpParticles } from "./feel/JumpParticles";
 import { OwnAvatar } from "./Avatar";
 import { touchInput } from "./touch-input";
+import { createStickState, shapeStick } from "./stick";
 import { useMoveMode } from "./move-mode";
 import { useCourse } from "./course";
 import {
@@ -594,14 +595,30 @@ export function Player({
     ref.current?.setLockForward(lockedOn);
   }, [lockedOn]);
 
-  useFrame(() => {
+  // The stick's frame hold and easing — see `stick.ts`. Module-shaped state
+  // in a ref, because it is written every frame and nothing renders from it.
+  const stickState = useRef(createStickState());
+  useFrame((_, dt) => {
     const h = ref.current;
     if (!h) return;
     const k = getKeys();
     // The on-screen thumbstick writes to ecctrl's joystick store, which
     // <Ecctrl> also doesn't read on its own — so it gets forwarded here too.
     // Keyboard and touch are additive, never exclusive.
-    const stick = useJoystickStore.getState().joysticks.default;
+    //
+    // It is shaped first: dead zone, and a heading that is held against the
+    // world while the thumb is down rather than re-read against a camera that
+    // is itself swinging round to follow the character. "Manual" here is the
+    // same window the auto-follow yields to, so a look the player is making
+    // turns the thumb with it and the camera's own follow does not.
+    const raw = useJoystickStore.getState().joysticks.default;
+    const stick = shapeStick(
+      { x: raw?.x ?? 0, y: raw?.y ?? 0 },
+      look.yaw,
+      performance.now() - look.manualAt < AUTO_FOLLOW_DELAY,
+      dt,
+      stickState.current
+    );
     h.setMovement({
       forward: !!k.forward,
       backward: !!k.backward,
@@ -611,7 +628,7 @@ export function Player({
       // button arms it alone. Holding Shift still runs while it is down, so
       // the old muscle memory is not punished.
       run: Boolean(k.run) || useMoveMode.getState().running,
-      joystick: { x: stick?.x ?? 0, y: stick?.y ?? 0 },
+      joystick: stick,
     });
   });
 
