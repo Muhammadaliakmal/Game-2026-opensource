@@ -55,6 +55,16 @@ export const RATES: Record<string, number> = {
   "tower-stack": 2,
   "block-merge": 0.05,
   "block-survivor": 0.2,
+  /*
+   * The three puzzle cabinets have a top — a perfect run of every room — so
+   * unlike the runners they cannot be farmed by playing longer, only by
+   * playing better. Each pays 100 a room plus small bonuses, which is
+   * roughly 1,000 points for a clean ladder; a fifth of a coin a point puts
+   * a perfect run at about 200 coins, well inside the daily soft cap.
+   */
+  echo: 0.2,
+  gravity: 0.2,
+  bullet: 0.2,
 };
 
 /** The rate for a game, or zero for one that does not pay — the test pattern. */

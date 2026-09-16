@@ -55,6 +55,9 @@ export function CabinetPreview({ id }: { id: string }) {
   if (id === "chunk-runner") return <RunnerArt />;
   if (id === "ludo") return <LudoArt />;
   if (id === "snakes") return <SnakesArt />;
+  if (id === "echo") return <EchoArt />;
+  if (id === "gravity") return <GravityArt />;
+  if (id === "bullet") return <BulletArt />;
   return <GridArt />;
 }
 
@@ -421,6 +424,108 @@ function SnakesArt() {
         fill="var(--color-accent, #00fff5)"
         opacity="0.85"
       />
+    </Frame>
+  );
+}
+
+/**
+ * ECHO: a runner, and the two fainter runners that are its earlier loops.
+ *
+ * The ghosts are the game — the card has to show more than one of you, with
+ * the number on each that says which loop it was, and the plate one of them
+ * is standing on so the open door reads as their doing.
+ */
+function EchoArt() {
+  const runner = (x: number, y: number, alpha: number, label?: string) => (
+    <g key={`${x},${y}`} opacity={alpha}>
+      <rect x={x - 6} y={y - 6} width="12" height="12" rx="1" fill="#e2e8f0" />
+      <rect x={x - 4} y={y - 3} width="8" height="3" fill="var(--color-accent, #5ce1ff)" />
+      {label && (
+        <text x={x} y={y + 5} fontSize="7" fontWeight="700" fill="#0b0f1e" textAnchor="middle">
+          {label}
+        </text>
+      )}
+    </g>
+  );
+  return (
+    <Frame>
+      <rect width="240" height="96" fill="#0b1030" />
+      <rect x="40" y="10" width="160" height="76" fill="#141a30" />
+      {/* A wall with a door in it, open, and the plate that opened it. */}
+      <rect x="128" y="10" width="8" height="30" fill="#2a3358" />
+      <rect x="128" y="58" width="8" height="28" fill="#2a3358" />
+      <rect x="129" y="41" width="6" height="16" fill="none" stroke="#ff6a3d" strokeWidth="1" strokeDasharray="2 2" />
+      <circle cx="70" cy="70" r="9" fill="rgba(92,225,255,0.25)" stroke="var(--color-accent, #5ce1ff)" strokeWidth="1.5" />
+      <rect x="168" y="24" width="20" height="20" fill="rgba(125,255,176,0.12)" stroke="#7dffb0" strokeWidth="1.5" />
+      {runner(70, 70, 0.35, "1")}
+      {runner(100, 34, 0.35, "2")}
+      {runner(148, 48, 1)}
+    </Frame>
+  );
+}
+
+/**
+ * Gravity Shift: a ball on a wall, and the arrow that says which way down is.
+ *
+ * The one thing the card must not look like is a platformer. The ball sits
+ * on the *side* of a pillar with the chevron pointing at it, so the picture
+ * is only readable as a room where down has been turned.
+ */
+function GravityArt() {
+  return (
+    <Frame>
+      <rect width="240" height="96" fill="#0b1030" />
+      <rect x="40" y="6" width="160" height="84" fill="#12182b" />
+      <rect x="40" y="6" width="160" height="6" fill="#2b355c" />
+      <rect x="40" y="84" width="160" height="6" fill="#2b355c" />
+      {/* The pillar the ball is resting against, sideways. */}
+      <rect x="150" y="12" width="12" height="72" fill="#2b355c" />
+      <rect x="150" y="12" width="2" height="72" fill="#46538a" />
+      {/* Coins along the way it fell. */}
+      {[70, 95, 120].map((x) => (
+        <circle key={x} cx={x} cy="48" r="4" fill="#ffd166" />
+      ))}
+      {/* The chevron: down is right. */}
+      <path d="M186 40 L194 48 L186 56" fill="none" stroke="var(--color-accent, #5ce1ff)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="140" cy="48" r="9" fill="#ffffff" />
+      <circle cx="136" cy="45" r="3" fill="rgba(0,0,0,0.15)" />
+    </Frame>
+  );
+}
+
+/**
+ * One Bullet: the turret, a shot, and the path it takes off a wall, through
+ * a mirror, into a target. The dashed line is the aim preview, which is the
+ * mechanic — a bounce you can read before you take it.
+ */
+function BulletArt() {
+  return (
+    <Frame>
+      <rect width="240" height="96" fill="#0b1030" />
+      <rect x="40" y="6" width="160" height="84" fill="#1a1424" />
+      <rect x="40" y="6" width="160" height="6" fill="#3a2e4e" />
+      <rect x="40" y="84" width="160" height="6" fill="#3a2e4e" />
+      {/* A wall to come off. */}
+      <rect x="120" y="12" width="10" height="40" fill="#3a2e4e" />
+      {/* The mirror, corner to corner. */}
+      <line x1="150" y1="78" x2="164" y2="64" stroke="#c8f0ff" strokeWidth="3" strokeLinecap="round" />
+      {/* The path: turret → wall → mirror → target. */}
+      <path
+        d="M62 30 L118 30 L120 32 L157 71 L157 24"
+        fill="none"
+        stroke="var(--color-accent, #ffd166)"
+        strokeWidth="1.5"
+        strokeDasharray="4 3"
+        opacity="0.85"
+      />
+      {/* The turret. */}
+      <circle cx="58" cy="30" r="8" fill="#2a2238" stroke="var(--color-accent, #ffd166)" strokeWidth="1.5" />
+      <rect x="58" y="27" width="14" height="6" fill="var(--color-accent, #ffd166)" />
+      {/* The target. */}
+      <circle cx="157" cy="20" r="7" fill="none" stroke="#7dffb0" strokeWidth="2" />
+      <circle cx="157" cy="20" r="2.5" fill="#7dffb0" />
+      {/* The shot, mid-flight. */}
+      <circle cx="140" cy="53" r="3" fill="#ffffff" />
     </Frame>
   );
 }

@@ -108,6 +108,45 @@ export const ARCADE: ArcadeEntry[] = [
     load: () => import("./games/snakes"),
   },
   {
+    id: "echo",
+    title: "ECHO",
+    tagline: "Your last run is still in the room.",
+    hint: {
+      touch: "Drag anywhere to run · your past runs replay",
+      keys: "WASD to run · your past runs replay",
+    },
+    // A room is run against a clock and then run again beside yourself, so
+    // the pulse sits between the runners and the boards: urgent, not hurried.
+    bpm: 124,
+    load: () => import("./games/echo"),
+  },
+  {
+    id: "gravity",
+    title: "Gravity Shift",
+    tagline: "Down is whichever way you say.",
+    hint: {
+      touch: "Tap a side of the ball to fall that way",
+      keys: "Arrows to pick which way is down",
+    },
+    // Every flip is a decision and the fall after it is watched, so the
+    // track keeps a walking pace and leaves the drama to the drop.
+    bpm: 112,
+    load: () => import("./games/gravity"),
+  },
+  {
+    id: "bullet",
+    title: "One Bullet",
+    tagline: "One shot. Make it do everything.",
+    hint: {
+      touch: "Drag to aim · let go to fire",
+      keys: "Arrows to aim · Shift for fine · Space to fire",
+    },
+    // Aiming is a held breath; the slowest tempo in the arcade, for the same
+    // reason Ludo's is slow — a track that hurries the shot costs the room.
+    bpm: 96,
+    load: () => import("./games/bullet"),
+  },
+  {
     id: "stub",
     title: "Test Pattern",
     tagline: "A square, at exactly 200 pixels a second.",
