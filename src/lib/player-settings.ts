@@ -10,7 +10,8 @@ import { create } from "zustand";
  * much to draw) and from `lib/keybinds.ts` (which is large enough to own its
  * own file). What is left is small, unrelated to each other, and shares only
  * the need to survive a reload: the HUD safe frame, the touch control scheme,
- * and whether the phone is allowed to buzz.
+ * whether the phone is allowed to buzz, and how far the camera turns for a
+ * given movement of the hand.
  */
 
 /**
@@ -43,6 +44,20 @@ export const RACE_SCHEMES: Record<
   tap: { name: "Tap", blurb: "Left and right pads. No stick." },
 };
 
+/**
+ * Look sensitivity, as a multiplier on the rig's base rate.
+ *
+ * Two numbers rather than one because the two inputs are on different
+ * scales: a thumb sweeping the width of a phone is three hundred pixels, a
+ * mouse flick across a pad is a thousand, and the base rate that suits one
+ * is wrong for the other. Each is shown in the tab whose input it belongs
+ * to. `1` is the rate the game shipped with, so nobody's camera changes
+ * unless they change it.
+ */
+export const LOOK_MIN = 0.25;
+export const LOOK_MAX = 3;
+export const LOOK_STEP = 0.05;
+
 interface PlayerSettings {
   /**
    * Extra inset for every HUD zone, in CSS pixels, on top of the platform's
@@ -53,11 +68,17 @@ interface PlayerSettings {
   raceScheme: RaceScheme;
   /** Whether a control is allowed to buzz. Off is a legitimate preference. */
   haptics: boolean;
+  /** Camera turn per pixel of mouse movement, relative to the default. */
+  mouseLook: number;
+  /** Camera turn per pixel of finger drag, relative to the default. */
+  touchLook: number;
   hydrated: boolean;
 
   setHudInset(px: number): void;
   setRaceScheme(s: RaceScheme): void;
   setHaptics(on: boolean): void;
+  setMouseLook(k: number): void;
+  setTouchLook(k: number): void;
 }
 
 const STORAGE_KEY = "blockworld:settings:v1";
@@ -78,13 +99,25 @@ interface Stored {
   hudInset?: number;
   raceScheme?: RaceScheme;
   haptics?: boolean;
+  mouseLook?: number;
+  touchLook?: number;
 }
 
 const DEFAULTS = {
   hudInset: 0,
   raceScheme: "tap" as RaceScheme,
   haptics: true,
+  mouseLook: 1,
+  touchLook: 1,
 };
+
+/** A stored multiplier, or the default when it is missing or nonsense. */
+export function clampLook(raw: unknown, fallback = 1): number {
+  const k = Number(raw);
+  if (!Number.isFinite(k)) return fallback;
+  const snapped = Math.round(k / LOOK_STEP) * LOOK_STEP;
+  return Math.min(LOOK_MAX, Math.max(LOOK_MIN, Math.round(snapped * 100) / 100));
+}
 
 /** The one place a stored value is allowed to be wrong. */
 function sanitise(raw: Stored | null) {
@@ -109,6 +142,8 @@ function sanitise(raw: Stored | null) {
     raceScheme:
       scheme && scheme in RACE_SCHEMES ? scheme : DEFAULTS.raceScheme,
     haptics: typeof raw?.haptics === "boolean" ? raw.haptics : DEFAULTS.haptics,
+    mouseLook: clampLook(raw?.mouseLook, DEFAULTS.mouseLook),
+    touchLook: clampLook(raw?.touchLook, DEFAULTS.touchLook),
   };
 }
 
@@ -131,8 +166,8 @@ function save(s: Stored) {
 
 export const usePlayerSettings = create<PlayerSettings>((set, get) => {
   const persist = () => {
-    const { hudInset, raceScheme, haptics } = get();
-    save({ v: STORAGE_VERSION, hudInset, raceScheme, haptics });
+    const { hudInset, raceScheme, haptics, mouseLook, touchLook } = get();
+    save({ v: STORAGE_VERSION, hudInset, raceScheme, haptics, mouseLook, touchLook });
   };
 
   return {
@@ -153,8 +188,29 @@ export const usePlayerSettings = create<PlayerSettings>((set, get) => {
       set({ haptics });
       persist();
     },
+    setMouseLook: (k) => {
+      set({ mouseLook: clampLook(k, DEFAULTS.mouseLook) });
+      persist();
+    },
+    setTouchLook: (k) => {
+      set({ touchLook: clampLook(k, DEFAULTS.touchLook) });
+      persist();
+    },
   };
 });
+
+/**
+ * The multiplier the camera rig reads on every look input.
+ *
+ * A plain getter rather than a hook: `applyLook` runs from pointer events and
+ * from a frame loop, and the rig keeps its look state outside React on
+ * purpose (see `camera-rig.ts`). Reading the store's state directly is the
+ * same thing `haptic()` does below.
+ */
+export function lookSensitivity(source: "mouse" | "touch"): number {
+  const s = usePlayerSettings.getState();
+  return source === "mouse" ? s.mouseLook : s.touchLook;
+}
 
 /**
  * A short buzz, if the device can and the player wants one.

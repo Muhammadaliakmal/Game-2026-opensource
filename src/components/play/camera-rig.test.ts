@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { approachYaw, yawTowards } from "./camera-rig";
+import { BASE_SENSITIVITY, applyLook, approachYaw, look, yawTowards } from "./camera-rig";
+import { usePlayerSettings } from "@/lib/player-settings";
 
 /**
  * The touch camera steers itself toward the direction of travel, which is two
@@ -73,4 +74,28 @@ test("approachYaw converges without overshooting", () => {
 test("approachYaw with t=0 holds still and t=1 arrives", () => {
   assert.equal(approachYaw(1.2, -0.4, 0), 1.2);
   assert.ok(Math.abs(approachYaw(1.2, -0.4, 1) - -0.4) < 1e-9);
+});
+
+test("applyLook turns further at a higher sensitivity, per source", () => {
+  const settings = usePlayerSettings.getState();
+  settings.setMouseLook(1);
+  settings.setTouchLook(1);
+
+  look.yaw = 0;
+  applyLook(100, 0, "mouse");
+  const atOne = -look.yaw;
+  assert.ok(Math.abs(atOne - 100 * BASE_SENSITIVITY) < 1e-9, "1× is the base rate");
+
+  settings.setMouseLook(2);
+  look.yaw = 0;
+  applyLook(100, 0, "mouse");
+  assert.ok(Math.abs(-look.yaw - atOne * 2) < 1e-9, "2× turns twice as far");
+
+  // The touch multiplier is a different number and does not leak across.
+  look.yaw = 0;
+  applyLook(100, 0, "touch");
+  assert.ok(Math.abs(-look.yaw - atOne) < 1e-9, "touch stays at its own 1×");
+
+  settings.setMouseLook(1);
+  look.yaw = Math.PI / 4;
 });

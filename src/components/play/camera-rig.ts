@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { create } from "zustand";
+import { lookSensitivity } from "@/lib/player-settings";
 
 /**
  * Camera look state.
@@ -61,7 +62,8 @@ export const THIRD_PERSON_DISTANCE = 9;
 
 const MIN_PITCH = -1.2; // ~-69°, looking up
 const MAX_PITCH = 1.35; // ~77°, looking down — short of straight down to avoid gimbal flip
-const SENSITIVITY = 0.0032; // radians per CSS pixel of drag
+/** Radians per CSS pixel of drag, at a sensitivity of 1. */
+export const BASE_SENSITIVITY = 0.0032;
 
 /**
  * Feed a drag delta in CSS pixels.
@@ -73,12 +75,16 @@ const SENSITIVITY = 0.0032; // radians per CSS pixel of drag
  *
  * To invert either axis, flip the sign of its term here; this is the only
  * place look direction is decided.
+ *
+ * `source` picks which of the player's two sensitivities scales the delta —
+ * see `lookSensitivity` in `lib/player-settings.ts` for why there are two.
  */
-export function applyLook(dx: number, dy: number) {
+export function applyLook(dx: number, dy: number, source: "mouse" | "touch") {
   if (dx !== 0 || dy !== 0) look.manualAt = performance.now();
-  look.yaw -= dx * SENSITIVITY;
+  const k = BASE_SENSITIVITY * lookSensitivity(source);
+  look.yaw -= dx * k;
   look.pitch = THREE.MathUtils.clamp(
-    look.pitch + dy * SENSITIVITY,
+    look.pitch + dy * k,
     MIN_PITCH,
     MAX_PITCH
   );

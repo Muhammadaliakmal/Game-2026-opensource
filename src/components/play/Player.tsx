@@ -119,7 +119,9 @@ function useLookControls() {
     };
     const onMove = (e: PointerEvent) => {
       if (e.pointerId !== activeId) return;
-      applyLook(e.clientX - lastX, e.clientY - lastY);
+      // A mouse dragging without the lock is still a mouse and gets the mouse
+      // sensitivity; a finger or a pen gets the touch one.
+      applyLook(e.clientX - lastX, e.clientY - lastY, e.pointerType === "mouse" ? "mouse" : "touch");
       lastX = e.clientX;
       lastY = e.clientY;
     };
@@ -133,7 +135,7 @@ function useLookControls() {
     // only field that still means anything once the cursor is pinned.
     const onRawMove = (e: MouseEvent) => {
       if (!locked()) return;
-      applyLook(e.movementX, e.movementY);
+      applyLook(e.movementX, e.movementY, "mouse");
     };
 
     const onLockChange = () => {

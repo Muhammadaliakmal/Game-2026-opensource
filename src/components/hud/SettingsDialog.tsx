@@ -18,6 +18,9 @@ import {
   type PresetId,
 } from "@/lib/keybinds";
 import {
+  LOOK_MAX,
+  LOOK_MIN,
+  LOOK_STEP,
   RACE_SCHEMES,
   haptic,
   usePlayerSettings,
@@ -204,6 +207,7 @@ export function SettingsDialog({
         <div className="hud-scroll min-h-0 flex-1 overflow-y-auto pr-1">
           {tab === "keyboard" && (
             <div className="flex flex-col gap-4">
+              <LookSensitivity source="mouse" />
               <div className="flex flex-wrap items-center gap-2">
                 <span className="hud-label">Layout</span>
                 {(Object.keys(PRESETS) as PresetId[]).map((id) => (
@@ -449,6 +453,59 @@ function ControlLayoutSettings({ onArrange }: { onArrange: () => void }) {
   );
 }
 
+/**
+ * How far the camera turns per pixel the hand moves.
+ *
+ * The most-asked-for setting, and the one whose absence is felt as a bug
+ * rather than a gap: a camera that whips round on a phone reads as "the
+ * controls are broken", and a mouse that crawls reads as lag. One slider per
+ * input, each on the tab where that input lives — a phone with a keyboard
+ * attached sees both, and the two numbers are genuinely different (see
+ * `lib/player-settings.ts`).
+ *
+ * The value is a multiplier and is shown as one: 1.00× is how the game
+ * shipped, and the reset chip appears only once it has been moved.
+ */
+function LookSensitivity({ source }: { source: "mouse" | "touch" }) {
+  const value = usePlayerSettings((s) => (source === "mouse" ? s.mouseLook : s.touchLook));
+  const setMouse = usePlayerSettings((s) => s.setMouseLook);
+  const setTouch = usePlayerSettings((s) => s.setTouchLook);
+  const set = source === "mouse" ? setMouse : setTouch;
+  const label = source === "mouse" ? "Mouse look" : "Camera drag";
+  const moved = Math.abs(value - 1) > 1e-6;
+
+  return (
+    <section className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <h3 className="hud-label">{label}</h3>
+        {moved && (
+          <button onClick={() => set(1)} className="hud-chip ml-auto">
+            Reset
+          </button>
+        )}
+      </div>
+      <p className="text-dim text-2xs">
+        {source === "mouse"
+          ? "How far the view turns for a movement of the mouse. Lower for precision, higher for fast turns."
+          : "How far the view turns for a swipe of your thumb. Lower if the camera feels twitchy, higher if a turn takes two swipes."}
+      </p>
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          min={LOOK_MIN}
+          max={LOOK_MAX}
+          step={LOOK_STEP}
+          value={value}
+          onChange={(e) => set(Number(e.target.value))}
+          className="accent-accent min-w-0 flex-1"
+          aria-label={`${label} sensitivity`}
+        />
+        <span className="num text-2xs w-12 text-right">{value.toFixed(2)}×</span>
+      </div>
+    </section>
+  );
+}
+
 function TouchSettings({ onArrange }: { onArrange: () => void }) {
   const scheme = usePlayerSettings((s) => s.raceScheme);
   const setScheme = usePlayerSettings((s) => s.setRaceScheme);
@@ -458,6 +515,7 @@ function TouchSettings({ onArrange }: { onArrange: () => void }) {
   return (
     <div className="flex flex-col gap-4">
       <ControlLayoutSettings onArrange={onArrange} />
+      <LookSensitivity source="touch" />
       <section className="flex flex-col gap-2">
         <h3 className="hud-label">Steering</h3>
         <div className="flex flex-col gap-1.5">
