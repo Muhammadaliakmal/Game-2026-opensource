@@ -2,6 +2,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Orbitron, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { RoomAuth } from "@/components/RoomAuth";
 import { SiteNav } from "@/components/SiteNav";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
@@ -184,6 +185,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               played something. See the component for when it may appear. */}
           <InstallToast />
         </ClerkProvider>
+        {/* Vercel Speed Insights: Core Web Vitals from real visits, reported
+            to the project's dashboard. A no-op in `next dev` and off Vercel,
+            and it must not go inside ClerkProvider — it has nothing to do with
+            a session and should load whether or not one exists. */}
+        <SpeedInsights />
       </body>
     </html>
   );
