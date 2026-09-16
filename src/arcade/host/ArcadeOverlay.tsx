@@ -6,6 +6,7 @@ import { MuteButton } from "@/components/MuteButton";
 import { ControlsHint, Hotkey } from "@/components/hud/Hotkey";
 import { RewardBurst } from "@/components/hud/RewardBurst";
 import { useShop } from "@/lib/shop";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { GameHost } from "./GameHost";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
@@ -177,6 +178,8 @@ export default function ArcadeOverlay() {
       <div className="relative min-h-0 flex-1">
         <GameHost className="h-full w-full" />
 
+        {status === "playing" && !entry.board && <RotateHint />}
+
         {status === "loading" && !error && (
           <Panel>
             <p className="text-dim text-sm">Loading {entry.title}…</p>
@@ -268,5 +271,33 @@ function Panel({ children }: { children: React.ReactNode }) {
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center backdrop-blur-[2px]">
       {children}
     </div>
+  );
+}
+
+/**
+ * "Turn your phone sideways", for a letterboxed cabinet held upright.
+ *
+ * Every cabinet since Chunk Runner draws a fixed 960×540 view (see
+ * `view.ts`), so on a portrait phone the room is fitted to the screen's
+ * width and comes out at two-fifths scale, with the in-room text under the
+ * size anyone can read. The board cabinets lay themselves out for portrait
+ * and are excluded. The hint sits in the empty letterbox above the room, so
+ * it covers nothing, and it takes no pointer events, because in Gravity
+ * Shift the whole screen is the compass and a line of text that ate a tap
+ * would flip the room the wrong way. Not a lock: `screen.orientation.lock`
+ * needs fullscreen on most browsers and is refused on iOS, and a page that
+ * fights the phone's rotation loses.
+ */
+function RotateHint() {
+  const upright = useMediaQuery("(orientation: portrait) and (pointer: coarse)");
+  if (!upright) return null;
+  return (
+    <p
+      className="hud-label pointer-events-none absolute inset-x-0 top-3 text-center"
+      aria-live="polite"
+    >
+      <span aria-hidden="true">⟳ </span>
+      Turn your phone sideways for a bigger room
+    </p>
   );
 }
