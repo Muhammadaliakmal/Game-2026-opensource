@@ -65,6 +65,12 @@ export const RATES: Record<string, number> = {
   echo: 0.2,
   gravity: 0.2,
   bullet: 0.2,
+  /*
+   * SwarmRush counts mass eaten plus kills and a place bonus, so a run is
+   * a few hundred to a few thousand points; Block Merge's rate puts a
+   * strong run around a hundred coins.
+   */
+  swarm: 0.05,
 };
 
 /** The rate for a game, or zero for one that does not pay — the test pattern. */

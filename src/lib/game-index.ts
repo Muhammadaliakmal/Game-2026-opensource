@@ -42,7 +42,7 @@ const MODES: GameEntry[] = [
   {
     href: "/arcade",
     title: "Arcade",
-    blurb: "Seven cabinets, a few minutes a go.",
+    blurb: "Eight cabinets, a few minutes a go.",
     kind: "mode",
     terms: ["cabinet", "minigame", "coins", "quick"],
   },

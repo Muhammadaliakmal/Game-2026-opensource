@@ -58,6 +58,7 @@ export function CabinetPreview({ id }: { id: string }) {
   if (id === "echo") return <EchoArt />;
   if (id === "gravity") return <GravityArt />;
   if (id === "bullet") return <BulletArt />;
+  if (id === "swarm") return <SwarmArt />;
   return <GridArt />;
 }
 
@@ -545,6 +546,38 @@ function GridArt() {
           fill="#1b2452"
         />
       ))}
+    </Frame>
+  );
+}
+
+/**
+ * SwarmRush: an arena of pellets, a few rival orbs, and you — the one in
+ * the accent — with a bigger one closing in, outlined in the warning red.
+ */
+function SwarmArt() {
+  const pellets: Array<[number, number, string]> = [
+    [22, 18, "#ffd166"], [48, 70, "#7dffb0"], [70, 30, "#ff8fd6"], [96, 78, "#8fb8ff"],
+    [118, 14, "#ffd166"], [150, 62, "#7dffb0"], [176, 24, "#ff8fd6"], [206, 80, "#ffd166"],
+    [228, 40, "#8fb8ff"], [140, 88, "#ffd166"], [36, 44, "#8fb8ff"], [200, 16, "#7dffb0"],
+  ];
+  return (
+    <Frame>
+      <rect width="240" height="96" fill="#0b1022" />
+      {/* The grid. */}
+      <g stroke="#7a8cdc" strokeOpacity="0.12" strokeWidth="1">
+        {[40, 80, 120, 160, 200].map((x) => <line key={x} x1={x} y1="0" x2={x} y2="96" />)}
+        {[32, 64].map((y) => <line key={y} x1="0" y1={y} x2="240" y2={y} />)}
+      </g>
+      {pellets.map(([x, y, c], i) => <circle key={i} cx={x} cy={y} r="2.5" fill={c} />)}
+      {/* Rivals. */}
+      <circle cx="62" cy="58" r="9" fill="hsl(300 70% 52%)" stroke="hsl(300 80% 30%)" strokeWidth="1.5" />
+      <circle cx="186" cy="60" r="7" fill="hsl(40 70% 52%)" stroke="hsl(40 80% 30%)" strokeWidth="1.5" />
+      {/* The big one, closing in, with the warning ring. */}
+      <circle cx="172" cy="28" r="20" fill="hsl(120 60% 45%)" stroke="hsl(120 80% 25%)" strokeWidth="2" />
+      <circle cx="172" cy="28" r="24" fill="none" stroke="#ff3d6a" strokeWidth="1.5" />
+      {/* You. */}
+      <circle cx="118" cy="52" r="12" fill="var(--color-accent, #6ff5ff)" stroke="#2a8f9a" strokeWidth="1.5" />
+      <circle cx="114" cy="48" r="3.5" fill="#ffffff" fillOpacity="0.35" />
     </Frame>
   );
 }

@@ -31,7 +31,7 @@ import { useArcade } from "@/arcade/store";
  *
  * ── One InstancedMesh for the bodies ─────────────────────────────────────
  *
- * Seven cabinets are seven draw calls otherwise, in a scene that already
+ * Eight cabinets are eight draw calls otherwise, in a scene that already
  * counts them. The screens are separate because they are the one part that differs —
  * and because an emissive plane wants its own material, not an instance
  * colour.
@@ -62,18 +62,20 @@ const SCREEN_GEOMETRY = new THREE.PlaneGeometry(BODY.w * 0.72, BODY.h * 0.34);
 /**
  * Where the cabinets stand, relative to the world's spawn.
  *
- * Two rows: the four that came first, and a second row two units behind
- * them for the puzzle cabinets. The back row is staggered between the
- * front row's gaps so every screen is visible from the spawn.
+ * Two rows of four: the four that came first, and a second row two units
+ * behind them for the puzzle cabinets and the swarm. The back row is
+ * staggered — two in the front row's gaps, two past its ends — so every
+ * screen is visible from the spawn rather than hidden behind a cabinet.
  */
 const OFFSETS: Array<[number, number]> = [
   [-2.4, -4],
   [-0.8, -4],
   [0.8, -4],
   [2.4, -4],
+  [-4.0, -6],
   [-1.6, -6],
-  [0, -6],
   [1.6, -6],
+  [4.0, -6],
 ];
 
 export function ArcadeCabinets({ spawn }: { spawn: [number, number, number] }) {

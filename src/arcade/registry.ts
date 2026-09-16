@@ -147,6 +147,19 @@ export const ARCADE: ArcadeEntry[] = [
     load: () => import("./games/bullet"),
   },
   {
+    id: "swarm",
+    title: "SwarmRush",
+    tagline: "Eat. Grow. Don't get eaten.",
+    hint: {
+      touch: "Drag to steer · tap to dash · button to split",
+      keys: "Mouse or WASD to steer · Space to dash · E to split",
+    },
+    // The fastest floor in the arcade: the doc asks for something to happen
+    // every second or two, and the track is the first thing that does.
+    bpm: 136,
+    load: () => import("./games/swarm"),
+  },
+  {
     id: "stub",
     title: "Test Pattern",
     tagline: "A square, at exactly 200 pixels a second.",

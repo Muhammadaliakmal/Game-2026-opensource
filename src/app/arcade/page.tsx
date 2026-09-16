@@ -14,7 +14,7 @@ import { DAILY_HARD_CAP, DAILY_SOFT_CAP } from "@/lib/arcade-payout";
  */
 export const metadata = {
   title: "Arcade — Spec Driven Games",
-  description: "Seven cabinets, a few minutes a go. Coins for the shop.",
+  description: "Eight cabinets, a few minutes a go. Coins for the shop.",
 };
 
 export default function ArcadePage() {

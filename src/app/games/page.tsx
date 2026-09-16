@@ -12,7 +12,7 @@ import { PrefetchCanvas } from "@/components/PrefetchCanvas";
 export const metadata = {
   title: "Games — Spec Driven Games",
   description:
-    "Parkour, racing, and seven arcade cabinets. Every game on the site, one press from playing.",
+    "Parkour, racing, and eight arcade cabinets. Every game on the site, one press from playing.",
 };
 
 export default function GamesPage() {
