@@ -17,6 +17,16 @@ import type { InputState } from "./types";
  * both are needed — a runner wants the edge, a shooter wants the level. The
  * host calls `endStep()` after each step so `pressed()` answers for exactly
  * one step per physical press, whatever the frame rate.
+ *
+ * ── A level lasts at least one step ──────────────────────────────────────
+ *
+ * `pressed()` is not part of what a game is handed (see `InputState`), so
+ * every cabinet derives its own edge from the level: `down && !was`. That
+ * misses a tap that begins and ends between two steps — which a real thumb
+ * does whenever the frame before it hitched. So a release that arrives
+ * before any step has seen the press is held back until the end of the next
+ * step. The game sees one step of "down", exactly as it would have on a
+ * smooth frame, and the release lands right after.
  */
 
 /** Keys that would scroll, zoom or otherwise fight the game if left alone. */
@@ -54,6 +64,9 @@ export interface InputHost {
 export function attachInput(target: HTMLCanvasElement): InputHost {
   const keys: Record<string, boolean> = {};
   const edges: Record<string, boolean> = {};
+  /** Releases that arrived before a step saw the press; applied in `endStep`. */
+  const pendingUp: Record<string, boolean> = {};
+  let pointerUpPending = false;
   const pointer = { x: 0, y: 0, down: false };
   const axis = { x: 0, y: 0 };
   const state: InputState = { keys, pointer, axis };
@@ -80,10 +93,17 @@ export function attachInput(target: HTMLCanvasElement): InputHost {
     if (e.repeat) return;
     if (!keys[e.code]) edges[e.code] = true;
     keys[e.code] = true;
+    // A second press before the deferred release landed is still held.
+    pendingUp[e.code] = false;
     recomputeAxis();
   };
 
   const onKeyUp = (e: KeyboardEvent) => {
+    // The edge is still set only if no step has run since the press.
+    if (edges[e.code]) {
+      pendingUp[e.code] = true;
+      return;
+    }
     keys[e.code] = false;
     recomputeAxis();
   };
@@ -101,19 +121,26 @@ export function attachInput(target: HTMLCanvasElement): InputHost {
     movePointer(e);
     if (!pointer.down) edges.Pointer = true;
     pointer.down = true;
+    pointerUpPending = false;
     // So a finger that slides off the canvas still delivers its release.
     target.setPointerCapture?.(e.pointerId);
   };
   const onPointerMove = (e: PointerEvent) => movePointer(e);
   const onPointerUp = (e: PointerEvent) => {
     movePointer(e);
-    pointer.down = false;
     target.releasePointerCapture?.(e.pointerId);
+    if (edges.Pointer) {
+      pointerUpPending = true;
+      return;
+    }
+    pointer.down = false;
   };
 
   function clear() {
     for (const k in keys) keys[k] = false;
     for (const k in edges) edges[k] = false;
+    for (const k in pendingUp) pendingUp[k] = false;
+    pointerUpPending = false;
     pointer.down = false;
     axis.x = 0;
     axis.y = 0;
@@ -132,6 +159,18 @@ export function attachInput(target: HTMLCanvasElement): InputHost {
     pressed: (code) => edges[code] === true,
     endStep() {
       for (const k in edges) edges[k] = false;
+      let axisDirty = false;
+      for (const k in pendingUp) {
+        if (!pendingUp[k]) continue;
+        pendingUp[k] = false;
+        keys[k] = false;
+        axisDirty = true;
+      }
+      if (axisDirty) recomputeAxis();
+      if (pointerUpPending) {
+        pointerUpPending = false;
+        pointer.down = false;
+      }
     },
     clear,
     detach() {
