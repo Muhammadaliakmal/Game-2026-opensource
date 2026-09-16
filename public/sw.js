@@ -19,7 +19,7 @@
  *   cached page therefore has somebody's sign-in state baked into it, and
  *   serving that from a cache is how one person's header ends up in front of
  *   another. Always network.
- * - **/api/**. Worlds are edited. A cached PUT response or a stale world list
+ * - **The API, `/api/`.** Worlds are edited. A cached PUT response or a stale world list
  *   is a correctness bug, not a performance win.
  * - **Anything that is not a GET**, and anything cross-origin. Clerk, Neon and
  *   the room server all live off-origin and all of them are stateful.
