@@ -71,6 +71,14 @@ export const RATES: Record<string, number> = {
    * strong run around a hundred coins.
    */
   swarm: 0.05,
+  /*
+   * Reflex has no top and no length limit — a perfect player runs until they
+   * stop — so it is a runner for payout purposes and priced like one. A hit
+   * is 10 points plus up to 30 of streak, so a good two-minute run is a few
+   * thousand points; a twentieth of a coin a point puts that near a hundred
+   * coins, alongside SwarmRush and well inside the daily soft cap.
+   */
+  reflex: 0.05,
 };
 
 /** The rate for a game, or zero for one that does not pay — the test pattern. */

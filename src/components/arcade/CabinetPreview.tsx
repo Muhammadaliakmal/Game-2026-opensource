@@ -59,6 +59,7 @@ export function CabinetPreview({ id }: { id: string }) {
   if (id === "gravity") return <GravityArt />;
   if (id === "bullet") return <BulletArt />;
   if (id === "swarm") return <SwarmArt />;
+  if (id === "reflex") return <ReflexArt />;
   return <GridArt />;
 }
 
@@ -578,6 +579,46 @@ function SwarmArt() {
       {/* You. */}
       <circle cx="118" cy="52" r="12" fill="var(--color-accent, #6ff5ff)" stroke="#2a8f9a" strokeWidth="1.5" />
       <circle cx="114" cy="48" r="3.5" fill="#ffffff" fillOpacity="0.35" />
+    </Frame>
+  );
+}
+
+/**
+ * Reflex: three targets at three points in their life — one fresh, one half
+ * gone, one nearly out and amber for it.
+ *
+ * The ring IS the game, so the art is three rings at three angles. A single
+ * target would have shown a circle and said nothing about what the cabinet
+ * asks you to do; three at different stages says "these close" without a
+ * word, which is exactly the thing a shelf picture has to do.
+ */
+function ReflexArt() {
+  return (
+    <Frame>
+      <rect width="240" height="96" fill="#0b1030" />
+      {/* The field edge, as in the game. */}
+      <rect x="10" y="8" width="220" height="80" fill="none" stroke="#eef1ff" strokeOpacity="0.06" strokeWidth="1" />
+
+      {/* Fresh: the ring is almost whole. */}
+      <circle cx="52" cy="48" r="20" fill="#10233f" />
+      <circle cx="52" cy="48" r="8" fill="var(--color-accent, #22d3ee)" />
+      <path d="M 52.0 33.0 A 15 15 0 1 1 40.4 38.4" fill="none" stroke="var(--color-accent, #22d3ee)" strokeWidth="3" strokeLinecap="round" />
+
+      {/* Half gone. */}
+      <circle cx="120" cy="44" r="20" fill="#10233f" />
+      <circle cx="120" cy="44" r="8" fill="var(--color-accent, #22d3ee)" />
+      <path d="M 120.0 29.0 A 15 15 0 0 1 121.9 58.9" fill="none" stroke="var(--color-accent, #22d3ee)" strokeWidth="3" strokeLinecap="round" />
+
+      {/* Nearly out, and amber for it — the alarm the game turns on in the
+          last third of a window. */}
+      <circle cx="188" cy="54" r="20" fill="#3b1d05" />
+      <circle cx="188" cy="54" r="8" fill="#f59e0b" />
+      <path d="M 188.0 39.0 A 15 15 0 0 1 201.1 46.8" fill="none" stroke="#f59e0b" strokeWidth="3" strokeLinecap="round" />
+
+      {/* The lives row, top left, as the game draws it. */}
+      <circle cx="22" cy="16" r="3.5" fill="var(--color-accent, #22d3ee)" />
+      <circle cx="34" cy="16" r="3.5" fill="var(--color-accent, #22d3ee)" />
+      <circle cx="46" cy="16" r="3.5" fill="none" stroke="#eef1ff" strokeOpacity="0.25" strokeWidth="1.5" />
     </Frame>
   );
 }

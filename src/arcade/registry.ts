@@ -160,6 +160,19 @@ export const ARCADE: ArcadeEntry[] = [
     load: () => import("./games/swarm"),
   },
   {
+    id: "reflex",
+    title: "Reflex",
+    tagline: "It appears. The ring closes. Go.",
+    hint: {
+      touch: "Tap the target before its ring closes",
+      keys: "Click the target before its ring closes",
+    },
+    // Quick, and it stays quick: the cabinet has one verb and the track
+    // should not pretend the late run is calmer than the early one.
+    bpm: 128,
+    load: () => import("./games/reflex"),
+  },
+  {
     id: "stub",
     title: "Test Pattern",
     tagline: "A square, at exactly 200 pixels a second.",

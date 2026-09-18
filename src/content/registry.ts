@@ -207,6 +207,15 @@ const ARCADE: readonly GameEntry[] = [
     tags: ["Solo", "Bots", "Reflex"],
     addedAt: "2026-09-17",
   },
+  {
+    slug: "reflex",
+    kind: "arcade",
+    title: "Reflex",
+    tagline: "It appears. The ring closes. Go.",
+    href: "/arcade?play=reflex",
+    tags: ["Solo", "Reflex", "Hard"],
+    addedAt: "2026-09-18",
+  },
 ];
 
 /** Every course carries these; the hard end of the ladder adds "Hard". */

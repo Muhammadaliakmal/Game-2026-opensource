@@ -62,10 +62,16 @@ const SCREEN_GEOMETRY = new THREE.PlaneGeometry(BODY.w * 0.72, BODY.h * 0.34);
 /**
  * Where the cabinets stand, relative to the world's spawn.
  *
- * Two rows of four: the four that came first, and a second row two units
- * behind them for the puzzle cabinets and the swarm. The back row is
- * staggered — two in the front row's gaps, two past its ends — so every
- * screen is visible from the spawn rather than hidden behind a cabinet.
+ * Two rows of four and one on its own: the four that came first, a second row
+ * two units behind them for the puzzle cabinets and the swarm, and a ninth
+ * out on the front row's right for Reflex. The back row is staggered — two in
+ * the front row's gaps, two past its ends — so every screen is visible from
+ * the spawn rather than hidden behind a cabinet.
+ *
+ * The ninth extends the front row rather than starting a third, because a
+ * third row two units further back is a cabinet nobody walks to: the prompt
+ * only appears within `REACH`, and by then the front two rows are between you
+ * and the spawn.
  */
 const OFFSETS: Array<[number, number]> = [
   [-2.4, -4],
@@ -76,6 +82,7 @@ const OFFSETS: Array<[number, number]> = [
   [-1.6, -6],
   [1.6, -6],
   [4.0, -6],
+  [4.0, -4],
 ];
 
 export function ArcadeCabinets({ spawn }: { spawn: [number, number, number] }) {
