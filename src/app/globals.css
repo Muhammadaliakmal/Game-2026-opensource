@@ -303,6 +303,72 @@ input {
 }
 
 /*
+  ══ A card that is one link with one pressable thing on it ═══════════════
+
+  ── The problem ─────────────────────────────────────────────────────────
+
+  Every card on this site is an `<a>` wrapped around the whole tile, which is
+  the right call: a picture with a small button under it makes most of the
+  target dead, and the comments on `CourseCard` and `ModeCard` both say so.
+
+  Then the stats badge arrives, and it has a heart that has to be pressable.
+  A `<button>` inside an `<a>` is invalid HTML — browsers disagree about which
+  one a press activates, and a screen reader reads the button's label as part
+  of the link's name. `stopPropagation` does not fix it; it hides it.
+
+  ── The pattern ─────────────────────────────────────────────────────────
+
+  The link stops wrapping the card and becomes a pseudo-element stretched over
+  it. The card is a plain container, the link is a normal sibling that covers
+  the whole surface, and the badge sits above it on a higher layer. Markup is
+  then valid, one press anywhere on the card follows the link, the heart is a
+  real button that is reachable by Tab in its own right, and the accessible
+  name of each is its own.
+
+  `position: relative` on the container is load-bearing — without it the
+  ::after stretches to the nearest positioned ancestor, which is the page.
+*/
+.card-linked {
+  position: relative;
+}
+
+/* The link that covers its positioned parent. The element keeps its own text
+   for the accessible name; only the hit area moves. */
+.stretched-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  /* A cursor and nothing else: the visual state belongs to the card, which
+     reacts on :focus-within and on the group's hover. */
+  border-radius: inherit;
+}
+
+/* Anything that must stay pressable above the stretched link. */
+.card-actions {
+  position: relative;
+  z-index: 2;
+}
+
+/*
+  The height an AdSense unit is allowed to arrive into.
+
+  A responsive unit picks its own size at fill time, which is well after the
+  page around it has painted — so with nothing reserved, the fill is a block of
+  zero height becoming a block of 250 and everything below it moving. See
+  `components/AdSlot.tsx`; this is the token half so the two breakpoints live
+  with the rest of the layout numbers rather than inside a style attribute.
+*/
+:root {
+  --ad-min-h: 280px;
+}
+@media (min-width: 640px) {
+  :root {
+    --ad-min-h: 250px;
+  }
+}
+
+/*
   ══ Shape language ═══════════════════════════════════════════════════════
 
   Chamfers: corners cut at 45° rather than rounded.

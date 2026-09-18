@@ -1,8 +1,9 @@
 import { Suspense } from "react";
-import { ArcadeLobby } from "@/components/arcade/ArcadeLobby";
+import { ArcadeLobby, ArcadeLobbySkeleton } from "@/components/arcade/ArcadeLobby";
 import { ArcadeAutoOpen } from "@/components/arcade/ArcadeAutoOpen";
 import { PageShell, PageHeader } from "@/components/PageShell";
 import { DAILY_HARD_CAP, DAILY_SOFT_CAP } from "@/lib/arcade-payout";
+import { CABINET_COUNT } from "@/content/registry";
 
 /**
  * The arcade.
@@ -14,7 +15,7 @@ import { DAILY_HARD_CAP, DAILY_SOFT_CAP } from "@/lib/arcade-payout";
  */
 export const metadata = {
   title: "Arcade — Spec Driven Games",
-  description: "Eight cabinets, a few minutes a go. Coins for the shop.",
+  description: `${CABINET_COUNT} cabinets, a few minutes a go. Coins for the shop.`,
 };
 
 export default function ArcadePage() {
@@ -28,10 +29,25 @@ export default function ArcadePage() {
         </p>
       </PageHeader>
 
-      <ArcadeLobby />
-      {/* `useSearchParams` needs a Suspense boundary or the whole static page
-          would fall back to client rendering. Nothing is shown while it
-          resolves, so the fallback is nothing. */}
+      {/*
+        `useSearchParams` needs a Suspense boundary or the whole static page
+        falls back to client rendering. The lobby now reads `?sort=` and
+        `?tags=` as well, so it is inside one too.
+
+        Its fallback is a card-shaped skeleton rather than nothing. The
+        cabinets' art is `<CabinetPreview>`, a canvas that only ever exists in
+        the browser, so the grid was never meaningfully in the server HTML to
+        begin with — but the SPACE it occupies has to be, or the page paints
+        short and everything under it jumps down when the grid arrives. That
+        jump is a layout shift, and on this site a layout shift is an AdSense
+        question as well as a polish one.
+
+        `ArcadeAutoOpen` renders nothing either way, so its fallback is
+        nothing.
+      */}
+      <Suspense fallback={<ArcadeLobbySkeleton />}>
+        <ArcadeLobby />
+      </Suspense>
       <Suspense fallback={null}>
         <ArcadeAutoOpen />
       </Suspense>

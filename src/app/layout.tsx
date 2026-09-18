@@ -8,9 +8,13 @@ import { SiteNav } from "@/components/SiteNav";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { UiSounds } from "@/components/UiSounds";
 import { InstallToast } from "@/components/InstallToast";
+import { StatsProvider } from "@/components/stats/StatsProvider";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import { AD_CLIENT } from "@/lib/ads";
 import { SITE_URL } from "@/lib/site";
+// Counted from the registry rather than typed into the sentence: every one of
+// these numbers had gone stale. See `content/registry.ts`.
+import { COURSE_COUNT } from "@/content/registry";
 import "./globals.css";
 
 /**
@@ -62,7 +66,7 @@ export const metadata: Metadata = {
   // hidden in v1 (lib/features), and this string is what a search result and
   // an ad review both read.
   description:
-    "A browser platformer. Twenty parkour courses, medals, ghosts and leaderboards — no download, no account needed to start.",
+    `A browser platformer. ${COURSE_COUNT} parkour courses, medals, ghosts and leaderboards — no download, no account needed to start.`,
   // Next serves app/manifest.ts at this path; naming it here is what puts the
   // <link rel="manifest"> in the document, which is what makes the app
   // installable and what PWABuilder reads to package the Android build.
@@ -179,7 +183,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               stops that. The causes are fixed too (see SiteNav and the
               typography below); this is the floor under them. */}
           <main className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto">
-            {children}
+            {/* Renders nothing of its own. Every `<StatBadge>` below it
+                registers its slug on mount and one request goes out for the
+                whole page — thirty cards, one round trip. At the layout level
+                rather than per page so a badge can be put on any card
+                anywhere without first arranging a provider for it. */}
+            <StatsProvider>{children}</StatsProvider>
           </main>
           {/* The one popup the site has: install, offered once somebody has
               played something. See the component for when it may appear. */}

@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import covers from "@/lib/world-covers.json";
 import { COVER_H, COVER_W } from "@/lib/world-cover";
+import { StatBadge } from "@/components/stats/StatBadge";
 
 /**
  * A level-select card: what the place looks like, before you go there.
@@ -43,6 +44,7 @@ export function WorldCard({
   kind = "build",
   /** Top-right label: the tier on a course, "Built-in" on a sandbox. */
   badge,
+  statSlug,
 }: {
   slug: string;
   name: string;
@@ -50,14 +52,26 @@ export function WorldCard({
   href: string;
   kind?: WorldKind;
   badge?: string;
+  /**
+   * The registry slug to show plays and likes for, if this world has one.
+   *
+   * Optional because this card also renders worlds players published, which
+   * are rows in `worlds` with a uuid rather than entries in the registry.
+   * Those have their own `play_count` and no like button; giving them a badge
+   * would mean either a second stats table keyed by uuid or a badge that is
+   * always empty.
+   */
+  statSlug?: string;
 }) {
   const cover = COVERS[slug];
 
   return (
-    <Link
-      href={href}
+    // A stretched link rather than a link around everything: the badge below
+    // carries a real <button>, which cannot be nested inside an <a>. See
+    // globals.css and the same change in `CourseCard`.
+    <article
       data-mode={kind}
-      className="group card hover:border-accent/70 focus-visible:border-accent/70 flex h-full flex-col overflow-hidden p-0 transition-colors"
+      className="group card card-linked hover:border-accent/70 focus-within:border-accent/70 flex h-full flex-col overflow-hidden p-0 transition-colors"
     >
       {/*
         A fixed ratio box, so a grid of these never shifts as images arrive —
@@ -101,12 +115,19 @@ export function WorldCard({
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <h3 className="text-ink text-base font-semibold">{name}</h3>
+        <h3 className="text-ink text-base font-semibold">
+          <Link href={href} className="stretched-link">
+            {name}
+          </Link>
+        </h3>
         <p className="text-dim mt-1 flex-1 text-sm">{blurb}</p>
-        <span className="hud-chip hud-chip--primary group-hover:brightness-110 mt-4 w-fit">
-          Play
-        </span>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className="hud-chip hud-chip--primary group-hover:brightness-110 w-fit">
+            Play
+          </span>
+          {statSlug && <StatBadge slug={statSlug} />}
+        </div>
       </div>
-    </Link>
+    </article>
   );
 }

@@ -43,6 +43,13 @@
       "when": 1789490896137,
       "tag": "0005_retention_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789724624075,
+      "tag": "0006_game_stats",
+      "breakpoints": true
     }
   ]
 }

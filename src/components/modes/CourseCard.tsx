@@ -5,6 +5,7 @@ import type { Tier } from "@/lib/course-kit";
 // server, and atmosphere.ts imports the whole of three.js.
 import { NIGHT_STOPS } from "@/lib/sky-stops";
 import covers from "@/lib/world-covers.json";
+import { StatBadge } from "@/components/stats/StatBadge";
 
 const COVERS: Record<string, { key: string; blur: string }> = covers;
 
@@ -93,10 +94,20 @@ export function CourseCard({
   target?: string;
 }) {
   return (
-    <Link
-      href={`/play/${slug}`}
-      className="group card hover:border-accent/70 focus-visible:border-accent/70 block overflow-hidden transition-colors"
-    >
+    /*
+     * An article with a stretched link rather than a link around everything.
+     *
+     * The whole tile is still one press — that argument has not changed — but
+     * the card now carries a second control, the like button on `<StatBadge>`,
+     * and a `<button>` inside an `<a>` is invalid HTML that browsers resolve
+     * differently and screen readers read as one run-on link. The link is the
+     * course name; `.stretched-link` spreads its hit area over the card. See
+     * globals.css.
+     *
+     * `focus-within` rather than `focus-visible`, because the focus now lands
+     * on a child.
+     */
+    <article className="group card card-linked hover:border-accent/70 focus-within:border-accent/70 overflow-hidden transition-colors">
       <div className="relative h-32 w-full">
         <CourseArt index={index} />
         {COVERS[slug] && (
@@ -132,12 +143,23 @@ export function CourseCard({
       </div>
 
       <div className="flex flex-col gap-1 p-4">
-        <h3 className="text-ink text-base font-semibold">{name}</h3>
+        <h3 className="text-ink text-base font-semibold">
+          <Link href={`/play/${slug}`} className="stretched-link">
+            {name}
+          </Link>
+        </h3>
         <p className="text-dim text-sm">{blurb}</p>
-        {target && (
-          <p className="hud-label num text-dim mt-2">Chasing {target}</p>
-        )}
+        <div className="mt-2 flex items-center justify-between gap-3">
+          {/* Always rendered, empty if there is no Gold time, so the badge
+              keeps its place in the row on every card. A slot that appears
+              only on some cards is the layout fault `ArcadeLobby`'s "best"
+              readout already has a comment about. */}
+          <p className="hud-label num text-dim">
+            {target ? `Chasing ${target}` : ""}
+          </p>
+          <StatBadge slug={slug} />
+        </div>
       </div>
-    </Link>
+    </article>
   );
 }

@@ -4,6 +4,7 @@ import { RaceMount } from "@/components/race/RaceMount";
 import { isMatchCode, normalizeMatchCode } from "@/lib/match-code";
 import { MAX_RIDERS, RACE_TRACKS } from "@/lib/race-track";
 import { IMMERSIVE_VIEWPORT } from "@/lib/immersive";
+import { CountPlay } from "@/components/stats/CountPlay";
 
 /**
  * A race by code.
@@ -49,7 +50,12 @@ export default async function RacePage({
       <RaceMount code={normalizeMatchCode(code)} target={target} track={track} />
       {/* The lobby, not this grid: a code is one session's, and a chip that
           rejoins a room everyone has left is a chip that opens an empty grid. */}
-      <RememberPlay href="/race" title="Race" kind="race" />
+      <RememberPlay href="/race" title="Race" kind="race" slug="race-mode" />
+      {/* The grid is a real session, so it counts — under the mode, since a
+          room code is one match and not a thing anybody can go back to. The
+          lobby at `/race` deliberately does not count: choosing a track is
+          not playing. */}
+      <CountPlay slug="race-mode" />
     </>
   );
 }

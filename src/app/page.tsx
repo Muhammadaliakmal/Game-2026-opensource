@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { desc, eq, sql } from "drizzle-orm";
@@ -6,7 +7,13 @@ import { worlds } from "@/lib/db/schema";
 import { NewWorldButton } from "@/components/NewWorldButton";
 import { WorldCardMenu } from "@/components/WorldCardMenu";
 import { HeroMount } from "@/components/hero/HeroMount";
+import { COURSE_COUNT } from "@/content/registry";
 import { GamesHub } from "@/components/modes/GamesHub";
+import { JumpBackIn } from "@/components/modes/JumpBackIn";
+import {
+  PopularThisWeek,
+  PopularThisWeekFallback,
+} from "@/components/modes/PopularThisWeek";
 import { UGC } from "@/lib/features";
 import { AdSlot } from "@/components/AdSlot";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -64,6 +71,20 @@ export default async function Home() {
         <HeroMount />
 
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-7 sm:gap-12 sm:px-6 sm:py-10">
+          {/* Two rails above the hub, and they are the only things on this page
+              that are different from one visit to the next.
+
+              "Jump back in" is what this browser was playing and renders
+              nothing on a first visit. "Popular this week" is what everybody
+              else was, and renders nothing until there are three of them —
+              see the components. Both are on the home page only: `/games`
+              shows the same hub and is statically rendered, and a rail whose
+              whole point is that it changes hourly is not worth making that
+              page dynamic for. */}
+          <JumpBackIn />
+          <Suspense fallback={<PopularThisWeekFallback />}>
+            <PopularThisWeek />
+          </Suspense>
           {/* The games come straight after the scene, before the pitch. A
               visitor who has just turned the island with a drag does not need
               a paragraph to tell them what this is; they need the next thing
@@ -74,7 +95,7 @@ export default async function Home() {
             <h1 className="text-display max-w-2xl font-bold">
               {UGC
                 ? "Build worlds out of blocks, then walk around inside them."
-                : "Twenty courses, one clock, and the ghost of your best run."}
+                : `${COURSE_COUNT} courses, one clock, and the ghost of your best run.`}
             </h1>
             <p className="text-dim text-sm">
               {UGC
@@ -161,7 +182,11 @@ export default async function Home() {
           account something to do before it has built anything. Remix — the
           door into the builder — is off with UGC (lib/features), so the
           sandbox tiles are plain Play tiles like the visitor's. */}
-      <div className="mb-8 sm:mb-12">
+      <div className="mb-8 sm:mb-12 flex flex-col gap-8 sm:gap-10">
+        <JumpBackIn />
+        <Suspense fallback={<PopularThisWeekFallback />}>
+          <PopularThisWeek />
+        </Suspense>
         <GamesHub />
       </div>
 

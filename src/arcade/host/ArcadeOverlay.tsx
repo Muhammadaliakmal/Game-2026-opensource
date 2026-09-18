@@ -7,6 +7,8 @@ import { ControlsHint, Hotkey } from "@/components/hud/Hotkey";
 import { RewardBurst } from "@/components/hud/RewardBurst";
 import { useShop } from "@/lib/shop";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { usePlayCount } from "@/lib/use-play-count";
+import { isKnownSlug } from "@/content/registry";
 import { GameHost } from "./GameHost";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
@@ -44,6 +46,22 @@ export default function ArcadeOverlay() {
   const coins = useShop((s) => s.coins);
 
   const entry = gameId ? entryFor(gameId) : undefined;
+
+  /*
+   * Ten seconds of actual play, once per cabinet per tab session.
+   *
+   * `status === "playing"` is the cabinet's own pause state, and it is the
+   * reason this call is here rather than on the arcade page: the page cannot
+   * see it, and a run that was paused for five minutes on the pause screen is
+   * not five minutes of play. The hook adds the half every screen shares, a
+   * hidden tab, so neither this nor `GameHost` has to repeat it.
+   *
+   * The allowlist check is here rather than left to the route, because the
+   * host's own test pattern is a cabinet the site does not ship: it is in
+   * `arcade/registry` and deliberately not in `content/registry`. The route
+   * would refuse it anyway, and refusing it here means not making the request.
+   */
+  usePlayCount(isKnownSlug(gameId) ? gameId : null, status === "playing");
 
   /**
    * A cabinet does not follow you off the page it was opened on.

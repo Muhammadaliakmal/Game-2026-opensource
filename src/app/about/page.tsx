@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PageShell, PageHeader } from "@/components/PageShell";
 import { hasPosts } from "@/lib/blog";
+import { CABINET_COUNT, COURSE_COUNT } from "@/content/registry";
+import { UGC } from "@/lib/features";
 import {
   CONTACT_EMAIL,
   OWNER_LOCATION,
@@ -76,11 +78,12 @@ export default function AboutPage() {
 
         <Section title="What this is">
           <p>
-            {SITE_NAME} is a browser game. There are five parkour courses on a
-            difficulty ladder, a lap racer, an arcade of small games in
-            cabinets you walk up to, and an editor for building courses of your
-            own. It runs in a tab: no download, no store, no install — though
-            it can be{" "}
+            {SITE_NAME} is a browser game. There are {COURSE_COUNT} parkour
+            courses on a difficulty ladder, a lap racer, and an arcade of{" "}
+            {CABINET_COUNT} small games in cabinets you walk up to
+            {UGC ? ", and an editor for building courses of your own" : ""}. It
+            runs in a tab: no download, no store, no install — though it can
+            be{" "}
             <Link href="/download" className="text-accent underline">
               installed as an app
             </Link>{" "}

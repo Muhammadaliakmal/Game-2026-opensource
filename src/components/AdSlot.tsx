@@ -58,7 +58,31 @@ export function AdSlot({
     <ins
       // The literal class is the hook AdSense scans for; the rest is layout.
       className={`adsbygoogle${className ? ` ${className}` : ""}`}
-      style={{ display: "block" }}
+      /*
+       * A reserved band, so the ad does not push the page down when it fills.
+       *
+       * `data-ad-format="auto"` means the unit decides its own height at fill
+       * time, which is some hundreds of milliseconds after the content around
+       * it has painted. With nothing reserved, that is a block of zero height
+       * becoming a block of 250, and everything below it moving — a layout
+       * shift, at the bottom of a page somebody is reading.
+       *
+       * On this site that is not only a polish question. Cumulative Layout
+       * Shift is a Core Web Vital, it is currently in the "poor" band, and an
+       * ad unit is the single most common cause of a bad one.
+       *
+       * The number is the reservation, not a promise: a responsive unit can
+       * still come back taller, and what is left is a small shift instead of a
+       * whole-screen one. 280 on a phone and 250 above it are the heights the
+       * auto format actually picks most of the time. `min-height` rather than
+       * `height` so a taller fill is never clipped — a clipped ad is not
+       * served, and an ad that is not served is not paid for.
+       *
+       * Both slots are empty today (`lib/ads.ts`), so nothing renders and
+       * nothing shifts. This is here so that the day a slot id is pasted in is
+       * not the day CLS regresses.
+       */
+      style={{ display: "block", minHeight: "var(--ad-min-h, 250px)" }}
       data-ad-client={AD_CLIENT}
       data-ad-slot={slot}
       data-ad-format="auto"

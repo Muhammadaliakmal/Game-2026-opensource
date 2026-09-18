@@ -10,6 +10,7 @@ import { formatTime } from "@/components/play/course";
 import { CourseCard } from "@/components/modes/CourseCard";
 import { PageShell, PageHeader } from "@/components/PageShell";
 import { PrefetchCanvas } from "@/components/PrefetchCanvas";
+import { COURSE_COUNT } from "@/content/registry";
 
 /**
  * The parkour ladder.
@@ -33,7 +34,7 @@ import { PrefetchCanvas } from "@/components/PrefetchCanvas";
  * The Community section does, which is why the route is now
  * `force-dynamic` — a cached copy of a list whose whole job is to show what
  * somebody published five minutes ago would be worse than not having it. It
- * sits in its own `<Suspense>` boundary so the twenty shipped courses are in
+ * sits in its own `<Suspense>` boundary so the shipped ladder is in
  * the static shell and paint before that query resolves; a slow database
  * delays the new section and nothing else.
  *
@@ -48,7 +49,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Parkour — Spec Driven Games",
-  description: "Twenty courses, Tutorial to Expert. Beat the clock, take a medal.",
+  description: `${COURSE_COUNT} courses, Tutorial to Expert. Beat the clock, take a medal.`,
 };
 
 /** The one-line promise each tier makes, in the order they are played. */
@@ -106,9 +107,9 @@ export default function ParkourPage() {
         })}
       </ul>
 
-      {/* Below the ladder, deliberately. The twenty above are the designed
-          difficulty curve and are what a first visit should start with; this
-          is where you go once you have run out of them. */}
+      {/* Below the ladder, deliberately. The ladder above is the designed
+          difficulty curve and is what a first visit should start with; this
+          is where you go once you have run out of it. */}
       <section className="mt-10">
         <h2 className="mb-1 text-base font-semibold">Made by players</h2>
         <p className="text-dim mb-4 max-w-xl text-sm">

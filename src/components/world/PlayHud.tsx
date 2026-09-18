@@ -13,6 +13,7 @@ import {
 } from "@/components/play/play-actions";
 import { formatTime, runAuthorMs, useCourse } from "@/components/play/course";
 import { MEDAL_LABELS, medalForAuthor, medalTimesFor, nextMedalFor } from "@/lib/medals";
+import { DiscordNudge } from "@/components/hud/DiscordNudge";
 import { useRuns, type BoardPeriod, type BoardRow } from "@/lib/runs";
 import { sfxCourseComplete, sfxMedal, sfxPersonalBest } from "@/lib/sfx/parkour";
 import { sfxUiConfirm, sfxUiTick } from "@/lib/audio";
@@ -465,6 +466,12 @@ function CourseComplete({
           {isBest ? "New best time" : `Best ${formatTime(best)}`}
         </span>
       )}
+
+      {/* Beneath the time, and only after a best or a medal — at most once a
+          week, and never after a run that ended in a fall. The conditions are
+          in `lib/discord.ts`; this panel only reports the two facts it already
+          has. */}
+      <DiscordNudge finished personalBest={isBest} medal={medal} />
 
       {/* The medal, then the next one up — a result with nothing to chase
           after it is a scoreboard rather than a reason to press Run again. */}

@@ -8,6 +8,7 @@ import { CabinetPreview } from "@/components/arcade/CabinetPreview";
 import { CABINETS } from "@/arcade/registry";
 import { PARKOUR_COURSES, SANDBOX_WORLDS } from "@/lib/built-in-worlds";
 import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
+import { StatBadge } from "@/components/stats/StatBadge";
 
 /**
  * Every game, on one screen, one press from playing.
@@ -87,21 +88,28 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
         <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {CABINETS.map((entry) => (
             <li key={entry.id}>
-              <Link
-                href={`/arcade?play=${entry.id}`}
-                className="group card hover:border-accent/70 focus-visible:border-accent/70 block overflow-hidden transition-colors"
-              >
+              {/* A stretched link, not a link around the tile: the badge
+                  carries a <button>, and one cannot be nested in an <a>.
+                  See globals.css. */}
+              <article className="group card card-linked hover:border-accent/70 focus-within:border-accent/70 overflow-hidden transition-colors">
                 <div className="relative aspect-[5/3] w-full overflow-hidden bg-[#0b1030]">
                   <CabinetPreview id={entry.id} />
                 </div>
                 <div className="flex flex-col gap-0.5 p-3">
-                  <h3 className="text-ink truncate text-sm font-semibold">{entry.title}</h3>
+                  <h3 className="text-ink truncate text-sm font-semibold">
+                    <Link href={`/arcade?play=${entry.id}`} className="stretched-link">
+                      {entry.title}
+                    </Link>
+                  </h3>
                   <p className="text-dim line-clamp-2 text-xs">{entry.tagline}</p>
-                  <span className="hud-chip hud-chip--primary group-hover:brightness-110 mt-2 w-fit">
-                    Play
-                  </span>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="hud-chip hud-chip--primary group-hover:brightness-110 w-fit">
+                      Play
+                    </span>
+                    <StatBadge slug={entry.id} />
+                  </div>
                 </div>
-              </Link>
+              </article>
             </li>
           ))}
         </ul>
@@ -121,6 +129,10 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
                 blurb={w.blurb}
                 href={`/play/${w.slug}`}
                 badge="Built-in"
+                // A built-in world IS a registry entry, and its slug is the
+                // same string in both places — which is what the drift test
+                // in `content/registry.test.ts` is there to keep true.
+                statSlug={w.slug}
               />
             </li>
           ))}

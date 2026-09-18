@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import { useInstallPrompt } from "@/lib/use-install-prompt";
 import { CurrencyRail } from "@/components/hud/CurrencyRail";
+import { DiscordLink } from "@/components/DiscordLink";
 
 /**
  * The site header's right-hand side, in two layouts.
@@ -189,6 +190,10 @@ export function SiteNav() {
             <span>{l.label}</span>
           </Link>
         ))}
+        {/* Last in the row, right of "Get the app", and the only external
+            destination the header has. See components/DiscordLink for why it
+            loses its label below 1024px and disappears entirely below `sm`. */}
+        <DiscordLink />
         <Show when="signed-out">
           {/* Modal, not a page: UI spec §3.5 — signing in must not take
               someone away from the world they are in the middle of building.
@@ -276,6 +281,11 @@ export function SiteNav() {
               {l.label}
             </Link>
           ))}
+
+          {/* With its name here, unlike the row: this panel has the width for
+              it, and a lone glyph in a list of words is the one place an
+              icon-only item genuinely is unreadable. */}
+          <DiscordLink variant="menu" />
 
           <Show when="signed-out">
             <span className="hud-menu-sep" />
