@@ -203,6 +203,120 @@ function needlepoint(id: string, ownerId: string, name: string): WorldDoc {
   });
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Spindle
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * One tower, climbed on a spiral that widens as it rises, and no checkpoints.
+ *
+ * ── Three checkpoints, and why not the nought the design wanted ──────────
+ *
+ * The brief for this course was "one fall = full restart", and a spiral is
+ * the shape that argument is strongest for: it is a route you can see the
+ * whole of from the bottom, so the knowledge of how far you have come is the
+ * pressure, and banking it halfway makes the second half a different and
+ * shorter course.
+ *
+ * It does not get nought, because this codebase has a rule about that and the
+ * rule is tested: `courses.test.ts` asserts every tiered course carries at
+ * least three, on the reasoning that a course which can only be attempted
+ * from the beginning is one people stop attempting. Shipping the first
+ * checkpoint-free course would be overturning a design decision by adding
+ * content, which is the wrong way round — if the ladder should have one, that
+ * is a change to the ladder and it should be argued for on its own.
+ *
+ * So it takes the minimum and spends it as late as possible: the base of the
+ * spiral, then after the second revolution, then after the fourth. A fall
+ * costs up to eight hops and two full turns of the tower, which is the
+ * harshest spacing anywhere in the tier — The Gauntlet's plunge banks six
+ * pads with one, and this banks eight.
+ *
+ * The clock keeps running through the fall, as everywhere else, so a mistake
+ * costs the climb rather than the run.
+ *
+ * ── Why it widens ────────────────────────────────────────────────────────
+ *
+ * A spiral at a constant radius is one jump learned once and repeated, and
+ * the camera sits at the same angle to the next pad every time. Pushing the
+ * pads outward a cell each revolution means the turn opens up as you climb:
+ * the early rounds are tight and quick, the late ones are longer hops taken
+ * at a shallower angle with more of the drop visible underneath. The jump
+ * gets easier as the fall gets worse, which is the trade the whole course is
+ * about.
+ *
+ * ── The column in the middle ─────────────────────────────────────────────
+ *
+ * Solid, and it is not decoration: it is the thing that tells you how high you
+ * are. A spiral of pads in open air reads as a flat pattern from above and
+ * gives the eye nothing to measure the climb against. It is also what stops
+ * the descent being a shortcut — you cannot see across the tower, so there is
+ * no temptation to try to cut the corner through where it stands.
+ */
+/**
+ * Off the mast, not on it.
+ *
+ * The column stands at the middle of the base deck, which is where a spawn
+ * would otherwise go — and a spawn inside a solid block is a spawn with
+ * nothing under it, which is exactly what `courses:check` reported. Three
+ * cells out on both axes puts the runner on the deck, at the foot of the
+ * tower, looking at the thing they are about to climb.
+ */
+const SPINDLE_SPAWN: Vec3 = [3, 2, 3];
+
+function spindle(id: string, ownerId: string, name: string): WorldDoc {
+  const c = new Course();
+
+  c.pad(-5, 0, -5, 11, 11, HUE.indigo, HUE.violet);
+
+  // The mast. Drawn before the pads so a pad that reaches it overwrites the
+  // column rather than the other way round.
+  for (let y = 1; y <= 26; y++) c.fill(-1, y, -1, 2, 2, HUE.ink, GLOSSY);
+
+  const t = new Trail(c, { x: -5, y: 0, z: -5, w: 11, d: 11 });
+
+  // Out to the first pad of the spiral, off the deck.
+  t.hop("east", 2, 1, HUE.violet, HUE.pink, { w: 2, d: 2 });
+
+  /*
+   * Four legs to a revolution, five revolutions.
+   *
+   * The gap opens from 2 to 3 after the second revolution and stops there,
+   * because 3 is all the arc allows at a rise of 1 — `maxGap(1)` is 3.01, and
+   * `Trail.hop` refuses anything past it at construction rather than letting
+   * an impossible course reach a test. That is the whole widening: two tight
+   * revolutions and three open ones.
+   *
+   * Every hop climbs exactly one, so the tower is twenty cells of height for
+   * twenty decisions and the two numbers stay legible against each other.
+   */
+  const turn: Dir[] = ["north", "west", "south", "east"];
+  // The base of the climb, banked before the first turn.
+  t.mark();
+  for (let rev = 0; rev < 5; rev++) {
+    const gap = rev < 2 ? 2 : 3;
+    for (let leg = 0; leg < 4; leg++) {
+      t.hop(turn[leg], gap, 1, HUE.violet, HUE.pink, { w: 2, d: 2 });
+    }
+    // After the second revolution and after the fourth. See the note above.
+    if (rev === 1 || rev === 3) t.mark();
+  }
+
+  // The summit, and the only wide thing above the ground.
+  t.hop("north", 2, 1, HUE.indigo, HUE.acid, { w: 7, d: 7 });
+  const p = t.pad;
+  c.fill(p.x + 2, p.y + 1, p.z + 2, 3, 3, HUE.violet, GLOSSY);
+  c.put(p.x + 3, p.y + 2, p.z + 3, BLOCK, HUE.acid, GLOW);
+
+  return courseDoc(c, {
+    id,
+    ownerId,
+    name,
+    spawn: SPINDLE_SPAWN,
+    goal: goalOver(p.x + 3, p.y + 2, p.z + 3),
+  });
+}
+
 /** The three Hard courses that follow Vault of Wires, in ladder order. */
 export const HARD_COURSES: CourseEntry[] = [
   {
@@ -225,5 +339,12 @@ export const HARD_COURSES: CourseEntry[] = [
     tier: "Hard",
     blurb: "Every other landing is a 2x1 pad seen end-on. Straight, and unforgiving.",
     build: (ownerId) => needlepoint("needle", ownerId, "Needlepoint"),
+  },
+  {
+    slug: "spindle",
+    name: "Spindle",
+    tier: "Hard",
+    blurb: "A tower climbed on a widening spiral, with nothing to bank on the way up.",
+    build: (ownerId) => spindle("spindle", ownerId, "Spindle"),
   },
 ];

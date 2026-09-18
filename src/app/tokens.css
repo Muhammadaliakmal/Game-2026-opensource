@@ -27,6 +27,20 @@
   /* ── Surfaces ────────────────────────────────────────────────────────
      Never pure black — a slight blue/violet tint, so neon accents sit on a
      ground that shares their hue family instead of fighting a neutral. */
+  /*
+    CAREFUL: this makes `text-base` a COLOUR, not a font size.
+
+    Tailwind v4 generates a `text-<name>` utility for every `--color-*` token,
+    so `text-base` resolves to this value — the page background — and the
+    `--text-base` size below is unreachable through it. A heading written as
+    `className="text-base font-semibold"` therefore renders in the page's own
+    background colour: not faint, not mis-sized, gone, with the element still
+    laid out at full width.
+
+    That shipped. Every course name on /browse and four of its headings were
+    invisible in production until 18 September 2026. `text-base-trap.test.ts`
+    is the guard; the rule is that `text-base` always travels with `text-ink`.
+  */
   --color-base: #0a0a0f; /* page ground, deepest surface */
   --color-surface: #12121b; /* header and raised page chrome */
   --color-panel: #16161f; /* opaque cards on a page */

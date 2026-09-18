@@ -13,6 +13,8 @@ import {
   byKind,
   isKnownSlug,
   isNew,
+  inNewestCohort,
+  NEWEST_DATES,
 } from "./registry";
 import { CABINETS } from "@/arcade/registry";
 import { PARKOUR_COURSES, SANDBOX_WORLDS } from "@/lib/built-in-worlds";
@@ -209,4 +211,50 @@ test("the New pill expires fourteen days after the date on the row", () => {
   assert.equal(isNew(entry, Date.parse("2026-09-18")), true);
   assert.equal(isNew(entry, Date.parse("2026-09-17") + 13 * day), true);
   assert.equal(isNew(entry, Date.parse("2026-09-17") + 15 * day), false);
+});
+
+test("the New pill is not on most of the catalogue", () => {
+  /*
+   * The failure this exists for is not a wrong date, it is a correct one.
+   *
+   * Every course here shipped inside eighteen days, so the spec's fourteen-day
+   * window put a pill on eighteen of twenty-three cards on the day it landed —
+   * technically right, and a badge on eighty per cent of a list is not a badge.
+   * `inNewestCohort` is the second condition, and this is the assertion that
+   * says what it is for.
+   */
+  const flagged = REGISTRY.filter(inNewestCohort);
+  assert.ok(flagged.length > 0, "nothing is ever new, so the pill is dead code");
+  assert.ok(
+    flagged.length <= Math.ceil(REGISTRY.length / 4),
+    `${flagged.length} of ${REGISTRY.length} entries are in the newest cohort — ` +
+      `a pill on that many cards says nothing`
+  );
+});
+
+test("the newest cohort really is the newest", () => {
+  const cutoff = NEWEST_DATES[NEWEST_DATES.length - 1];
+  for (const e of REGISTRY) {
+    if (inNewestCohort(e)) {
+      assert.ok(e.addedAt >= cutoff, `${e.slug} is in the cohort but older than it`);
+    } else {
+      assert.ok(e.addedAt < cutoff, `${e.slug} is as new as the cohort but outside it`);
+    }
+  }
+});
+
+test("both halves of New are required", () => {
+  const newest = REGISTRY.find(inNewestCohort)!;
+  const old = REGISTRY.find((e) => !inNewestCohort(e))!;
+  const justAfter = Date.parse(newest.addedAt) + 24 * 60 * 60 * 1000;
+  const longAfter = Date.parse(newest.addedAt) + 40 * 24 * 60 * 60 * 1000;
+
+  assert.equal(isNew(newest, justAfter), true, "in the cohort and in the window");
+  assert.equal(isNew(newest, longAfter), false, "in the cohort, past the window");
+  // The one the cohort rule adds: recent on the clock, but not the latest batch.
+  assert.equal(
+    isNew(old, Date.parse(old.addedAt) + 1000),
+    false,
+    "one second old and still not in the newest cohort"
+  );
 });

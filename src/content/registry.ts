@@ -232,10 +232,12 @@ const COURSES: readonly GameEntry[] = (
     { slug: "ratchet", title: "Ratchet", tagline: "A climb that changes axis on every hop. No straight line until the top.", tags: RUN, addedAt: "2026-09-07" },
     { slug: "switchyard", title: "Switchback Yard", tagline: "Beacon Climb's tower, with the turn taken on the pad and no deck to walk.", tags: RUN, addedAt: "2026-09-07" },
     { slug: "turnpike", title: "The Turnpike", tagline: "One hard corner, and a plunge on the far side you arrive at already turned.", tags: RUN, addedAt: "2026-09-07" },
+    { slug: "narrows", title: "The Narrows", tagline: "Ordinary jumps onto beams one cell wide. Precision, with no clock on it.", tags: RUN, addedAt: "2026-09-18" },
     { slug: "vault", title: "Vault of Wires", tagline: "One-cell walkways and a zigzag that turns on every pad.", tags: RUN_HARD, addedAt: "2026-09-04" },
     { slug: "zipline", title: "Zip Line", tagline: "Vault's zigzag as the whole course. Sixteen turns, not one cell of slack.", tags: RUN_HARD, addedAt: "2026-09-07" },
     { slug: "gauntlet", title: "The Gauntlet", tagline: "A plunge of six 2x2 pads, banked by one checkpoint at the top of it.", tags: RUN_HARD, addedAt: "2026-09-07" },
     { slug: "needle", title: "Needlepoint", tagline: "Every other landing is a 2x1 pad seen end-on. Straight, and unforgiving.", tags: RUN_HARD, addedAt: "2026-09-07" },
+    { slug: "spindle", title: "Spindle", tagline: "A tower climbed on a widening spiral, with nothing to bank on the way up.", tags: RUN_HARD, addedAt: "2026-09-18" },
     { slug: "overclock", title: "Overclock", tagline: "Single-block landings, the whole way. One jump sits on the limit.", tags: RUN_HARD, addedAt: "2026-09-04" },
     { slug: "filament", title: "Filament", tagline: "Flat single-cell landings, turning the whole time. One long jump up.", tags: RUN_HARD, addedAt: "2026-09-07" },
     { slug: "arclight", title: "Arc Light", tagline: "A single-cell spiral almost straight up, then the whole way back down.", tags: RUN_HARD, addedAt: "2026-09-07" },
@@ -367,7 +369,55 @@ export function filterTagsFor(entries: readonly GameEntry[]): GameTag[] {
  */
 export const NEW_FOR_DAYS = 14;
 
+/**
+ * How many distinct ship-dates count as "the latest content".
+ *
+ * ── Why a date window alone is not enough ────────────────────────────────
+ *
+ * The spec's rule is fourteen days, which is right for a catalogue that grew
+ * over a year. This one was built in eighteen days, so on the day the pill
+ * shipped it appeared on eighteen of twenty-three cards — every course except
+ * the four written in the first week.
+ *
+ * That is technically correct and completely useless. A badge on eighty per
+ * cent of a list is not a badge, it is a background colour, and the one thing
+ * a returning player is scanning for is the thing it stops being able to
+ * point at.
+ *
+ * So "New" is two conditions, not one: recent on the clock *and* recent
+ * relative to everything else that ships. The second half is this — the two
+ * most recent distinct dates in the registry, which is three entries today and
+ * would be three or four after any normal batch. On a mature catalogue the
+ * date window is the binding constraint and this changes nothing; on a young
+ * one it is what keeps the pill meaning something.
+ */
+const NEWEST_COHORTS = 2;
+
+/**
+ * The ship-dates that count as the latest, newest first.
+ *
+ * Pure and clock-free, which is what lets a server component ask the question
+ * — the other half of the test needs `Date.now()` and lives in `<NewPill>`.
+ */
+export const NEWEST_DATES: readonly string[] = [
+  ...new Set(REGISTRY.map((e) => e.addedAt)),
+]
+  .sort((a, b) => b.localeCompare(a))
+  .slice(0, NEWEST_COHORTS);
+
+/** Whether this entry is part of the most recent batch of content. */
+export const inNewestCohort = (entry: GameEntry): boolean =>
+  NEWEST_DATES.includes(entry.addedAt);
+
+/**
+ * Both halves of "New": in the latest batch, and still inside the window.
+ *
+ * `now` is passed in rather than read here, because these cards render on the
+ * server on pages that may be cached — `DailyChallenge` has the same problem
+ * and solves it the same way.
+ */
 export function isNew(entry: GameEntry, now: number): boolean {
+  if (!inNewestCohort(entry)) return false;
   const added = Date.parse(entry.addedAt);
   if (Number.isNaN(added)) return false;
   return now - added < NEW_FOR_DAYS * 24 * 60 * 60 * 1000;

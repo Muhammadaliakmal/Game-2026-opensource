@@ -211,11 +211,13 @@ export const AUTHOR_MS: Record<string, number> = {
   ratchet: 36_997,
   switchyard: 25_701,
   turnpike: 40_218,
+  narrows: 41_431,
   // Hard
   vault: 24_678,
   zipline: 26_443,
   gauntlet: 32_317,
   needle: 40_642,
+  spindle: 23_999,
   // Expert
   overclock: 37_320,
   filament: 28_638,

@@ -6,6 +6,8 @@ import type { Tier } from "@/lib/course-kit";
 import { NIGHT_STOPS } from "@/lib/sky-stops";
 import covers from "@/lib/world-covers.json";
 import { StatBadge } from "@/components/stats/StatBadge";
+import { CourseProgress } from "@/components/modes/CourseProgress";
+import { NewPill } from "@/components/modes/NewPill";
 
 const COVERS: Record<string, { key: string; blur: string }> = covers;
 
@@ -81,6 +83,8 @@ export function CourseCard({
   note,
   index,
   target,
+  ladder,
+  addedAt,
 }: {
   slug: string;
   name: string;
@@ -92,6 +96,13 @@ export function CourseCard({
   index: number;
   /** What to chase — the Gold time, if the map has one. */
   target?: string;
+  /**
+   * Every course on the page, so the whole ladder shares one read of the
+   * personal bests out of storage. See `lib/course-progress.ts`.
+   */
+  ladder?: readonly string[];
+  /** When this course shipped, as an ISO date. Drives the "New" pill. */
+  addedAt?: string;
 }) {
   return (
     /*
@@ -140,6 +151,10 @@ export function CourseCard({
         <span className="hud-label text-accent absolute bottom-2 left-3">
           {tier} · {note}
         </span>
+        {/* Top-left, opposite the ladder numeral, and only for a fortnight.
+            A "New" that never expires is decoration; the date on the registry
+            row is what makes it a fact. */}
+        {addedAt && <NewPill addedAt={addedAt} />}
       </div>
 
       <div className="flex flex-col gap-1 p-4">
@@ -150,12 +165,21 @@ export function CourseCard({
         </h3>
         <p className="text-dim text-sm">{blurb}</p>
         <div className="mt-2 flex items-center justify-between gap-3">
-          {/* Always rendered, empty if there is no Gold time, so the badge
-              keeps its place in the row on every card. A slot that appears
-              only on some cards is the layout fault `ArcadeLobby`'s "best"
-              readout already has a comment about. */}
-          <p className="hud-label num text-dim">
-            {target ? `Chasing ${target}` : ""}
+          {/* Your best on this course once you have one, and what there is to
+              chase until then. Always rendered, empty when there is neither,
+              so the badge keeps its place in the row on every card — a slot
+              that appears only on some cards is the layout fault
+              `ArcadeLobby`'s "best" readout already has a comment about. */}
+          <p className="hud-label num text-dim min-w-0 truncate">
+            {ladder ? (
+              <CourseProgress
+                slug={slug}
+                slugs={ladder}
+                fallback={target ? `Chasing ${target}` : undefined}
+              />
+            ) : (
+              target && `Chasing ${target}`
+            )}
           </p>
           <StatBadge slug={slug} />
         </div>

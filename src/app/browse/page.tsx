@@ -71,7 +71,7 @@ export default async function BrowsePage() {
           on a first visit — and the tier is on the card rather than implied by
           position, so a player who lands here from a link still knows what
           they are opening. */}
-      <h2 className="mb-4 text-base font-semibold">The parkour ladder</h2>
+      <h2 className="mb-4 text-ink text-base font-semibold">The parkour ladder</h2>
       <ul className="mb-10 grid gap-4 sm:grid-cols-2">
         {ladder.map((w) => (
           <li
@@ -79,7 +79,7 @@ export default async function BrowsePage() {
             className="card hover:border-accent/50 p-4 transition-colors"
           >
             <div className="flex items-start justify-between gap-3">
-              <h3 className="text-base font-semibold">{w.name}</h3>
+              <h3 className="text-ink text-base font-semibold">{w.name}</h3>
               <span className="hud-label shrink-0">{w.tier}</span>
             </div>
             <p className="text-dim mt-1 text-sm">{w.blurb}</p>
@@ -93,7 +93,7 @@ export default async function BrowsePage() {
         ))}
       </ul>
 
-      <h2 className="mb-4 text-base font-semibold">Sandboxes</h2>
+      <h2 className="mb-4 text-ink text-base font-semibold">Sandboxes</h2>
       <ul className="mb-10 grid gap-4 sm:grid-cols-2">
         {sandboxes.map((w) => (
           <li
@@ -101,7 +101,7 @@ export default async function BrowsePage() {
             className="card hover:border-accent/50 p-4 transition-colors"
           >
             <div className="flex items-start justify-between gap-3">
-              <h3 className="text-base font-semibold">{w.name}</h3>
+              <h3 className="text-ink text-base font-semibold">{w.name}</h3>
               <span className="hud-label shrink-0">Built-in</span>
             </div>
             <p className="text-dim mt-1 text-sm">{w.blurb}</p>
@@ -120,14 +120,14 @@ export default async function BrowsePage() {
           published course is a clock to beat. Streamed in its own boundary so
           the ladder and the sandboxes — both of which come from code — are on
           screen before the query for this one has landed. */}
-      <h2 className="mb-4 text-base font-semibold">Player-made courses</h2>
+      <h2 className="mb-4 text-ink text-base font-semibold">Player-made courses</h2>
       <div className="mb-10">
         <Suspense fallback={<CommunityCoursesFallback />}>
           <CommunityCourses limit={12} />
         </Suspense>
       </div>
 
-      <h2 className="mb-4 text-base font-semibold">Published by players</h2>
+      <h2 className="mb-4 text-ink text-base font-semibold">Published by players</h2>
 
       {published.length === 0 ? (
         <div className="text-dim rounded-[var(--radius)] border border-dashed border-[var(--border-color)] p-12 text-center text-sm">
