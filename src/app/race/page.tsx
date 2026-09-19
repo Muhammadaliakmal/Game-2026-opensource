@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PageShell } from "@/components/PageShell";
+import { SiteFooter } from "@/components/SiteFooter";
 import { useRouter } from "next/navigation";
 import { isMatchCode, makeMatchCode, normalizeMatchCode } from "@/lib/match-code";
 import { multiplayerEnabled } from "@/lib/net/room";
@@ -170,6 +171,69 @@ export default function RaceLobbyPage() {
             </li>
           </ul>
         </section>
+
+        {/*
+          How the race actually works, in prose.
+
+          The lobby above is a form and two buttons, so what a crawler got
+          from this page was a heading and a control legend — about two
+          hundred words on one of the four modes in the site header. These
+          are facts about the design rather than filler: the shared footprint
+          and the server-side lap count are both load-bearing and both
+          checkable.
+        */}
+        <section className="card flex flex-col gap-3 p-5">
+          <h2 className="text-ink text-sm font-semibold">How the race works</h2>
+          <div className="text-dim flex flex-col gap-3 text-xs leading-relaxed">
+            <p>
+              Up to {MAX_RIDERS} riders over {RACE_LAPS} laps, on bikes rather
+              than on foot — a different control set entirely, with a
+              handbrake where the jump key is. Drifting fills the boost meter,
+              which means the tidy line and the fast line are not the same
+              line and a race is decided by how much you are willing to throw
+              the bike around.
+            </p>
+            <p>
+              Every track shares one footprint. That sounds like a shortcut and
+              it is the opposite: lap counting, sector timing, the grid slots
+              and the steering assist are all written against that one shape,
+              so the room server counts a lap the same way whichever track is
+              running and a new track cannot quietly break any of them. What
+              the tracks change is elevation. Neon Circuit is flat and railed;
+              Vapor Ridge is the same loop on stilts with a hill and a crest
+              that throws you off the back straight if you take it at speed.
+            </p>
+            <p>
+              Laps are counted by the server, not by your browser. The track is
+              divided into sectors and you have to pass through them in order,
+              which is why cutting a corner gains you nothing — a lap with a
+              sector missing is not a lap.
+            </p>
+            <p>
+              A race needs a room server to stay resident, so it is the one
+              mode that can fail to connect. If it has been quiet for a while
+              the first join wakes the server, which takes a moment; the
+              loading screen says so rather than spinning silently.
+            </p>
+            <p>
+              Everything the bike does is in the{" "}
+              <Link href="/controls" className="text-accent underline">
+                controls reference
+              </Link>
+              , and the two tracks have guides —{" "}
+              <Link href="/games/circuit" className="text-accent underline">
+                Neon Circuit
+              </Link>{" "}
+              and{" "}
+              <Link href="/games/ridge" className="text-accent underline">
+                Vapor Ridge
+              </Link>
+              .
+            </p>
+          </div>
+        </section>
+
+        <SiteFooter />
     </PageShell>
   );
 }

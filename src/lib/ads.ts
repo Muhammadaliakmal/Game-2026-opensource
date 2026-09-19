@@ -41,6 +41,16 @@ export const AD_SLOTS = {
   home: "",
   /** The public gallery, under the published grid. */
   browse: "",
+  /**
+   * A game guide page, under the whole article.
+   *
+   * These are the only pages on the site that are prose first and a canvas
+   * second, which makes them the one placement that is unambiguously on the
+   * right side of the rule at the top of this file: there is no session
+   * running, no control being tapped at speed, and several screens of content
+   * above the unit.
+   */
+  guide: "",
 } as const;
 
 export type AdPlacement = keyof typeof AD_SLOTS;

@@ -526,6 +526,61 @@ Two things about the sky layers that are easy to get wrong:
   `react-hooks/immutability` rejects assigning to a member of a value a hook
   returned.
 
+## The readable surface, and why it is not the game
+
+An AdSense review rejected this domain for "Low value content" in September
+2026, and the cause was structural rather than cosmetic: **a canvas and an
+article about a canvas were living at the same URL.** `/play/<slug>` mounted
+WebGL and nothing else, and all twenty-seven shipped worlds were in the
+sitemap — so a crawler was being invited to judge the site on twenty-seven
+wordless documents. See `docs/ADSENSE.md` for the whole account.
+
+The split, which must not be collapsed again:
+
+- **`/play/<slug>` is the game.** `noindex, follow`, canonical pointing at the
+  guide, not in the sitemap. It keeps real metadata and an OG card because a
+  `/play/` link is the one people paste into chat — indexing and unfurling are
+  different systems.
+- **`/games/<slug>` is the page about the game.** In the sitemap. One per
+  course, sandbox world and cabinet.
+
+**`robots.ts` must keep allowing `/play/`.** A disallowed URL is one Google
+never fetches, so it never sees the `noindex` and stays indexed. Disallow
+hides; `noindex` removes.
+
+### The guides are measured, not written around
+
+`scripts/course-stats.ts` (`npm run courses:stats`) solves every course and
+writes `src/content/course-facts.ts` — the same "generate a table, test it for
+drift" pattern as `AUTHOR_MS`, and for the same reason: the interesting half is
+a Dijkstra per world and the pages that read it are static.
+
+`course-facts.test.ts` rebuilds every world and fails with the new value if the
+table is stale. It also requires notes to exist and to be long enough to be
+worth a page, and that only a world with a goal carries an "approach".
+
+Three rules for anything written into `content/course-notes.ts`,
+`cabinet-notes.ts` or `content/blog/`:
+
+- **If a specific did not come from the code or a measurement, cut it.** No
+  player counts, no average completion times. A number nobody can check is
+  worth less than a sentence they can. The first draft of these notes said
+  "hold sprint"; `Player.tsx` shows sprint is a *latch* (tap toggles sprint and
+  the lock-on together), so the advice did nothing. That is the failure mode.
+- **Shared blocks are a cost paid on every page.** The full controls table was
+  ~180 identical words on twenty-seven guides whose own content is ~250. It
+  moved to `/controls` and the guides carry three rows and a link. Mean
+  pairwise vocabulary overlap between guides is 0.38; pushing it back up is a
+  regression.
+- **A page with nothing to say should say nothing.** `<Standouts>` prints only
+  places a course holds outright and renders nothing for 7 of 23. `/shop` is
+  `noindex` because it is a wallet that arrives after a fetch — an account
+  screen is not an article, and there is nothing to fix by writing more on it.
+
+`content/controls.ts` is a hand-written copy of `DEFAULT_BINDS` because
+`lib/keybinds.ts` is `"use client"` and would drag a zustand store onto a
+static page. `controls.test.ts` holds the two together.
+
 ## The menu
 
 **Every game is in `components/modes/GamesHub.tsx`, and nowhere else.** The

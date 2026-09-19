@@ -52,25 +52,34 @@ export interface BlogPost {
  */
 export const POSTS: readonly BlogPost[] = [
   {
-    slug: "building-blockworld",
-    title: "How Spec Driven Games is built",
-    date: "",
-    summary: "",
-    status: "planned",
+    slug: "night-sky-that-went-black",
+    title: "The night sky that turned every metal surface black",
+    date: "2026-09-19",
+    summary:
+      "A sky change reasoned about as “a little dimmer” dropped the light to a " +
+      "seventh, the fix that came first turned the world blue, and the tool " +
+      "that came out of it prints hex values instead of adjectives.",
+    status: "published",
   },
   {
     slug: "designing-the-courses",
     title: "Designing the courses",
-    date: "",
-    summary: "",
-    status: "planned",
+    date: "2026-09-19",
+    summary:
+      "Why every jump is computed rather than placed by eye, what the 20% " +
+      "design margin is protecting, and why a medal time is a measurement of " +
+      "a course rather than a target for a player.",
+    status: "published",
   },
   {
     slug: "why-browser-games",
     title: "Why browser games",
-    date: "",
-    summary: "",
-    status: "planned",
+    date: "2026-09-19",
+    summary:
+      "What the web buys, what it costs in load size and performance ceiling, " +
+      "the discovery problem I have not solved, and how ads and the in-game " +
+      "currency are kept out of the way of the game.",
+    status: "published",
   },
 ];
 
@@ -84,7 +93,10 @@ export const POSTS: readonly BlogPost[] = [
  * runtime, depending on the day.
  */
 const BODIES: Record<string, () => Promise<{ default: ComponentType }>> = {
-  // "building-blockworld": () => import("@/content/blog/building-blockworld"),
+  "night-sky-that-went-black": () =>
+    import("@/content/blog/night-sky-that-went-black"),
+  "designing-the-courses": () => import("@/content/blog/designing-the-courses"),
+  "why-browser-games": () => import("@/content/blog/why-browser-games"),
 };
 
 /** Newest first. The only list any page is allowed to render. */

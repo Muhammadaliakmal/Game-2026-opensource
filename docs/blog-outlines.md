@@ -1,5 +1,24 @@
 # Blog outlines — to write, not to publish
 
+> **Status, 19 September 2026.** All three are now written and published, as
+> part of the AdSense content pass (`docs/ADSENSE.md`). They were drafted from
+> the material listed below and from the code it points at — every specific in
+> them is checkable against this repository, and the one claim with no measured
+> figure behind it (load time, in post 3) is deliberately left qualitative.
+>
+> **They are in your voice, under your name, so read them.** The warning below
+> about generated posts is still the right warning; what makes these defensible
+> is that the specifics are real, not that a checklist was followed. Change
+> anything that does not sound like you, and if you measure that load time, put
+> the number in.
+>
+> Post 1 shipped as `night-sky-that-went-black` rather than
+> "How Blockworld is built" — the light-check story was the strongest material
+> in the list and carried a whole post on its own. The frame-by-frame bug audit
+> and the occlusion figures are still unwritten as posts of their own; the
+> audit in particular is the best material here and almost nobody writes it.
+
+
 Three posts, outlined. **These are notes for you, not drafts to ship.** They
 live in `docs/` and not in `src/content/` deliberately: nothing here is on the
 site, and nothing here should be pasted onto it.

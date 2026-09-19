@@ -183,6 +183,25 @@ export function CourseCard({
           </p>
           <StatBadge slug={slug} />
         </div>
+        {/*
+          The written half of this course.
+
+          `card-actions` rather than a bare link, because the card's stretched
+          link covers everything and an anchor under it is an anchor nobody can
+          press — the same reason `<StatBadge>`'s like button needs it.
+
+          It is worth the row. The tile goes straight to the canvas, which is
+          the right default for somebody who already knows what they are
+          pressing; this is for the one who does not, and it is the page that
+          can actually answer them. It is also the only link the ladder gives
+          a crawler to the readable half of the site.
+        */}
+        <Link
+          href={`/games/${slug}`}
+          className="card-actions hud-label text-dim hover:text-accent mt-1 w-fit underline"
+        >
+          Course guide →
+        </Link>
       </div>
     </article>
   );

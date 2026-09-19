@@ -17,6 +17,7 @@ import {
 import { UGC } from "@/lib/features";
 import { AdSlot } from "@/components/AdSlot";
 import { SiteFooter } from "@/components/SiteFooter";
+import { SiteIntro } from "@/components/SiteIntro";
 import { PrefetchCanvas } from "@/components/PrefetchCanvas";
 
 /**
@@ -148,6 +149,11 @@ export default async function Home() {
               </ul>
             </section>
           )}
+
+          {/* The words. Under the games deliberately — see the component for
+              why a crawler's problem must not be solved by putting three
+              sections of prose in front of the thing to press. */}
+          <SiteIntro />
 
           {/* Last thing on the page, under real content — see lib/ads. */}
           <AdSlot placement="home" />

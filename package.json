@@ -22,7 +22,8 @@
     "bike:import": "node --import tsx scripts/import-bike.ts",
     "bike:preview": "node --import tsx scripts/preview-bike.ts",
     "textures:fetch": "node --import tsx scripts/fetch-textures.ts",
-    "textures": "node --import tsx scripts/build-textures.ts"
+    "textures": "node --import tsx scripts/build-textures.ts",
+    "courses:stats": "node --import tsx scripts/course-stats.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1123.0",

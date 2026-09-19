@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
+import { SiteFooter } from "@/components/SiteFooter";
+import { AdSlot } from "@/components/AdSlot";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { JsonLd } from "@/components/JsonLd";
 import { formatDate, postBody, postBySlug, publishedPosts } from "@/lib/blog";
 import { OWNER_NAME, SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -73,6 +77,13 @@ export default async function BlogPostPage({
 
   return (
     <PageShell width="prose">
+      <Breadcrumbs
+        trail={[
+          { href: "/", label: SITE_NAME },
+          { href: "/blog", label: "Blog" },
+          { href: `/blog/${post.slug}`, label: post.title },
+        ]}
+      />
       <article className="flex flex-col gap-6">
         <header className="flex flex-col gap-2">
           <Link href="/blog" className="hud-label w-fit">
@@ -86,7 +97,7 @@ export default async function BlogPostPage({
 
         {/* The post's own words. `text-dim` and the spacing live here rather
             than in every post file, so a post is prose and not a stylesheet. */}
-        <div className="text-dim flex flex-col gap-4 text-sm leading-relaxed [&_h2]:text-ink [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-bold [&_a]:text-accent [&_a]:underline [&_strong]:text-ink">
+        <div className="text-dim flex flex-col gap-4 text-sm leading-relaxed [&_h2]:text-ink [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-bold [&_a]:text-accent [&_a]:underline [&_strong]:text-ink [&_em]:text-ink [&_em]:not-italic [&_em]:font-medium [&_code]:bg-surface [&_code]:text-ink [&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs">
           <Body />
         </div>
 
@@ -104,6 +115,35 @@ export default async function BlogPostPage({
           </p>
         </footer>
       </article>
+
+      {/* Under the article, never in it — see lib/ads. */}
+      <AdSlot placement="guide" />
+      <SiteFooter />
+
+      {/* A BlogPosting rather than a WebPage: a dated article with a named
+          author is what turns this from another route on a game site into a
+          piece of writing, to a crawler and to an ad review alike. */}
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "BlogPosting",
+          headline: post.title,
+          description: post.summary,
+          datePublished: post.date,
+          dateModified: post.date,
+          url: `${SITE_URL}/blog/${post.slug}`,
+          author: { "@type": "Person", name: OWNER_NAME },
+          publisher: {
+            "@type": "Organization",
+            name: SITE_NAME,
+            url: SITE_URL,
+          },
+          mainEntityOfPage: {
+            "@type": "WebPage",
+            "@id": `${SITE_URL}/blog/${post.slug}`,
+          },
+        }}
+      />
     </PageShell>
   );
 }

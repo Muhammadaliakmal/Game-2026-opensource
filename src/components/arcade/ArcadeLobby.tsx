@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { CABINETS, entryFor } from "@/arcade/registry";
 import { byKind, filterTagsFor, type GameTag } from "@/content/registry";
 import {
@@ -212,6 +213,20 @@ export function ArcadeLobby() {
                   <ControlsHint hint={entry.hint} className="hud-label block" />
                   <StatBadge slug={entry.id} />
                 </div>
+                {/* The written half of this cabinet: what it is, how it
+                    scores, and one thing to do differently. `card-actions`
+                    because the title above is a stretched link and covers the
+                    whole tile — the same reason the like button needs it.
+
+                    It is also the only link a crawler has from here to a page
+                    with words on it; the tile itself opens an overlay and
+                    changes no URL it could follow. */}
+                <Link
+                  href={`/games/${entry.id}`}
+                  className="card-actions hud-label text-dim hover:text-accent mt-1 w-fit underline"
+                >
+                  Cabinet guide &rarr;
+                </Link>
               </div>
             </div>
           </li>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageShell, PageHeader } from "@/components/PageShell";
+import { SiteFooter } from "@/components/SiteFooter";
 import { formatDate, publishedPosts } from "@/lib/blog";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -56,6 +57,8 @@ export default function BlogPage() {
           </li>
         ))}
       </ul>
+
+      <SiteFooter />
     </PageShell>
   );
 }

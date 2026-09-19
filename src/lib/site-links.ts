@@ -32,6 +32,12 @@ export const footerLinks = (): SiteLink[] => [
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
   ...(hasPosts() ? [{ href: "/blog", label: "Blog" }] : []),
+  // The editorial-standards page. It sits with the publisher links rather
+  // than with the games because that is what it is: the page that says how
+  // anything else on the site was arrived at, and the one a reviewer reads
+  // to decide whether the numbers on twenty-seven guide pages mean anything.
+  { href: "/how-courses-are-made", label: "How courses are made" },
+  { href: "/controls", label: "Controls" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
   { href: "/browse", label: "Browse worlds" },

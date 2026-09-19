@@ -195,3 +195,69 @@ export function surfaceUnder(pos: Vec3, all: Surfaces): Surface | null {
   }
   return null;
 }
+
+/**
+ * The cheapest route as the list of surfaces it stands on, spawn first.
+ *
+ * ── Why this exists beside `fastestRoute` ────────────────────────────────
+ *
+ * `fastestRoute` answers "how fast", which is all the medal times need. The
+ * course guide pages need "what happens on the way": how many jumps there
+ * are, which is the longest, how far the course climbs. Those are properties
+ * of the *path*, not of its cost, and there is no way to recover a path from
+ * a number.
+ *
+ * It is the same Dijkstra with a predecessor map bolted on rather than a
+ * second search, so a route this returns and a time `fastestRoute` returns
+ * can never disagree about which way the solver went.
+ *
+ * Costly — see the note on `fastestRoute` — so nothing at runtime calls it.
+ * `scripts/course-stats.ts` runs it once per shipped course and writes the
+ * answers into `src/content/course-facts.ts`, exactly as `AUTHOR_MS` is made.
+ */
+export function routePath(
+  from: Surface,
+  to: Surface,
+  all: Surfaces
+): Surface[] | null {
+  const target = surfaceKey(to);
+  const start = surfaceKey(from);
+  const best = new Map<string, number>([[start, 0]]);
+  const prev = new Map<string, string>();
+  const settled = new Set<string>();
+
+  for (;;) {
+    let node: Surface | null = null;
+    let nodeKey = "";
+    let nodeCost = Infinity;
+    for (const [k, cost] of best) {
+      if (settled.has(k) || cost >= nodeCost) continue;
+      node = all.byCell.get(k)!;
+      nodeKey = k;
+      nodeCost = cost;
+    }
+    if (!node) return null;
+
+    if (nodeKey === target) {
+      // Walk the predecessors back to the spawn and flip it, so the caller
+      // reads the course in the order somebody plays it.
+      const path: Surface[] = [];
+      for (let k: string | undefined = nodeKey; k; k = prev.get(k)) {
+        path.push(all.byCell.get(k)!);
+        if (k === start) break;
+      }
+      return path.reverse();
+    }
+    settled.add(nodeKey);
+
+    for (const [b, cost] of moves(node, all)) {
+      const k = surfaceKey(b);
+      if (settled.has(k)) continue;
+      const next = nodeCost + cost;
+      if (next < (best.get(k) ?? Infinity)) {
+        best.set(k, next);
+        prev.set(k, nodeKey);
+      }
+    }
+  }
+}

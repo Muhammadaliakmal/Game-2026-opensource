@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { PARKOUR_COURSES } from "@/lib/built-in-worlds";
 import {
   CommunityCourses,
@@ -185,7 +186,34 @@ export default function ParkourPage() {
           {MEDALS.map((m) => MEDAL_LABELS[m]).join(", ")} — measured against the
           fastest route the course geometry actually admits, not guessed at. The
           Author time is what a very good run of that route looks like; the rest
-          are multiples of it.
+          are multiples of it.{" "}
+          <Link href="/how-courses-are-made" className="text-accent underline">
+            How the courses are made
+          </Link>{" "}
+          explains the derivation in full.
+        </p>
+      </section>
+
+      {/* Last on the page, under the ladder it is about. The guides are the
+          written half of this site and the ladder is the only place that
+          links to all of them — see `app/games/[slug]/page.tsx` for why they
+          exist at all. */}
+      <section className="mt-10">
+        <h2 className="mb-1 text-ink text-base font-semibold">
+          Reading about the courses
+        </h2>
+        <p className="text-dim max-w-2xl text-sm">
+          Every course has a guide: what it is built from, the measured shape
+          of its route, what it is teaching and one concrete thing to do
+          differently. Start with{" "}
+          <Link href="/games/parkour" className="text-accent underline">
+            Neon Run
+          </Link>{" "}
+          if you are new, or{" "}
+          <Link href="/how-courses-are-made" className="text-accent underline">
+            how the courses are made
+          </Link>{" "}
+          if you want the design rules first.
         </p>
       </section>
     </PageShell>
