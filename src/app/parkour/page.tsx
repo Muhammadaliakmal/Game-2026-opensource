@@ -7,11 +7,12 @@ import {
 } from "@/components/modes/CommunityCourses";
 import { TIERS, type Tier } from "@/lib/course-kit";
 import { MEDALS, MEDAL_LABELS, medalTimes } from "@/lib/medals";
-import { formatTime } from "@/components/play/course";
+import { formatTime } from "@/lib/format-time";
 import { CourseCard } from "@/components/modes/CourseCard";
 import { PageShell, PageHeader } from "@/components/PageShell";
 import { PrefetchCanvas } from "@/components/PrefetchCanvas";
 import { COURSE_COUNT, bySlug, inNewestCohort } from "@/content/registry";
+import { SITE_URL } from "@/lib/site";
 import { LadderProgress } from "@/components/modes/LadderProgress";
 
 /**
@@ -50,8 +51,9 @@ import { LadderProgress } from "@/components/modes/LadderProgress";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Parkour — Spec Driven Games",
-  description: `${COURSE_COUNT} courses, Tutorial to Expert. Beat the clock, take a medal.`,
+  title: `Parkour — ${COURSE_COUNT} courses on a ladder · Spec Driven Games`,
+  description: `${COURSE_COUNT} timed courses, Tutorial to Obby. Medal times derived from each course's own geometry, and a ghost of your best run to chase.`,
+  alternates: { canonical: `${SITE_URL}/parkour` },
 };
 
 /** The one-line promise each tier makes, in the order they are played. */

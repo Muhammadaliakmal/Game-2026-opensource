@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
@@ -12,6 +13,7 @@ import { UGC } from "@/lib/features";
 import { AdSlot } from "@/components/AdSlot";
 import { SiteFooter } from "@/components/SiteFooter";
 import { PrefetchCanvas } from "@/components/PrefetchCanvas";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 /**
  * The public gallery.
@@ -36,6 +38,21 @@ import { PrefetchCanvas } from "@/components/PrefetchCanvas";
  * below excludes them, so nothing is listed twice.
  */
 export const dynamic = "force-dynamic";
+
+/**
+ * `/browse` had none of this, so it went into the sitemap carrying the root
+ * layout's title and description — the same pair `/race` was carrying, which
+ * is two indexed URLs claiming to be the same page. Only visible by reading
+ * the built HTML; the source looks fine.
+ */
+export const metadata: Metadata = {
+  title: `Browse worlds — made by players · ${SITE_NAME}`,
+  description:
+    "Every world people have published: courses with a finish somebody can " +
+    "reach, timed and medalled on the same terms as the ladder, and sandboxes " +
+    "to walk around in. No account needed to play one.",
+  alternates: { canonical: `${SITE_URL}/browse` },
+};
 
 export default async function BrowsePage() {
   // BUILT_IN_WORLDS is already in ladder order, so this is a partition and not

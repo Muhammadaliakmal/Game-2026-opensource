@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { communityCourses } from "@/lib/db/courses";
 import { authorFromFloor, medalTimesFor, MEDAL_LABELS } from "@/lib/medals";
-import { formatTime } from "@/components/play/course";
+import { formatTime } from "@/lib/format-time";
 
 /**
  * Courses other players published.

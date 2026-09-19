@@ -9,7 +9,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { byKind } from "@/content/registry";
 import { CABINET_NOTES } from "@/content/cabinet-notes";
 import { RATES } from "@/lib/arcade-payout";
-import { SITE_NAME } from "@/lib/site";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import { DAILY_HARD_CAP, DAILY_SOFT_CAP } from "@/lib/arcade-payout";
 import { CABINET_COUNT } from "@/content/registry";
 
@@ -22,8 +22,22 @@ import { CABINET_COUNT } from "@/content/registry";
  * and is read by the client component below rather than fetched.
  */
 export const metadata = {
-  title: "Arcade — Spec Driven Games",
-  description: `${CABINET_COUNT} cabinets, a few minutes a go. Coins for the shop.`,
+  title: `Arcade — ${CABINET_COUNT} cabinets · ${SITE_NAME}`,
+  description: `${CABINET_COUNT} cabinets you walk up to inside the world. A run takes under two minutes and seven of them pay coins. No account needed.`,
+  /*
+   * The canonical is the load-bearing line here, not the title.
+   *
+   * This page reads THREE query parameters — `?play=` (the hub links one per
+   * cabinet, so nine of them), `?sort=` and `?tags=`. Every combination is a
+   * URL serving the same lobby, which is how a filter turns into an unbounded
+   * set of near-identical pages. That is the "filters that create infinite
+   * thin pages" failure by name, and it was live.
+   *
+   * One canonical collapses all of them onto `/arcade`. The `?play=` links
+   * still work and still open the right cabinet; they simply stop being
+   * separate pages as far as an index is concerned.
+   */
+  alternates: { canonical: `${SITE_URL}/arcade` },
 };
 
 export default function ArcadePage() {

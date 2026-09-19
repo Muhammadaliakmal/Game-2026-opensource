@@ -17,7 +17,7 @@ import { cabinetNotesFor } from "@/content/cabinet-notes";
 import { PARKOUR_COURSES } from "@/lib/built-in-worlds";
 import { medalTimes, MEDAL_LABELS } from "@/lib/medals";
 import { rateFor } from "@/lib/arcade-payout";
-import { formatTime } from "@/components/play/course";
+import { formatTime } from "@/lib/format-time";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
 /**

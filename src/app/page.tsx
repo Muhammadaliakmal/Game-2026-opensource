@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
@@ -19,6 +20,7 @@ import { AdSlot } from "@/components/AdSlot";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteIntro } from "@/components/SiteIntro";
 import { PrefetchCanvas } from "@/components/PrefetchCanvas";
+import { SITE_URL } from "@/lib/site";
 
 /**
  * Home: a live world for a visitor, a world list for a player.
@@ -47,6 +49,21 @@ import { PrefetchCanvas } from "@/components/PrefetchCanvas";
  * covers, with the arena on no page at all and the arcade a word in the
  * header. See that file for the order and why.
  */
+/**
+ * The home page had no canonical, which is the one page on the domain where
+ * that costs most: it is the URL an ad review starts from, and it is the one
+ * that collects `?utm_*`, `?fbclid` and the apex/`www` pair. Each of those is
+ * a separate URL serving this page, and without a canonical they compete
+ * with each other.
+ *
+ * Nothing else here is overridden — the title and description in the root
+ * layout are already written for this page, and repeating them would be two
+ * copies to keep in step.
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: SITE_URL },
+};
+
 export default async function Home() {
   const { userId } = await auth();
 

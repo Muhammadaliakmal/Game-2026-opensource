@@ -196,10 +196,7 @@ export const runAuthorMs = (s: CourseState): number | null =>
   s.worldId !== null && s.worldId === s.authorWorldId ? s.authorMs : null;
 
 /** m:ss.cs — centiseconds, because tenths are too coarse to separate runs. */
-export function formatTime(ms: number): string {
-  const total = Math.max(0, ms);
-  const minutes = Math.floor(total / 60000);
-  const seconds = Math.floor((total % 60000) / 1000);
-  const cs = Math.floor((total % 1000) / 10);
-  return `${minutes}:${String(seconds).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
-}
+// Moved to `lib/format-time.ts`, which is pure. Re-exported here so every
+// existing caller keeps working and there is still one implementation — see
+// that file for why a server component must not reach this module for it.
+export { formatTime } from "@/lib/format-time";
