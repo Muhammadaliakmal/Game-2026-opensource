@@ -8,6 +8,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { Facts } from "@/components/guide/Facts";
 import { Standouts } from "@/components/guide/Standouts";
+import { CabinetFacts } from "@/components/guide/CabinetFacts";
 import { Controls } from "@/components/guide/Controls";
 import { bySlug, REGISTRY, type GameEntry } from "@/content/registry";
 import { factsFor } from "@/content/course-facts";
@@ -258,6 +259,11 @@ export default async function GuidePage({
             </Section>
           </>
         )}
+
+        {/* A cabinet has no route, no ladder rank and no medal times, so it
+            gets the facts it does have — the rate, what that implies about
+            farming it, the tempo — rather than a shorter page. */}
+        {cabinet && <CabinetFacts slug={slug} />}
 
         {facts && <Facts slug={slug} facts={facts} />}
 

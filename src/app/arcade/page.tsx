@@ -39,8 +39,9 @@ export default function ArcadePage() {
       <PageHeader title="Arcade" back={null}>
         <p className="text-dim max-w-xl text-sm">
           Short games, played on a flat screen over the world. A run takes under
-          two minutes and every one of them pays something — the coins are the
-          same coins the courses pay, and they buy the same characters.
+          two minutes, and seven of the nine pay coins — the same coins the
+          courses pay, buying the same characters. The two board games pay
+          nothing and are here to be played rather than earned from.
         </p>
       </PageHeader>
 
