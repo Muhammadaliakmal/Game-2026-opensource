@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageShell, PageHeader } from "@/components/PageShell";
-import { SiteFooter } from "@/components/SiteFooter";
 import { AdSlot } from "@/components/AdSlot";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
@@ -275,7 +274,6 @@ export default function HowCoursesAreMadePage() {
         </Section>
 
         <AdSlot placement="guide" />
-        <SiteFooter />
       </div>
 
       <JsonLd

@@ -3,7 +3,6 @@ import { ArcadeLobby, ArcadeLobbySkeleton } from "@/components/arcade/ArcadeLobb
 import { ArcadeAutoOpen } from "@/components/arcade/ArcadeAutoOpen";
 import Link from "next/link";
 import { PageShell, PageHeader } from "@/components/PageShell";
-import { SiteFooter } from "@/components/SiteFooter";
 import { AdSlot } from "@/components/AdSlot";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { byKind } from "@/content/registry";
@@ -121,27 +120,40 @@ export default function ArcadePage() {
           </div>
         </section>
 
+        {/*
+          The cabinets as prose, under the grid.
+
+          The names are NOT headings here. The lobby above already renders
+          each title as an `<h3>` — it is a client component, but Next server-
+          renders it, so those headings are in the HTML — and a second `<h3>`
+          with the same words makes the page's outline claim nine sections
+          that exist twice. A browser pass caught it; reading the source never
+          would, because the two lists are written in different files.
+
+          What this section adds over the grid is the part the grid has no
+          room for: what each cabinet actually is, and what it pays. So the
+          name is a link inside the sentence rather than a heading over it.
+        */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-ink text-xl font-bold">The cabinets</h2>
+          <h2 className="text-ink text-xl font-bold">What each one is</h2>
           <ul className="flex flex-col gap-3">
             {byKind("arcade").map((cab) => (
-              <li key={cab.slug} className="flex flex-col gap-0.5">
-                <h3 className="text-sm font-semibold">
-                  <Link
-                    href={`/games/${cab.slug}`}
-                    className="text-accent underline"
-                  >
-                    {cab.title}
-                  </Link>
-                  {RATES[cab.slug] ? (
-                    <span className="hud-label num ml-2">
-                      {RATES[cab.slug]} coins per point
-                    </span>
-                  ) : null}
-                </h3>
-                <p className="text-dim text-sm leading-relaxed">
-                  {CABINET_NOTES[cab.slug]?.what ?? cab.tagline}
-                </p>
+              <li key={cab.slug} className="text-dim text-sm leading-relaxed">
+                <Link
+                  href={`/games/${cab.slug}`}
+                  className="text-accent font-semibold underline"
+                >
+                  {cab.title}
+                </Link>
+                {RATES[cab.slug] ? (
+                  <span className="hud-label num ml-2">
+                    {RATES[cab.slug]} coins per point
+                  </span>
+                ) : (
+                  <span className="hud-label ml-2">pays nothing</span>
+                )}
+                <br />
+                {CABINET_NOTES[cab.slug]?.what ?? cab.tagline}
               </li>
             ))}
           </ul>
@@ -169,7 +181,6 @@ export default function ArcadePage() {
         </section>
 
         <AdSlot placement="guide" />
-        <SiteFooter />
       </div>
     </PageShell>
   );

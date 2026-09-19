@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageShell, PageHeader } from "@/components/PageShell";
-import { SiteFooter } from "@/components/SiteFooter";
 import { AdSlot } from "@/components/AdSlot";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
@@ -331,7 +330,6 @@ export default async function GuidePage({
 
         {/* Under the content, never over it — see lib/ads. */}
         <AdSlot placement="guide" />
-        <SiteFooter />
       </div>
 
       {/* Structured data, so the thing a search result describes is the game

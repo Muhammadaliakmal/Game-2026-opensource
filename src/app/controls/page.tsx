@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageShell, PageHeader } from "@/components/PageShell";
-import { SiteFooter } from "@/components/SiteFooter";
 import { AdSlot } from "@/components/AdSlot";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
@@ -81,8 +80,8 @@ export default function ControlsPage() {
             tap it again. Holding it down does nothing extra, and neither
             sprint nor the lock-on carries over into the next world you open.
           </p>
-          <ControlTable caption="Keyboard" rows={FOOT_CONTROLS} />
-          <ControlTable caption="Touch" rows={TOUCH_CONTROLS} />
+          <ControlTable caption="On foot — keyboard" rows={FOOT_CONTROLS} />
+          <ControlTable caption="On foot — touch" rows={TOUCH_CONTROLS} />
           <p className="text-dim text-xs leading-relaxed">
             Respawn and restart are deliberately not next to each other on the
             keyboard. Respawn costs you a checkpoint&apos;s worth of progress
@@ -101,7 +100,7 @@ export default function ControlsPage() {
             meter fills, so the fast line and the tidy line are not the same
             line.
           </p>
-          <ControlTable caption="Keyboard" rows={RIDE_CONTROLS} />
+          <ControlTable caption="On the bike — keyboard" rows={RIDE_CONTROLS} />
         </section>
 
         <section className="flex flex-col gap-4">
@@ -166,7 +165,6 @@ export default function ControlsPage() {
         </section>
 
         <AdSlot placement="guide" />
-        <SiteFooter />
       </div>
 
       <JsonLd

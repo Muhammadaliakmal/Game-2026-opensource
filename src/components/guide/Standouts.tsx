@@ -143,9 +143,74 @@ function claimsFor(slug: string): string[] {
   return claims;
 }
 
+/**
+ * The same idea for a world with no goal.
+ *
+ * A sandbox has no route to solve, so it gets no ladder ranking and its guide
+ * came out the shortest of the thirty-six — around 320 words. It does have a
+ * size, though, and a size means nothing until you know what a normal one is:
+ * "2,888 blocks" is a number, "the smallest world that ships" is a fact.
+ *
+ * Ranked against ALL the built-in worlds rather than the other three
+ * sandboxes. Superlatives drawn from a field of four are not worth printing,
+ * and the interesting comparison is against the courses anyway — the circuit
+ * covers more ground than anything on the ladder, and that is why it is the
+ * track.
+ */
+function worldClaimsFor(slug: string): string[] {
+  const all = Object.entries(WORLD_FACTS);
+  const mine = WORLD_FACTS[slug];
+  if (!mine) return [];
+
+  const dims: Array<[string, string, string, (f: WorldFacts) => number]> = [
+    ["most blocks of anything that ships", "fewest blocks of anything that ships", "blocks", (f) => f.parts],
+    ["most ground covered of anything that ships", "least ground covered of anything that ships", "cells of ground", (f) => f.spanX * f.spanZ],
+    ["tallest world that ships", "flattest world that ships", "cells tall", (f) => f.spanY],
+  ];
+
+  const claims: string[] = [];
+  for (const [most, least, unit, value] of dims) {
+    const scored = all
+      .map(([s, f]) => ({ slug: s, v: value(f) }))
+      .sort((a, b) => b.v - a.v);
+    const high = scored.findIndex((r) => r.slug === slug);
+    if (high < 0) continue;
+    const low = scored.length - 1 - high;
+    const v = scored[high].v;
+    if (scored.filter((r) => r.v === v).length > 1) continue;
+    if (high < NOTABLE) claims.push(`the ${ORDINAL[high]}${most} — ${v.toLocaleString()} ${unit}`);
+    else if (low < NOTABLE) claims.push(`the ${ORDINAL[low]}${least} — ${v.toLocaleString()} ${unit}`);
+  }
+  return claims;
+}
+
 export function Standouts({ slug }: { slug: string }) {
-  const claims = claimsFor(slug);
+  const isCourse = PARKOUR_COURSES.some((c) => c.slug === slug);
+  const claims = isCourse ? claimsFor(slug) : worldClaimsFor(slug);
   if (claims.length === 0) return null;
+
+  if (!isCourse) {
+    return (
+      <section className="flex flex-col gap-2">
+        <h2 className="text-ink text-lg font-bold">
+          How it compares to everything else that ships
+        </h2>
+        <div className="text-dim flex flex-col gap-3 text-sm leading-relaxed">
+          <p>
+            Measured against all {Object.keys(WORLD_FACTS).length} worlds the
+            game builds, courses included, this one holds{" "}
+            {claims.length === 1 ? "one place" : `${claims.length} places`}:
+          </p>
+          <ul className="ml-4 flex list-disc flex-col gap-1">
+            {claims.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+          </ul>
+          <p className="text-xs">Outright places only — ties are not claimed.</p>
+        </div>
+      </section>
+    );
+  }
 
   const total = PARKOUR_COURSES.length;
 

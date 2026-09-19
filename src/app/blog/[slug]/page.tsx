@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
-import { SiteFooter } from "@/components/SiteFooter";
 import { AdSlot } from "@/components/AdSlot";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
@@ -118,7 +117,6 @@ export default async function BlogPostPage({
 
       {/* Under the article, never in it — see lib/ads. */}
       <AdSlot placement="guide" />
-      <SiteFooter />
 
       {/* A BlogPosting rather than a WebPage: a dated article with a named
           author is what turns this from another route on a game site into a

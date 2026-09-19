@@ -3,7 +3,6 @@ import Link from "next/link";
 import { GamesHub } from "@/components/modes/GamesHub";
 import { PageShell, PageHeader } from "@/components/PageShell";
 import { PrefetchCanvas } from "@/components/PrefetchCanvas";
-import { SiteFooter } from "@/components/SiteFooter";
 import { AdSlot } from "@/components/AdSlot";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import {
@@ -158,7 +157,6 @@ export default function GamesPage() {
         />
 
         <AdSlot placement="guide" />
-        <SiteFooter />
       </div>
 
       <PrefetchCanvas kind="world" />

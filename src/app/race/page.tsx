@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PageShell } from "@/components/PageShell";
-import { SiteFooter } from "@/components/SiteFooter";
 import { useRouter } from "next/navigation";
 import { isMatchCode, makeMatchCode, normalizeMatchCode } from "@/lib/match-code";
 import { multiplayerEnabled } from "@/lib/net/room";
@@ -233,7 +232,6 @@ export default function RaceLobbyPage() {
           </div>
         </section>
 
-        <SiteFooter />
     </PageShell>
   );
 }

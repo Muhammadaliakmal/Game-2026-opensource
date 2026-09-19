@@ -223,6 +223,10 @@ export function ArcadeLobby() {
                     changes no URL it could follow. */}
                 <Link
                   href={`/games/${entry.id}`}
+                  // Same reason as `<CourseCard>`: nine links whose visible
+                  // text is identical are fine on screen and unusable in a
+                  // screen reader's link list.
+                  aria-label={`${entry.title} cabinet guide`}
                   className="card-actions hud-label text-dim hover:text-accent mt-1 w-fit underline"
                 >
                   Cabinet guide &rarr;

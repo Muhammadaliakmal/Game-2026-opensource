@@ -198,6 +198,12 @@ export function CourseCard({
         */}
         <Link
           href={`/games/${slug}`}
+          // The visible text is the same on all 23 cards, which is right —
+          // it is a repeated affordance and naming each one would make the
+          // ladder shout. The accessible name is not: a screen reader lists
+          // links out of context, and 23 entries reading "Course guide" is a
+          // list nobody can navigate. A browser pass is what surfaced this.
+          aria-label={`${name} course guide`}
           className="card-actions hud-label text-dim hover:text-accent mt-1 w-fit underline"
         >
           Course guide →
