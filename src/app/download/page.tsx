@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { apkInfo, formatBytes, APK_PATH } from "@/lib/apk";
+import { PLAY_STORE_URL } from "@/lib/android";
 import { PageShell, PageHeader } from "@/components/PageShell";
 import { InstallPanel } from "./InstallPanel";
 
@@ -40,7 +41,11 @@ export default async function DownloadPage() {
           </p>
       </PageHeader>
 
-        <InstallPanel apkAvailable={apk.available} apkPath={APK_PATH} />
+        <InstallPanel
+          apkAvailable={apk.available}
+          apkPath={APK_PATH}
+          playStoreUrl={PLAY_STORE_URL}
+        />
 
         {apk.available && (
           <section className="card flex flex-col gap-3 p-5">
@@ -55,6 +60,36 @@ export default async function DownloadPage() {
                 {apk.built ? apk.built.slice(0, 10) : "—"}
               </dd>
             </dl>
+            {apk.sha256 && (
+              /*
+               * The checksum, printed rather than linked.
+               *
+               * Nothing else in this download can be verified: there is no
+               * store between the file and the phone, no reviewer, and no
+               * publisher identity Android can show before the install. The
+               * digest is the one fact somebody can check for themselves, and
+               * a value they have to fetch from a second URL to compare is a
+               * value nobody checks.
+               *
+               * `break-all` because 64 hex characters have no break
+               * opportunity in them and would otherwise push the card wider
+               * than the phone it is being read on.
+               */
+              <div className="flex flex-col gap-1.5">
+                <span className="text-dim text-xs">SHA-256</span>
+                <code className="text-ink num text-[11px] leading-relaxed break-all">
+                  {apk.sha256}
+                </code>
+                <span className="text-dim text-[11px]">
+                  Check it with{" "}
+                  <span className="num">sha256sum blockworld.apk</span>, or{" "}
+                  <span className="num">
+                    Get-FileHash blockworld.apk
+                  </span>{" "}
+                  on Windows.
+                </span>
+              </div>
+            )}
           </section>
         )}
 

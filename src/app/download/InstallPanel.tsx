@@ -13,9 +13,10 @@ import { useInstallPrompt } from "@/lib/use-install-prompt";
  * There are three genuinely different answers and no way to give one that
  * covers all of them:
  *
- * - **Android** can have the APK, and can usually also install straight from
- *   the browser, which is the better route — no sideloading, and it updates
- *   itself with the site.
+ * - **Android** has up to three routes, and they are offered worst-last: the
+ *   Play Store if the app has been published there, then installing straight
+ *   from the browser, then the APK. Sideloading is bottom because it is the
+ *   only one with a permission prompt, a Play Protect warning and no updates.
  * - **iOS** has neither. Safari does not fire `beforeinstallprompt` and there
  *   is no APK to give it, so the honest answer is the Share-sheet instructions.
  * - **Desktop** can install too, and saying nothing there would read as the
@@ -48,9 +49,12 @@ const platformServerSnapshot = (): Platform => "unknown";
 export function InstallPanel({
   apkAvailable,
   apkPath,
+  playStoreUrl,
 }: {
   apkAvailable: boolean;
   apkPath: string;
+  /** Null until the listing exists — see lib/android. */
+  playStoreUrl: string | null;
 }) {
   const platform = useSyncExternalStore(
     subscribePlatform,
@@ -100,6 +104,37 @@ export function InstallPanel({
 
   return (
     <>
+      {/* ── Play Store ──
+
+          First when it exists, and not shown at all when it does not. This is
+          the only route with automatic updates and no install warning, so
+          burying it under the two that have both would be offering the worse
+          option to the people who can take the better one.
+
+          Desktop sees it too rather than being filtered out: a listing is the
+          thing people send to somebody else's phone, and the page they send is
+          this one. */}
+      {playStoreUrl && (
+        <section className="card border-accent/40 flex flex-col gap-4 p-5">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-ink text-sm font-semibold">Google Play</h2>
+            <p className="text-dim text-xs">
+              The Android app, through the store. It updates itself, there is
+              no install warning to click past, and it is the same fullscreen
+              game as every other route here.
+            </p>
+          </div>
+          <a
+            href={playStoreUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="hud-chip hud-chip--primary w-fit"
+          >
+            Get it on Google Play
+          </a>
+        </section>
+      )}
+
       {/* ── Install from the browser ── */}
       <section className="card flex flex-col gap-4 p-5">
         <div className="flex flex-col gap-2">

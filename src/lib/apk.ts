@@ -1,13 +1,18 @@
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
 /**
  * What the /download page knows about the Android build.
  *
- * The APK is not built by this repo. It is generated from the deployed site by
- * PWABuilder — which reads app/manifest.ts and wraps the live URL in a Trusted
- * Web Activity — and the resulting file is dropped at `public/blockworld.apk`.
- * See docs/ANDROID.md.
+ * The APK is a Trusted Web Activity — an Android shell whose whole UI is the
+ * user's own Chrome rendering the deployed site — built by Bubblewrap from
+ * `android/twa-manifest.json` and put at `public/blockworld.apk` by
+ * `npm run android:release`. See docs/ANDROID.md, and src/lib/android.ts for
+ * the values the build, the asset-link file and the Play listing must share.
+ *
+ * It is still not built by `npm run build`. Bubblewrap needs the JDK and the
+ * Android SDK, and it reads the *deployed* manifest over HTTPS rather than the
+ * one on disk, so there is nothing about it a web build could do.
  *
  * That means the page cannot assume the file is there, and hard-coding a size
  * and version would go stale the first time the APK is replaced. So both are
@@ -31,6 +36,17 @@ export interface ApkInfo {
   /** ISO date the file was last written, or null when absent. */
   built: string | null;
   version: string;
+  /**
+   * Lowercase hex SHA-256 of the file, or null when it has not been recorded.
+   *
+   * Written beside the APK by `npm run android:release`. Published because a
+   * sideloaded download is the one distribution channel with nothing else in
+   * it: no store, no reviewer, and no publisher identity a phone can check
+   * before the install. The digest is what makes "is this the file that was
+   * built" answerable by the person installing it rather than a matter of
+   * trusting the link.
+   */
+  sha256: string | null;
 }
 
 /**
@@ -42,17 +58,47 @@ export interface ApkInfo {
  */
 export async function apkInfo(): Promise<ApkInfo> {
   try {
-    const s = await stat(path.join(process.cwd(), "public", APK_FILE));
+    const file = path.join(process.cwd(), "public", APK_FILE);
+    const s = await stat(file);
     return {
       available: s.isFile() && s.size > 0,
       size: s.size,
       built: s.mtime.toISOString(),
       version: APK_VERSION,
+      sha256: await readDigest(`${file}.sha256`),
     };
   } catch {
     // ENOENT is the normal state before the first build is dropped in, so this
     // is an expected branch rather than an error worth logging.
-    return { available: false, size: 0, built: null, version: APK_VERSION };
+    return {
+      available: false,
+      size: 0,
+      built: null,
+      version: APK_VERSION,
+      sha256: null,
+    };
+  }
+}
+
+/**
+ * The digest, or null.
+ *
+ * Its own try/catch rather than sharing the one above, because a missing
+ * `.sha256` beside an APK that is present is a *recoverable* state — the page
+ * should still offer the download and simply not print a checksum. Folded into
+ * the outer catch it would report the whole APK as absent, which is the more
+ * misleading of the two wrong answers.
+ *
+ * The file is `sha256sum` format — `<hex>  <filename>` — so only the first
+ * field is the digest, and it is validated rather than trusted: a truncated
+ * write should show nothing rather than a checksum that will never match.
+ */
+async function readDigest(file: string): Promise<string | null> {
+  try {
+    const hex = (await readFile(file, "utf8")).trim().split(/\s+/)[0] ?? "";
+    return /^[0-9a-f]{64}$/i.test(hex) ? hex.toLowerCase() : null;
+  } catch {
+    return null;
   }
 }
 

@@ -17,6 +17,30 @@ const nextConfig: NextConfig = {
       { source: "/terms-of-use", destination: "/terms", permanent: true },
     ];
   },
+
+  /**
+   * Digital Asset Links, at the one path Android will look for it.
+   *
+   * The handler lives at `app/well-known/assetlinks.json/route.ts` because a
+   * directory whose name starts with a dot is not a route segment the App
+   * Router will pick up. This maps the real URL onto it.
+   *
+   * It must be a **rewrite and not a redirect**, and that is the whole point
+   * of the entry: Android's asset-link verifier does not follow a 301 or a
+   * 308. It asks for `/.well-known/assetlinks.json`, and if what comes back is
+   * a redirect it gives up and the app opens with a browser address bar
+   * pinned over the HUD. A rewrite is resolved inside the server, so the
+   * verifier gets its 200 at the URL it asked for. See the route for the rest
+   * of what that file has to satisfy.
+   */
+  async rewrites() {
+    return [
+      {
+        source: "/.well-known/assetlinks.json",
+        destination: "/well-known/assetlinks.json",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

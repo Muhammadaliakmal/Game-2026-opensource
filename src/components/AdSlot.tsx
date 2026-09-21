@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { AD_CLIENT, AD_SLOTS, type AdPlacement } from "@/lib/ads";
+import { isAndroidApp } from "@/lib/app-mode";
 
 /**
  * One AdSense display unit.
@@ -13,6 +14,22 @@ import { AD_CLIENT, AD_SLOTS, type AdPlacement } from "@/lib/ads";
  * during render would run before the element exists on a client navigation and
  * would run on the server, where `window` does not. An effect is the only
  * point where the element is guaranteed to be there.
+ *
+ * ── Never inside the Android app ─────────────────────────────────────────
+ *
+ * The app is a Trusted Web Activity, so this markup runs in the user's own
+ * Chrome and AdSense's WebView rules — the ones that require registering a
+ * `WebView` with the Google Mobile Ads SDK — are about a different thing. An
+ * ad here would not be policy-breaking. It is still wrong, for the reason
+ * `lib/ads.ts` already gives about sessions: the app is fullscreen by
+ * manifest, with the thumb controls at the edges of the same viewport, and an
+ * advert in a frame somebody is tapping at speed generates the kind of clicks
+ * that close a publisher account rather than pay it. The app is also the one
+ * surface whose ad behaviour has to be declared on a Play Data safety form and
+ * defended at review, and "there are none" is the answer that stays true.
+ *
+ * This is the gate rather than a rule about which routes mount an `AdSlot`,
+ * because the gate has to hold for placements that do not exist yet.
  *
  * ── The double-push, which is the bug everyone hits ──────────────────────
  *
@@ -29,6 +46,16 @@ declare global {
   }
 }
 
+/**
+ * Whether this is the app never changes under a running page, so there is
+ * nothing to subscribe to — but it is still read from outside React, and the
+ * `set-state-in-effect` rule rejects the effect-and-setState form. The server
+ * snapshot is `false` because the server genuinely cannot know; the client
+ * corrects it before anything is requested, which is the half that matters.
+ */
+const subscribeNever = () => () => {};
+const notAppOnServer = () => false;
+
 export function AdSlot({
   placement,
   className,
@@ -37,10 +64,11 @@ export function AdSlot({
   className?: string;
 }) {
   const slot = AD_SLOTS[placement];
+  const inApp = useSyncExternalStore(subscribeNever, isAndroidApp, notAppOnServer);
   const pushed = useRef(false);
 
   useEffect(() => {
-    if (!slot || pushed.current) return;
+    if (!slot || inApp || pushed.current) return;
     pushed.current = true;
     try {
       (window.adsbygoogle = window.adsbygoogle ?? []).push({});
@@ -48,11 +76,12 @@ export function AdSlot({
       // Blocked, stubbed, or already filled. An advert is never worth an
       // error boundary — the page it sits on is the product.
     }
-  }, [slot]);
+  }, [slot, inApp]);
 
-  // No slot id yet (see lib/ads). Render nothing at all rather than an empty
-  // bordered box: a placeholder that never fills is worse than no placeholder.
-  if (!slot) return null;
+  // No slot id yet (see lib/ads), or this is the Android app. Render nothing at
+  // all rather than an empty bordered box: a placeholder that never fills is
+  // worse than no placeholder.
+  if (!slot || inApp) return null;
 
   return (
     <ins

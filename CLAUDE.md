@@ -1041,9 +1041,27 @@ The service worker is an **allowlist**, and must stay one. It caches only
 renders session state into the HTML, so a cached page has somebody's sign-in
 state baked into it.
 
-The APK is not built here — it is generated from the deployed site by
-PWABuilder. See `docs/ANDROID.md`, particularly the part about `assetlinks.json`
-(without it the app runs with a browser address bar pinned over the HUD).
+The Android app is a **Trusted Web Activity** — Chrome rendering this site
+fullscreen inside an Android shell — built by Bubblewrap from
+`android/twa-manifest.json`, not by `npm run build`. `npm run android:build`
+then `npm run android:release`. Read `docs/ANDROID.md` §0 before proposing
+Capacitor or any other WebView wrapper: a WebView is a different renderer from
+Chrome and costs frames on exactly this workload, and there is no static export
+to bundle into one.
+
+Two things about it are easy to break from the web side:
+
+- **`/.well-known/assetlinks.json` must answer 200, as JSON, with no redirect.**
+  Android's verifier does not follow a 3xx, and a failed verification is not an
+  error anywhere — it is a browser address bar pinned over the HUD. That is why
+  `next.config.ts` uses a *rewrite* onto `app/well-known/assetlinks.json` and
+  why `.well-known` is excluded from `proxy.ts`'s matcher. The fingerprints come
+  from `ANDROID_CERT_FINGERPRINTS`, and there are normally **two**: the upload
+  key you signed with, and the app signing key Google re-signs with. Only one
+  listed means every Play install fails verification while sideloads pass.
+- **`AdSlot` renders nothing when the page was launched from the app**
+  (`lib/app-mode.ts`, via the `android-app://` referrer). The Play Data safety
+  form declares no ads in the app; keep that true.
 
 ## Env
 

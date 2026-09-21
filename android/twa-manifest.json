@@ -1,0 +1,55 @@
+{
+  "packageId": "com.specdrivengames.twa",
+  "host": "specdrivengames.com",
+  "name": "Spec Driven Games",
+  "launcherName": "Spec Driven",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "themeColor": "#1a1d21",
+  "themeColorDark": "#1a1d21",
+  "navigationColor": "#1a1d21",
+  "navigationColorDark": "#1a1d21",
+  "navigationDividerColor": "#1a1d21",
+  "navigationDividerColorDark": "#1a1d21",
+  "backgroundColor": "#1a1d21",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://specdrivengames.com/icons/icon-512.png",
+  "maskableIconUrl": "https://specdrivengames.com/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android/release.keystore",
+    "alias": "specdrivengames"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Race",
+      "short_name": "Race",
+      "url": "/race",
+      "chosenIconUrl": "https://specdrivengames.com/icons/icon-192.png"
+    },
+    {
+      "name": "Browse worlds",
+      "short_name": "Browse",
+      "url": "/browse",
+      "chosenIconUrl": "https://specdrivengames.com/icons/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://specdrivengames.com/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://specdrivengames.com/",
+  "minSdkVersion": 24,
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "appVersion": "1.0.0"
+}
