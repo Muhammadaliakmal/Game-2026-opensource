@@ -77,6 +77,24 @@ body {
   font-family: var(--font-plex), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: var(--text-xs);
+  /*
+    Keep the site's chrome out from under the phone's own bars.
+
+    `viewport-fit=cover` (root layout) lets the page paint under the status
+    bar, the notch and a landscape navigation bar, and inside the Android app
+    Capacitor 8 passes those insets straight through rather than padding the
+    WebView — because the page asked for cover. The HUD already honours
+    them; the header did not, and sat under the clock and the battery. In an
+    ordinary browser tab these are all 0, so nothing moves there.
+  */
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+
+/* A world is full-bleed on purpose and its HUD insets itself (HudZones,
+   TouchControls), so it must not be padded twice. */
+body:has([data-immersive]) {
+  padding: 0;
 }
 
 /* Headlines carry the character; the UI face stays neutral underneath them.
