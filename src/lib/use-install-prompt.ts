@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { isAndroidApp } from "./app-mode";
 
 /**
  * Chrome's install prompt, made available to a button.
@@ -87,7 +88,11 @@ function standaloneSnapshot(): boolean {
     STANDALONE_QUERIES.some((q) => window.matchMedia(q).matches) ||
     // Safari supports neither the media query nor the install event, and this
     // non-standard flag is the only way to detect an installed app there.
-    (navigator as { standalone?: boolean }).standalone === true
+    (navigator as { standalone?: boolean }).standalone === true ||
+    // An Android WebView always reports `display-mode: browser`, so inside the
+    // Capacitor app neither check above can fire and /download would offer to
+    // install the APK the player is already running.
+    isAndroidApp()
   );
 }
 

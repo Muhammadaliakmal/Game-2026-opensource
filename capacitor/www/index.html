@@ -119,10 +119,17 @@
        */
       const SITE = "https://specdrivengames.com/";
 
+      /*
+       * Through the global, never a dynamic import of the npm package. This
+       * file is served as-is with no bundler, so a bare specifier cannot
+       * resolve; the import throws, the catch swallows it, and with
+       * `launchAutoHide: false` the splash then covers the game forever. The
+       * native bridge injects `Capacitor.Plugins` on this origin for exactly
+       * this case.
+       */
       async function hideSplash() {
         try {
-          const { SplashScreen } = await import("@capacitor/splash-screen");
-          await SplashScreen.hide();
+          await window.Capacitor.Plugins.SplashScreen.hide();
         } catch {
           // Running outside the native shell — `npm run cap:serve`, or a
           // browser pointed at this file. There is no splash to hide and the
