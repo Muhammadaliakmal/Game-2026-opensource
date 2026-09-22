@@ -2,6 +2,16 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /**
+   * `/download` reads the APK and its digest off disk at request time (see
+   * lib/apk.ts). On Vercel `public/` is served from the CDN and is not in a
+   * route's function bundle unless traced in, so without this the deployed
+   * page stats nothing and reports "Not published yet" over a live file.
+   */
+  outputFileTracingIncludes: {
+    "/download": ["./public/blockworld.apk", "./public/blockworld.apk.sha256"],
+  },
+
+  /**
    * `/privacy-policy` is where people look, `/privacy` is where it is.
    *
    * The policy has lived at `/privacy` since it was written, and that is the

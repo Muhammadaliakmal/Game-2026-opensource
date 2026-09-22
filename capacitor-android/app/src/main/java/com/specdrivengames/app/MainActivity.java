@@ -1,11 +1,17 @@
 package com.specdrivengames.app;
 
 import android.os.Bundle;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 
 import androidx.activity.OnBackPressedCallback;
 
+import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeWebViewClient;
+
+import java.io.ByteArrayInputStream;
 
 /**
  * The app's only activity.
@@ -64,5 +70,55 @@ public class MainActivity extends BridgeActivity {
                 getOnBackPressedDispatcher().onBackPressed();
             }
         });
+
+        if (getBridge() != null) {
+            getBridge().setWebViewClient(new NoAdsWebViewClient(getBridge()));
+        }
+    }
+
+    /**
+     * Refuses every request to Google's ad hosts.
+     *
+     * <p>{@code AdSlot} already renders nothing in the app, but the site's
+     * root layout loads {@code adsbygoogle.js} on every page, and with Auto
+     * ads switched on in the AdSense console that script places ads by itself.
+     * AdSense inside a bare WebView is the "Valuable Inventory: Framed Sites"
+     * violation, so the guarantee has to hold whatever the console says. It
+     * lives here rather than in the page because a guard script races the
+     * async ad script; this does not.
+     *
+     * <p>Subclasses {@link BridgeWebViewClient} and defers to it for
+     * everything else: its {@code shouldInterceptRequest} is what serves the
+     * bundled shell, and replacing it outright would break the launch.
+     */
+    private static final class NoAdsWebViewClient extends BridgeWebViewClient {
+        private static final String[] AD_HOST_SUFFIXES = {
+            "googlesyndication.com",
+            "doubleclick.net",
+            "adservice.google.com",
+            "adtrafficquality.google",
+        };
+
+        NoAdsWebViewClient(Bridge bridge) {
+            super(bridge);
+        }
+
+        @Override
+        public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            String host = request.getUrl().getHost();
+            if (host != null) {
+                for (String suffix : AD_HOST_SUFFIXES) {
+                    if (host.equals(suffix) || host.endsWith("." + suffix)) {
+                        // An empty 200 rather than an error: a failed
+                        // subresource is noise in the console and nothing
+                        // else, but an empty script is simply nothing.
+                        return new WebResourceResponse(
+                            "text/plain", "utf-8", new ByteArrayInputStream(new byte[0])
+                        );
+                    }
+                }
+            }
+            return super.shouldInterceptRequest(view, request);
+        }
     }
 }
