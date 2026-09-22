@@ -220,7 +220,18 @@ export function SiteNav() {
           itself on a narrow screen; see the component. */}
       <CurrencyRail />
       <Show when="signed-in">
-        <UserButton />
+        {/* Clerk's own "Delete account" removes the sign-in only; this is the
+            path that removes the data too. Play requires it reachable from
+            inside the app, and this menu is on every screen. */}
+        <UserButton>
+          <UserButton.MenuItems>
+            <UserButton.Link
+              label="Delete account"
+              href="/account/delete"
+              labelIcon={<span aria-hidden="true">✕</span>}
+            />
+          </UserButton.MenuItems>
+        </UserButton>
       </Show>
 
       <button

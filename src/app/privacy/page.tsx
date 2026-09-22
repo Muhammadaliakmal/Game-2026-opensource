@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 };
 
 /** Kept in one place so the prose and the <time> below cannot drift apart. */
-const UPDATED = "9 September 2026";
+const UPDATED = "22 September 2026";
 
 function Section({
   title,
@@ -97,6 +97,7 @@ export default function PrivacyPage() {
             This site shows ads served by Google AdSense. Google and its
             partners use cookies to serve ads based on your prior visits to
             this and other websites, and to measure whether an ad was seen.
+            The Android app shows no ads.
           </p>
           <p>
             You can turn off personalised advertising in{" "}
@@ -134,12 +135,19 @@ export default function PrivacyPage() {
 
         <Section title="Who else sees anything">
           <p>
-            Three services, each doing one job:{" "}
+            Each of these does one job:{" "}
             <strong className="text-ink">Clerk</strong> for sign-in,{" "}
             <strong className="text-ink">Neon</strong> for the database that
-            holds progress, and{" "}
-            <strong className="text-ink">Google AdSense</strong> for the ads.
-            Nobody else receives your data, and none of it is sold.
+            holds progress,{" "}
+            <strong className="text-ink">Vercel</strong> for hosting the site
+            and measuring how fast its pages load (page address, device type
+            and load timings, with no cookies and nothing that identifies
+            you), our <strong className="text-ink">room server</strong> for
+            live races and shared building (your display name and where you
+            are on the track, for as long as the session lasts), and{" "}
+            <strong className="text-ink">Google AdSense</strong> for the ads
+            on the website. Nobody else receives your data, and none of it is
+            sold.
           </p>
         </Section>
 
@@ -154,8 +162,12 @@ export default function PrivacyPage() {
 
         <Section title="Your choices">
           <p>
-            You can delete your account at any time, which removes your times,
-            coins and worlds along with it. You can also clear this site&apos;s
+            You can{" "}
+            <Link className="text-accent underline" href="/account/delete">
+              delete your account
+            </Link>{" "}
+            at any time, which removes your times, coins and worlds along with
+            it. You can also clear this site&apos;s
             cookies and local storage in your browser, which resets anything
             saved on your device.
           </p>
