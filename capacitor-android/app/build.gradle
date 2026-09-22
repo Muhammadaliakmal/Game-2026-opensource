@@ -1,0 +1,103 @@
+apply plugin: 'com.android.application'
+
+/**
+ * Signing credentials, from a file that is not in git.
+ *
+ * `keystore.properties` and `release.keystore` sit beside this project and
+ * are both gitignored. Committing either would hand anyone with repo access
+ * the ability to sign something that upgrades an install in place — the same
+ * argument `.gitignore` already makes about the TWA's key.
+ *
+ * Read defensively: a fresh clone has neither file, and a release build is
+ * not the common case. Failing here would break `assembleDebug` for someone
+ * who only wants to run the thing.
+ */
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasSigningConfig = keystorePropertiesFile.exists()
+if (hasSigningConfig) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace = "com.specdrivengames.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.specdrivengames.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        release {
+            if (hasSigningConfig) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasSigningConfig) {
+                signingConfig signingConfigs.release
+            }
+
+            /*
+             * R8 on, and `proguard-android-optimize.txt` rather than the
+             * `proguard-android.txt` Capacitor generates.
+             *
+             * This is not only about binary size. Play grades an upload on
+             * obfuscation, optimisation and shrinking, and a stock Capacitor
+             * app — a thin Java shell around a WebView — scores close to zero
+             * on all three, which is one more thing for a reviewer looking at
+             * a wrapped website to hold against it. Turning R8 on with the
+             * optimising rules is a one-line answer to that.
+             *
+             * `shrinkResources` needs `minifyEnabled` to be true and is what
+             * drops the unreferenced drawables and layouts the template ships.
+             */
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

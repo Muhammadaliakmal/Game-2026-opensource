@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Spec Driven Games</title>
+    <!--
+      The launch shell, and the reason this app does not ship `server.url`.
+
+      Capacitor boots the WebView on its own bundled origin. That origin is
+      this file. Its whole job is to hand off to the live site and get out of
+      the way, and it is deliberately the only thing between the launcher icon
+      and the game.
+
+      ── Why it looks like nothing ────────────────────────────────────────
+
+      Because it should be invisible. The splash screen, this page and the
+      site it hands off to are all #1a1d21, and the native WebView background
+      is set to the same value in `capacitor.config.ts`. So the seam between
+      "splash", "shell" and "site" is not a flash of white — it is the same
+      flat colour throughout, whatever order the three actually resolve in on
+      a given device and connection. Getting that wrong is what makes a
+      wrapper feel like a wrapper.
+
+      ── Self-contained, like `public/offline.html` ───────────────────────
+
+      No stylesheet, no font, no image. This page runs before the network has
+      been proven to work, so anything it had to fetch is a thing it could be
+      missing at the moment it is needed.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #1a1d21;
+        color: #edf0f3;
+        font: 400 14px/1.6 "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+        padding: 24px;
+        text-align: center;
+      }
+      .wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+      }
+      .mark {
+        width: 18px;
+        height: 18px;
+        background: #ffb020;
+        transform: rotate(45deg);
+      }
+      p {
+        margin: 0;
+        color: #c3c9d0;
+        font-size: 0.8125rem;
+      }
+      /*
+        The mark pulses rather than spins: reduced motion is a setting this
+        page has no way to read a preference file for, so the animation is one
+        a vestibular trigger would not catch, and it is removed outright for
+        anyone who has asked the OS for that.
+      */
+      @media (prefers-reduced-motion: no-preference) {
+        .mark {
+          animation: pulse 1.4s ease-in-out infinite;
+        }
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.35;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <span class="mark" aria-hidden="true"></span>
+      <p>Starting…</p>
+    </div>
+
+    <script type="module">
+      /**
+       * The handoff.
+       *
+       * Three things happen here and the order matters.
+       *
+       * 1. The splash is hidden *before* navigating, not after. After is not
+       *    available: navigating to the live site replaces this document with
+       *    one on a remote origin, where the Capacitor bridge is not injected
+       *    and `SplashScreen.hide()` does not exist. A splash hidden on a
+       *    timer instead would uncover an empty frame on a slow connection,
+       *    which is why `launchAutoHide` is false.
+       *
+       * 2. Connectivity is checked before the navigation rather than after it
+       *    fails. `server.errorPath` catches the failure case too, but it
+       *    catches it after the WebView has spent its timeout on it; asking
+       *    `navigator.onLine` first turns the known-offline case into an
+       *    instant, explained page.
+       *
+       * 3. `location.replace`, never `location.href`. `href` would leave the
+       *    shell in the WebView's history, so the hardware back button from
+       *    the site's first page would land here — on a page whose only
+       *    behaviour is to navigate straight back to where it came from. That
+       *    is an infinite loop wearing a back button.
+       */
+      const SITE = "https://specdrivengames.com/";
+
+      async function hideSplash() {
+        try {
+          const { SplashScreen } = await import("@capacitor/splash-screen");
+          await SplashScreen.hide();
+        } catch {
+          // Running outside the native shell — `npm run cap:serve`, or a
+          // browser pointed at this file. There is no splash to hide and the
+          // handoff below is still the correct behaviour.
+        }
+      }
+
+      async function start() {
+        await hideSplash();
+
+        if (navigator.onLine === false) {
+          location.replace("offline.html");
+          return;
+        }
+
+        location.replace(SITE);
+      }
+
+      start();
+    </script>
+  </body>
+</html>

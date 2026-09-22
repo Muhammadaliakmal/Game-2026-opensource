@@ -18,7 +18,7 @@
   "maskableIconUrl": "https://specdrivengames.com/icons/icon-maskable-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
-    "path": "./android/release.keystore",
+    "path": "./release.keystore",
     "alias": "specdrivengames"
   },
   "appVersionName": "1.0.0",
@@ -26,13 +26,13 @@
   "shortcuts": [
     {
       "name": "Race",
-      "short_name": "Race",
+      "shortName": "Race",
       "url": "/race",
       "chosenIconUrl": "https://specdrivengames.com/icons/icon-192.png"
     },
     {
       "name": "Browse worlds",
-      "short_name": "Browse",
+      "shortName": "Browse",
       "url": "/browse",
       "chosenIconUrl": "https://specdrivengames.com/icons/icon-192.png"
     }

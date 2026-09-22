@@ -3,6 +3,12 @@
 /**
  * Is this page being rendered inside the Android app?
  *
+ * "The Android app" is now two apps — the Bubblewrap TWA and the Capacitor
+ * WebView wrapper — and they announce themselves in two different ways,
+ * because they are two different renderers. Both are checked here so callers
+ * keep asking one question. See `capacitor-identity.ts` for the second
+ * signal and why the first one cannot serve for both.
+ *
  * ── The signal ───────────────────────────────────────────────────────────
  *
  * A Trusted Web Activity is Chrome, launched by an Android app, so there is
@@ -37,12 +43,29 @@
  */
 
 import { ANDROID_PACKAGE_ID } from "./android";
+import { ANDROID_APP_UA_TOKEN } from "./capacitor-identity";
 
 const KEY = "sdg-android-app";
 const REFERRER = `android-app://${ANDROID_PACKAGE_ID}`;
 
+/**
+ * The Capacitor build, which carries its token on the user agent rather than
+ * on a referrer.
+ *
+ * Checked before the referrer because it is the cheaper and more durable of
+ * the two: the user agent belongs to the WebView, so it is already correct on
+ * a reload, on a deep link and on the first document, and needs none of the
+ * session-storage carrying the referrer does.
+ */
+function isCapacitorApp(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return navigator.userAgent.includes(ANDROID_APP_UA_TOKEN);
+}
+
 export function isAndroidApp(): boolean {
   if (typeof document === "undefined") return false;
+
+  if (isCapacitorApp()) return true;
 
   if (document.referrer.startsWith(REFERRER)) {
     try {

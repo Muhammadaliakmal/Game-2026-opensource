@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Spec Driven Games — offline</title>
+    <!--
+      The app's offline page, and `server.errorPath` in `capacitor.config.ts`.
+
+      This is the near-twin of `public/offline.html`, which the service worker
+      serves on the web. It is a copy rather than an import because the two
+      are reached by different machinery at different times: that one is
+      cached by a service worker on an origin that is already running, this
+      one is a file inside the APK that has to work when nothing has loaded at
+      all. A build step that shared them would be a build step that could
+      fail and leave this app with a white screen, which is the exact failure
+      the page exists to prevent.
+
+      Deliberately self-contained for the same reason as its twin: no
+      stylesheet, no font, no image. Anything it had to fetch is a thing it
+      would be missing at the moment it is needed.
+
+      The one difference from the web copy: Retry goes back to the shell
+      rather than reloading. Reloading would re-run whichever failed
+      navigation landed here; the shell re-checks connectivity first and is
+      the thing that knows how to reach the site.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #1a1d21;
+        color: #edf0f3;
+        font: 400 14px/1.6 "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+        padding: 24px;
+        text-align: center;
+      }
+      .wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        max-width: 22rem;
+      }
+      .mark {
+        width: 18px;
+        height: 18px;
+        background: #ffb020;
+        transform: rotate(45deg);
+      }
+      h1 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        color: #c3c9d0;
+        font-size: 0.8125rem;
+      }
+      button {
+        font: inherit;
+        font-size: 0.8125rem;
+        color: #1a1d21;
+        background: #ffb020;
+        border: 0;
+        border-radius: 3px;
+        padding: 8px 14px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <span class="mark" aria-hidden="true"></span>
+      <h1>No connection</h1>
+      <p>
+        Spec Driven Games needs the network — worlds are stored on the server and races
+        run through a room. Reconnect and try again.
+      </p>
+      <button id="retry">Retry</button>
+    </div>
+
+    <script>
+      document.getElementById("retry").addEventListener("click", () => {
+        location.replace("index.html");
+      });
+    </script>
+  </body>
+</html>

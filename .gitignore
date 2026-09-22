@@ -74,3 +74,30 @@ next-env.d.ts
 /android/*
 !/android/twa-manifest.json
 !/android/README.md
+
+# The Capacitor build, which takes the OPPOSITE rule to the TWA above, on
+# purpose.
+#
+# Bubblewrap regenerates its whole project from `twa-manifest.json`, so that
+# project is an output and ignoring it loses nothing. A Capacitor native
+# project is not an output: `MainActivity.java` carries the back-button
+# handler, `app/build.gradle` carries the signing config and R8, and
+# `proguard-rules.pro` carries the keep rules — all hand-written, none of them
+# reproducible by `npx cap add android`, which would overwrite them. Capacitor
+# documents the native project as source for exactly this reason. So it is
+# committed, and only the secrets and the build outputs are not.
+/capacitor-android/release.keystore
+/capacitor-android/keystore.properties
+/capacitor-android/.gradle/
+/capacitor-android/build/
+/capacitor-android/app/build/
+/capacitor-android/capacitor-cordova-android-plugins/build/
+/capacitor-android/local.properties
+/capacitor-android/.idea/
+/capacitor-android/*.apk
+/capacitor-android/*.aab
+
+# Android Studio / IntelliJ project settings. Machine-local — the SDK paths,
+# window layout and caches in here belong to whoever opened the project, not
+# to the project.
+/.idea/

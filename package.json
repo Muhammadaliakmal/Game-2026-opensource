@@ -27,11 +27,22 @@
     "android:update": "cd android && npx @bubblewrap/cli update",
     "android:build": "cd android && npx @bubblewrap/cli build",
     "android:release": "node --import tsx scripts/android-release.ts",
-    "android:fingerprint": "keytool -list -v -keystore android/release.keystore -alias specdrivengames"
+    "android:fingerprint": "keytool -list -v -keystore android/release.keystore -alias specdrivengames",
+    "cap:sync": "cap sync android",
+    "cap:open": "cap open android",
+    "cap:debug": "cap sync android && cd capacitor-android && gradlew.bat assembleDebug",
+    "cap:build": "cap sync android && cd capacitor-android && gradlew.bat assembleRelease bundleRelease",
+    "cap:fingerprint": "keytool -list -v -keystore capacitor-android/release.keystore -alias specdrivengames"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1123.0",
     "@aws-sdk/s3-request-presigner": "^3.1123.0",
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@clerk/nextjs": "^7.8.3",
     "@colyseus/sdk": "^0.18.2",
     "@neondatabase/serverless": "^1.1.0",
@@ -53,6 +64,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
     "@gltf-transform/cli": "^4.5.0",
     "@gltf-transform/core": "^4.5.0",
     "@gltf-transform/extensions": "^4.5.0",
