@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -22,6 +22,7 @@ import { RATES } from "@/lib/arcade-payout";
 import { ControlsHint } from "@/components/hud/Hotkey";
 import { StatBadge } from "@/components/stats/StatBadge";
 import { CabinetPreview } from "./CabinetPreview";
+import { warmCabinets } from "@/arcade/host/warm";
 
 /**
  * The row of cabinets, and the thing that opens one.
@@ -137,6 +138,9 @@ export function ArcadeLobby() {
   const activeGame = useArcade((s) => s.activeGame);
   const best = useArcade((s) => s.best);
   const grid = useCabinetGrid();
+
+  // Every cabinet's code into the offline cache while there is a connection.
+  useEffect(() => warmCabinets(), []);
 
   /*
    * The cabinet registry, keyed, so the grid can iterate registry entries —

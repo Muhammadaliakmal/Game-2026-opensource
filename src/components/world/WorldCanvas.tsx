@@ -70,6 +70,7 @@ import { PostFX } from "@/components/PostFX";
 import { FootKeyboard } from "@/components/play/FootKeyboard";
 import { useRenderQuality } from "@/lib/quality";
 import { SANDBOX_WORLDS } from "@/lib/built-in-worlds";
+import { warmCabinets } from "@/arcade/host/warm";
 import { useArcade } from "@/arcade/store";
 import { ArcadeCabinets } from "@/components/arcade/ArcadeCabinets";
 import { ContextGuard, ContextLostNotice } from "@/components/ContextGuard";
@@ -244,6 +245,10 @@ export default function WorldCanvas({
   // A built-in world with nothing to complete: ours to furnish, and exactly
   // where somebody is standing around with nothing to do.
   const arcadeWorld = SANDBOX_WORLDS.some((w) => w.slug === worldId);
+  // This world has cabinets in it; see arcade/host/warm.ts.
+  useEffect(() => {
+    if (arcadeWorld) warmCabinets();
+  }, [arcadeWorld]);
 
   const isDraft = worldId === DRAFT_ID;
   const [mode, setMode] = useState<Mode>(initialMode);

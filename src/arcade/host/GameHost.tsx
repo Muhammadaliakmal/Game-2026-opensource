@@ -246,7 +246,13 @@ export function GameHost({ className }: { className?: string }) {
         startRun();
       } catch {
         if (!cancelled) {
-          useArcade.getState().fail("That cabinet would not start.");
+          useArcade
+            .getState()
+            .fail(
+              navigator.onLine === false
+                ? "You are offline, and this cabinet has not been downloaded yet. Open the arcade once while online and every cabinet works offline after that."
+                : "That cabinet would not start."
+            );
         }
       }
     })();
