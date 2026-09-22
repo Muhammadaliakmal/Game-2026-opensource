@@ -33,6 +33,7 @@
     "cap:open": "cap open android",
     "cap:debug": "cap sync android && cd capacitor-android && gradlew.bat assembleDebug",
     "cap:build": "cap sync android && cd capacitor-android && gradlew.bat assembleRelease bundleRelease",
+    "cap:release": "node --import tsx scripts/android-release.ts --capacitor",
     "cap:fingerprint": "keytool -list -v -keystore capacitor-android/release.keystore -alias specdrivengames"
   },
   "dependencies": {

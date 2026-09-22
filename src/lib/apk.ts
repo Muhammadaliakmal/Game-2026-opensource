@@ -4,11 +4,11 @@ import path from "node:path";
 /**
  * What the /download page knows about the Android build.
  *
- * The APK is a Trusted Web Activity — an Android shell whose whole UI is the
- * user's own Chrome rendering the deployed site — built by Bubblewrap from
- * `android/twa-manifest.json` and put at `public/blockworld.apk` by
- * `npm run android:release`. See docs/ANDROID.md, and src/lib/android.ts for
- * the values the build, the asset-link file and the Play listing must share.
+ * The file at `public/blockworld.apk` is whichever Android build was last
+ * published there: the Capacitor app by `npm run cap:release` (what ships
+ * now — see docs/CAPACITOR.md), or the Bubblewrap TWA by
+ * `npm run android:release` (docs/ANDROID.md). Both open the live site
+ * fullscreen, so the page's copy holds for either.
  *
  * It is still not built by `npm run build`. Bubblewrap needs the JDK and the
  * Android SDK, and it reads the *deployed* manifest over HTTPS rather than the

@@ -215,7 +215,13 @@ export function InstallPanel({
                   <li>
                     Open it. Android will ask to allow installs from your
                     browser — this is expected for anything outside the Play
-                    Store, and the permission is per-app.
+                    Store, and the permission is per-app. If it does not ask,
+                    it is under{" "}
+                    <span className="num">
+                      Settings → Apps → Special app access → Install unknown
+                      apps
+                    </span>
+                    , on the browser you downloaded with.
                   </li>
                   <li>
                     Play Protect may warn that the app is unrecognised. It is,

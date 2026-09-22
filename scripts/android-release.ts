@@ -3,6 +3,7 @@
  *
  *     npm run android:release            # finds the APK in android/
  *     npm run android:release -- path.apk
+ *     npm run cap:release                # the Capacitor app's build instead
  *
  * Three things happen here and each one is a step somebody forgets by hand:
  *
@@ -24,18 +25,22 @@ import { copyFile, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const ROOT = process.cwd();
+/** `npm run cap:release` publishes the Capacitor app's build instead of the TWA's. */
+const CAPACITOR = process.argv.includes("--capacitor");
+const GIVEN = process.argv.slice(2).find((a) => !a.startsWith("--"));
 const DEST = path.join(ROOT, "public", "blockworld.apk");
 const DIGEST = `${DEST}.sha256`;
 
 /** Where Bubblewrap leaves a signed build, in the order worth trying. */
-const CANDIDATES = [
-  "android/app-release-signed.apk",
-  "android/app/build/outputs/apk/release/app-release.apk",
-];
+const CANDIDATES = CAPACITOR
+  ? ["capacitor-android/app/build/outputs/apk/release/app-release.apk"]
+  : [
+      "android/app-release-signed.apk",
+      "android/app/build/outputs/apk/release/app-release.apk",
+    ];
 
 async function findApk(): Promise<string> {
-  const given = process.argv[2];
-  if (given) return path.resolve(ROOT, given);
+  if (GIVEN) return path.resolve(ROOT, GIVEN);
 
   for (const rel of CANDIDATES) {
     const p = path.join(ROOT, rel);
@@ -44,6 +49,10 @@ async function findApk(): Promise<string> {
     } catch {
       // Next candidate.
     }
+  }
+
+  if (CAPACITOR) {
+    throw new Error("No Capacitor APK found. Run `npm run cap:build` first.");
   }
 
   // Last resort: anything signed sitting at the top of android/. Bubblewrap's
@@ -77,22 +86,33 @@ async function findApk(): Promise<string> {
  * is what the page prints. Nothing connects them automatically because the
  * page has to work before the first APK exists.
  */
-async function checkVersions(): Promise<string> {
+async function builtVersion(): Promise<[string, string | undefined]> {
+  if (CAPACITOR) {
+    const gradle = await readFile(
+      path.join(ROOT, "capacitor-android", "app", "build.gradle"),
+      "utf8"
+    );
+    return ["capacitor-android/app/build.gradle", /versionName\s+"([^"]+)"/.exec(gradle)?.[1]];
+  }
   const twa = JSON.parse(
     await readFile(path.join(ROOT, "android", "twa-manifest.json"), "utf8")
   ) as { appVersionName?: string };
+  return ["android/twa-manifest.json", twa.appVersionName];
+}
+
+async function checkVersions(): Promise<string> {
+  const [source, built] = await builtVersion();
 
   const lib = await readFile(path.join(ROOT, "src", "lib", "apk.ts"), "utf8");
   const declared = /APK_VERSION\s*=\s*"([^"]+)"/.exec(lib)?.[1];
 
-  if (!twa.appVersionName) throw new Error("twa-manifest.json has no appVersionName.");
+  if (!built) throw new Error(`${source} has no version name.`);
   if (!declared) throw new Error("Could not read APK_VERSION from src/lib/apk.ts.");
 
-  if (twa.appVersionName !== declared) {
+  if (built !== declared) {
     throw new Error(
-      `Version mismatch. android/twa-manifest.json says ${twa.appVersionName}, ` +
-        `src/lib/apk.ts says ${declared}.\n` +
-        `Set APK_VERSION to "${twa.appVersionName}" and run this again.`
+      `Version mismatch. ${source} says ${built}, src/lib/apk.ts says ${declared}.\n` +
+        `Set APK_VERSION to "${built}" and run this again.`
     );
   }
 
