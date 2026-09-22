@@ -2,6 +2,8 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { useInstallPrompt } from "@/lib/use-install-prompt";
+import { capacitorBuild } from "@/lib/app-mode";
+import { LATEST_APP_BUILD } from "@/lib/capacitor-identity";
 
 /**
  * The part of /download that depends on which device is asking.
@@ -45,6 +47,8 @@ function detect(): Platform {
  */
 const subscribePlatform = () => () => {};
 const platformServerSnapshot = (): Platform => "unknown";
+const buildSnapshot = () => capacitorBuild(navigator.userAgent);
+const noBuildOnServer = () => null;
 
 export function InstallPanel({
   apkAvailable,
@@ -63,6 +67,7 @@ export function InstallPanel({
   );
 
   const { available, install, installed } = useInstallPrompt();
+  const appBuild = useSyncExternalStore(subscribePlatform, buildSnapshot, noBuildOnServer);
   const [busy, setBusy] = useState(false);
 
   const onInstall = async () => {
@@ -73,6 +78,23 @@ export function InstallPanel({
       setBusy(false);
     }
   };
+
+  // Inside an out-of-date Capacitor install: this is where its update notice
+  // leads, so it has to offer the file rather than say "already installed".
+  if (appBuild !== null && appBuild < LATEST_APP_BUILD && apkAvailable) {
+    return (
+      <section className="card border-accent/40 flex flex-col gap-3 p-5">
+        <h2 className="text-ink text-sm font-semibold">Update the app</h2>
+        <p className="text-dim text-xs">
+          A newer version is out. Download it and open the file — it installs
+          over this one and keeps your sign-in and progress.
+        </p>
+        <a href={apkPath} download className="hud-chip hud-chip--primary w-fit">
+          Download the update
+        </a>
+      </section>
+    );
+  }
 
   if (installed) {
     return (
@@ -135,7 +157,12 @@ export function InstallPanel({
         </section>
       )}
 
-      {/* ── Install from the browser ── */}
+      {/* ── Install from the browser ──
+
+          Only where there is no APK to offer instead: on iOS, which cannot
+          take one, and anywhere before one is published. With the APK live,
+          two ways to "install" on one page read as the site hedging. */}
+      {(platform === "ios" || !apkAvailable) && (
       <section className="card flex flex-col gap-4 p-5">
         <div className="flex flex-col gap-2">
           <h2 className="text-ink text-sm font-semibold">
@@ -182,6 +209,7 @@ export function InstallPanel({
           </p>
         )}
       </section>
+      )}
 
       {/* ── The APK ── */}
       {platform !== "ios" && (

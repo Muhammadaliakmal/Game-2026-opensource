@@ -27,7 +27,7 @@ export const APK_PATH = `/${APK_FILE}`;
  * but "which build am I on" is the first question anybody sideloading asks,
  * and a mtime does not answer it.
  */
-export const APK_VERSION = "1.0.1";
+export const APK_VERSION = "1.0.2";
 
 export interface ApkInfo {
   available: boolean;

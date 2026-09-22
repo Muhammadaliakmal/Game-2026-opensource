@@ -146,6 +146,20 @@
         }
 
         location.replace(SITE);
+
+        // A successful handoff replaces this document and this timer with it.
+        // Still here means the navigation stalled or left the app, and a
+        // spinner with no end is the worst answer to either.
+        setTimeout(() => {
+          document.querySelector(".wrap p").textContent =
+            "This is taking longer than it should.";
+          const retry = document.createElement("button");
+          retry.textContent = "Try again";
+          retry.style.cssText =
+            "font:inherit;font-size:.8125rem;color:#1a1d21;background:#ffb020;border:0;border-radius:3px;padding:8px 14px";
+          retry.onclick = () => location.replace(SITE);
+          document.querySelector(".wrap").append(retry);
+        }, 15000);
       }
 
       start();

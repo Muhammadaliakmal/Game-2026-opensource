@@ -76,4 +76,4 @@ export const APP_BUILD_UA_PREFIX = "SDGAppBuild/";
  * `npm run cap:release` refuses to publish if it disagrees with
  * `capacitor-android/app/build.gradle`.
  */
-export const LATEST_APP_BUILD = 2;
+export const LATEST_APP_BUILD = 3;

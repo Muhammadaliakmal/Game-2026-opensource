@@ -89,11 +89,24 @@ const config: CapacitorConfig = {
      * off the bundled shell opens the system browser and the app is an empty
      * frame around a launcher icon.
      *
-     * Deliberately only our hosts. Anything else — Discord, an ad
-     * click-through — should leave, and leaving is the correct behaviour for
-     * a link that is not ours.
+     * Our hosts, and Clerk's. Clerk sends a fresh visitor through its own
+     * domain and straight back — a development instance does it on every
+     * first load (`*.clerk.accounts.dev`), a production one through
+     * `clerk.` / `accounts.` on our domain. A redirect to a host not on this
+     * list is handed to the system browser, so without these the app opened
+     * Chrome, with its URL bar, on launch and was left on "Starting…".
+     *
+     * Anything else — Discord, an ad click-through, Google's own sign-in
+     * page, which refuses to run inside a WebView — should leave.
      */
-    allowNavigation: ["specdrivengames.com", "www.specdrivengames.com"],
+    allowNavigation: [
+      "specdrivengames.com",
+      "www.specdrivengames.com",
+      "clerk.specdrivengames.com",
+      "accounts.specdrivengames.com",
+      "*.clerk.accounts.dev",
+      "*.accounts.dev",
+    ],
 
     /**
      * Never true. `cleartext` and `allowMixedContent` are development flags;
