@@ -29,6 +29,7 @@
     "android:release": "node --import tsx scripts/android-release.ts",
     "android:fingerprint": "keytool -list -v -keystore android/release.keystore -alias specdrivengames",
     "cap:sync": "cap sync android",
+    "cap:assets": "node --import tsx scripts/generate-android-assets.ts",
     "cap:open": "cap open android",
     "cap:debug": "cap sync android && cd capacitor-android && gradlew.bat assembleDebug",
     "cap:build": "cap sync android && cd capacitor-android && gradlew.bat assembleRelease bundleRelease",

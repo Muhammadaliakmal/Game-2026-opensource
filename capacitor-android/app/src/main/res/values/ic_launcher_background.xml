@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Written by scripts/generate-android-assets.ts. The app background,
+     and the one thing behind the adaptive icon's foreground layer. -->
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="ic_launcher_background">#1a1d21</color>
 </resources>

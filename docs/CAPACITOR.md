@@ -27,7 +27,7 @@ So why does this exist at all:
 | A native project you own | You need to add something Chrome will not do — a native SDK, a custom back stack, an in-app purchase |
 | The Google Mobile Ads SDK hook | AdSense inside the app ever becomes a requirement rather than something switched off |
 | Independence from Chrome | A device has no Chrome, or a Chrome too old for a TWA |
-| Push notifications | Not implemented here. See §6 |
+| Push notifications | Not implemented here. See §7 |
 
 **If none of those is the reason, ship the TWA.** It is smaller, faster on this
 workload, and needs no binary rebuild to ship a game change.
@@ -149,7 +149,64 @@ safety declaration has to change with it.
 
 ---
 
-## 6. What is NOT done
+## 6. The icon and the splash
+
+Generated from `assets/icon-master.png` by `npm run cap:assets`
+(`scripts/generate-android-assets.ts`), never hand-edited — the same rule
+`npm run icons:generate` follows for the web, and for the same reason: a set
+edited by hand is a set where two sizes drift apart and nobody finds out
+until an install looks wrong on somebody else's phone.
+
+The TWA needs no equivalent. Bubblewrap reads the web manifest and derives
+its own buckets from the icons the web script already wrote. Capacitor does
+not: `npx cap add android` writes the Android Studio template's icon and
+leaves it, which is how this app spent its first commit building with a teal
+square and the Android robot on the launcher.
+
+**The Android safe zone is not the web's.** A maskable web icon guarantees
+the centre 80%, a circle of radius 40% of the edge. An adaptive Android icon
+is a 108dp layer of which only the centre **72dp** is ever displayed, so the
+guaranteed circle has radius 36dp — a third of the layer. Three consequences,
+all of them measured rather than assumed:
+
+- **The artwork is mapped onto the visible 72dp, not shipped full-bleed.**
+  Both fit: the cube lands at 60% of the safe radius mapped and 89%
+  full-bleed. The choice is not about safety, it is that 60% is exactly where
+  the PWA icon puts it, and §0 says this app and the TWA can be installed at
+  once. Two icons drawn from one piece of artwork must not disagree about how
+  big the cube is on the one home screen that has both.
+- **The 18dp bleed is a copy of the edge pixels**, not a fill. The artwork is
+  a vertical gradient, so a flat fill would meet it at a hard seam lying
+  exactly on the mask boundary — the one place the mask has stopped hiding
+  things, and parallax is the one time it moves into view.
+- **The artwork is the foreground layer**, and `@color/ic_launcher_background`
+  is the launch colour behind it. Android 12+ draws its system splash icon
+  from the foreground, so a transparent one is a blank circle there; and an
+  opaque layer spanning all 108dp still covers the mask wherever parallax
+  shifts it.
+
+**The splash is a field of `#1a1d21` with the mark centred on it** — not the
+artwork full-bleed, because the background during launch has to be the colour
+everything else during launch already is. That invariant is
+`capacitor/www/index.html`'s, and it now reaches the one surface it did not
+cover: the launch theme sets `windowSplashScreenBackground`, because on API
+31+ the platform draws its own splash *before* the activity and ignores the
+`android:background` the drawable hangs off. The icon there is left unset on
+purpose — unset means the app icon, which is now the artwork.
+
+The same script writes the two Play listing images beside the project:
+`store_icon.png` (512², opaque 32-bit) and `feature_graphic.png` (1024×500,
+no alpha) — the night sky, the island cover at its native size, and the mark
+and name on the left. Screenshots are not generated and cannot be: Play
+requires real gameplay there.
+
+`src/lib/android-icons.test.ts` measures all of it, including the one that
+only breaks later: artwork replaced with a mark reaching further out than the
+cube, which is invisible until a round launcher crops it.
+
+---
+
+## 7. What is NOT done
 
 Listed because a wrapper's value is the native things it can do, and these are
 the ones the guide this was built from recommends:
@@ -159,11 +216,9 @@ the ones the guide this was built from recommends:
   rejection, and it needs a Firebase project and a `google-services.json`.
 - **`@capacitor/browser`** for opening external links in a custom tab rather
   than kicking out to the browser app.
-- **`@capacitor/preferences`** for native key/value storage.
-- **A splash image.** `androidSplashResourceName: "splash"` is configured and
-  the drawable is the template's. `npm run icons:generate` owns the web icons;
-  nothing yet generates the Android density buckets from them — `@capacitor/assets`
-  is the tool for it.
+- **`@capacitor/preferences`** for native key/value storage. Worth little
+  here for the reason in §2: the bridge does not exist on the live origin, so
+  only the shell could call it, and the shell stores nothing.
 - **Anything on Play.** No listing, no account. That whole schedule is
   `docs/ANDROID.md` §5 and it is identical for this app, with one addition: a
   second package id means a second listing, a second Data safety form and a
@@ -171,13 +226,14 @@ the ones the guide this was built from recommends:
 
 ---
 
-## 7. Building
+## 8. Building
 
 Prerequisites are the same as the TWA's (`docs/ANDROID.md` §2) plus the ones
 Capacitor 8 adds: **Node 22+**, and a **JDK 17** for Gradle.
 
 ```bash
 npm run cap:sync      # copy capacitor/www + plugins into the native project
+npm run cap:assets    # icons + splash from assets/icon-master.png. See §6
 npm run cap:debug     # debug APK  -> capacitor-android/app/build/outputs/apk/debug/
 npm run cap:build     # signed release APK + AAB
 npm run cap:open      # open in Android Studio
@@ -188,6 +244,11 @@ npm run cap:fingerprint
 config reaches the APK without a separate step. A change to
 `MainActivity.java`, `build.gradle` or the ProGuard rules is already in the
 native project and needs nothing.
+
+`cap:assets` is **not** wired into either build, deliberately. Its output is
+committed, like `public/icons`, so the build has nothing to do; what catches a
+stale set is `android-icons.test.ts` failing, not a slower build. Run it when
+the artwork changes.
 
 **The version numbers are in `capacitor-android/app/build.gradle`**
 (`versionCode`, `versionName`), not in `capacitor.config.ts`. Bump
@@ -208,7 +269,7 @@ somewhere that is not this machine and not this repo.**
 
 ---
 
-## 8. Updating
+## 9. Updating
 
 Unlike the TWA, **this app has no automatic relationship with a site deploy for
 its shell**, but it has one for everything else: the shell and the offline page

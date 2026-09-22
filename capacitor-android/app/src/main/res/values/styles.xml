@@ -16,7 +16,31 @@
     </style>
 
 
+    <!--
+        The launch theme, which is two different things on two sides of an
+        API level and has to be told about both.
+
+        Below 31, the window simply wears `android:background` until the
+        WebView paints, so the splash drawable IS the splash.
+
+        On 31 and up the platform draws its own splash first and ignores that
+        background: a centred icon on `windowSplashScreenBackground`, which
+        defaults to the theme's window background and so arrived as whatever
+        Theme.SplashScreen happens to carry. That is the one surface during
+        launch that was not the launch colour, and the whole arrangement in
+        `capacitor/www/index.html` — splash, shell, WebView and site all
+        #1a1d21, so no ordering of events can flash something else — is worth
+        nothing if the first frame of all is a different colour.
+
+        The icon is left unset on purpose. Unset means the platform uses the
+        app icon, whose foreground layer is now the artwork rather than the
+        template's robot, so it is already the right picture.
+
+        #1a1d21 is written out because a theme attribute cannot read
+        `capacitor.config.ts`. `android-icons.test.ts` holds the two together.
+    -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">#1a1d21</item>
     </style>
 </resources>

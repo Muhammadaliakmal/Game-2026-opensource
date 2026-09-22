@@ -226,8 +226,10 @@ Budget 2–4 weeks from signup to public launch, almost none of it spent here.
   declaration stays true.
 - **Content rating** — the IARC questionnaire. An app without one is not
   allowed on Play.
-- **Assets** — icon 512×512 PNG; feature graphic 1024×500; **at least two phone
-  screenshots**, which for a game must be actual gameplay. The images in
+- **Assets** — icon 512×512 PNG and feature graphic 1024×500, both generated
+  by `npm run cap:assets` into `capacitor-android/` (`store_icon.png`,
+  `feature_graphic.png`) and held to Play's format by `android-icons.test.ts`;
+  **at least two phone screenshots**, which for a game must be actual gameplay. The images in
   `public/covers/` are generated level cards and are *not* screenshots; these
   have to be captured from a real session.
 
