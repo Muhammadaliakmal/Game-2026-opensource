@@ -43,7 +43,7 @@
  */
 
 import { ANDROID_PACKAGE_ID } from "./android";
-import { ANDROID_APP_UA_TOKEN } from "./capacitor-identity";
+import { ANDROID_APP_UA_TOKEN, APP_BUILD_UA_PREFIX } from "./capacitor-identity";
 
 const KEY = "sdg-android-app";
 const REFERRER = `android-app://${ANDROID_PACKAGE_ID}`;
@@ -60,6 +60,20 @@ const REFERRER = `android-app://${ANDROID_PACKAGE_ID}`;
 function isCapacitorApp(): boolean {
   if (typeof navigator === "undefined") return false;
   return navigator.userAgent.includes(ANDROID_APP_UA_TOKEN);
+}
+
+/**
+ * The Capacitor app's installed versionCode, or null outside it.
+ *
+ * Pure over its argument so it can be tested without a browser; callers pass
+ * `navigator.userAgent`.
+ */
+export function capacitorBuild(userAgent: string): number | null {
+  if (!userAgent.includes(ANDROID_APP_UA_TOKEN)) return null;
+  const i = userAgent.indexOf(APP_BUILD_UA_PREFIX);
+  if (i < 0) return 1;
+  const n = parseInt(userAgent.slice(i + APP_BUILD_UA_PREFIX.length), 10);
+  return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
 export function isAndroidApp(): boolean {

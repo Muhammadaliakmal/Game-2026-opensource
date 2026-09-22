@@ -8,6 +8,7 @@ import { SiteNav } from "@/components/SiteNav";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { UiSounds } from "@/components/UiSounds";
 import { InstallToast } from "@/components/InstallToast";
+import { AppUpdateNotice } from "@/components/AppUpdateNotice";
 import { StatsProvider } from "@/components/stats/StatsProvider";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import { AD_CLIENT } from "@/lib/ads";
@@ -170,6 +171,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {/* Two layouts, not one squeezed: see components/SiteNav. */}
             <SiteNav />
           </header>
+          <AppUpdateNotice />
           {/* min-h-0 lets this actually shrink inside the flex column; without
               it a tall child would push the shell past the viewport.
 

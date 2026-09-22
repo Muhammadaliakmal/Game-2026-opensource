@@ -58,3 +58,22 @@ export const CAPACITOR_PACKAGE_ID = "com.specdrivengames.app";
  * neither is allowed to decide anything else. See `app-mode.ts`.
  */
 export const ANDROID_APP_UA_TOKEN = "SpecDrivenGamesApp/1";
+
+/**
+ * The installed build, on the same user agent: `SDGAppBuild/<versionCode>`,
+ * appended natively by `MainActivity` from the package's own versionCode so
+ * it cannot drift from the binary. Separate from the token above because
+ * that one is a presence marker already baked into shipped installs.
+ *
+ * A Capacitor user agent WITHOUT it is build 1 — the only build that shipped
+ * before this existed.
+ */
+export const APP_BUILD_UA_PREFIX = "SDGAppBuild/";
+
+/**
+ * The versionCode of the APK `/download` serves. A sideloaded app never
+ * updates itself, so this is what the in-app notice compares against.
+ * `npm run cap:release` refuses to publish if it disagrees with
+ * `capacitor-android/app/build.gradle`.
+ */
+export const LATEST_APP_BUILD = 2;

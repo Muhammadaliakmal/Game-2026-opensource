@@ -269,6 +269,26 @@ somewhere that is not this machine and not this repo.**
 
 ---
 
+### Shipping a new APK to /download
+
+Gradle must run on **JDK 21**: Capacitor 8 compiles with Java 21 source, so
+JDK 17 cannot build it, and Gradle 8.14 cannot run on JDK 25. On this machine:
+`JAVA_HOME="C:\Program Files\Zulu\zulu-21"`.
+
+1. Bump `versionCode` and `versionName` in `capacitor-android/app/build.gradle`.
+2. Set `APK_VERSION` in `src/lib/apk.ts` to the new versionName, and
+   `LATEST_APP_BUILD` in `src/lib/capacitor-identity.ts` to the new versionCode.
+3. `npm run cap:build`, then `npm run cap:release` — it refuses to publish if
+   any of the three disagree.
+4. Commit `public/blockworld.apk` and its `.sha256`, and deploy.
+
+A sideloaded app never updates itself. `MainActivity` puts
+`SDGAppBuild/<versionCode>` on the user agent, and `AppUpdateNotice` shows a
+dismissible "update available" line under the header of any install older
+than `LATEST_APP_BUILD`. Its link works because `MainActivity` also hands
+downloads to the system browser — a WebView with no `DownloadListener`
+silently drops them, which is what Capacitor ships with.
+
 ## 9. Updating
 
 Unlike the TWA, **this app has no automatic relationship with a site deploy for

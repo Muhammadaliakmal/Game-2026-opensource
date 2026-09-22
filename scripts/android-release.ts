@@ -116,7 +116,30 @@ async function checkVersions(): Promise<string> {
     );
   }
 
+  if (CAPACITOR) await checkBuildCode();
+
   return declared;
+}
+
+/**
+ * The in-app update notice compares an install's versionCode against
+ * `LATEST_APP_BUILD`. Publishing a build that constant does not describe
+ * either nags every up-to-date install forever or never tells a stale one.
+ */
+async function checkBuildCode(): Promise<void> {
+  const gradle = await readFile(
+    path.join(ROOT, "capacitor-android", "app", "build.gradle"),
+    "utf8"
+  );
+  const built = Number(/versionCode\s+(\d+)/.exec(gradle)?.[1]);
+  const identity = await readFile(path.join(ROOT, "src", "lib", "capacitor-identity.ts"), "utf8");
+  const latest = Number(/LATEST_APP_BUILD\s*=\s*(\d+)/.exec(identity)?.[1]);
+  if (!built || built !== latest) {
+    throw new Error(
+      `versionCode mismatch. build.gradle says ${built}, ` +
+        `LATEST_APP_BUILD in src/lib/capacitor-identity.ts says ${latest}.`
+    );
+  }
 }
 
 async function main() {

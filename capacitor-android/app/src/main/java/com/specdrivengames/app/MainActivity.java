@@ -1,8 +1,15 @@
 package com.specdrivengames.app;
 
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 
 import androidx.activity.OnBackPressedCallback;
@@ -73,6 +80,45 @@ public class MainActivity extends BridgeActivity {
 
         if (getBridge() != null) {
             getBridge().setWebViewClient(new NoAdsWebViewClient(getBridge()));
+
+            WebView webView = getBridge().getWebView();
+
+            /*
+             * The installed build, for the site's "update available" notice
+             * (see src/lib/capacitor-identity.ts). Read from the package, not
+             * a constant, so it cannot disagree with the binary. Set before
+             * the shell hands off to the live site, which is the first
+             * request that reads it.
+             */
+            WebSettings settings = webView.getSettings();
+            settings.setUserAgentString(
+                settings.getUserAgentString() + " SDGAppBuild/" + installedVersionCode()
+            );
+
+            /*
+             * A WebView drops downloads unless something handles them, and
+             * Capacitor handles none — so "Download the APK" did nothing in
+             * the app, which is the one place an update gets offered. The
+             * system browser downloads it and runs the installer.
+             */
+            webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, length) -> {
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+                } catch (ActivityNotFoundException ignored) {
+                    // No browser at all. Nothing further this app can do.
+                }
+            });
+        }
+    }
+
+    private long installedVersionCode() {
+        try {
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+            return Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                ? info.getLongVersionCode()
+                : info.versionCode;
+        } catch (PackageManager.NameNotFoundException e) {
+            return 1;
         }
     }
 
