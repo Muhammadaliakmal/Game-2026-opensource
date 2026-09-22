@@ -1,4 +1,5 @@
 import { RACE } from "@/lib/features";
+import { RACE_TRACKS } from "@/lib/race-track";
 
 /**
  * Every playable thing on the site, as one flat list.
@@ -276,13 +277,16 @@ const WORLDS: readonly GameEntry[] = (
     { slug: "circuit", title: "Neon Circuit", tagline: "A railed loop with nothing to fall off. Hold sprint and go.", addedAt: "2026-09-02" },
     { slug: "ridge", title: "Vapor Ridge", tagline: "The circuit's shape, up on stilts, with a crest that throws you off the end of it.", addedAt: "2026-09-07" },
   ] as const
-).map((w) => ({
-  ...w,
-  kind: "world" as const,
-  href: `/play/${w.slug}`,
-  thumb: `/covers/${w.slug}.png`,
-  tags: WORLD_TAGS,
-}));
+)
+  // The two race tracks go with the race — see `isHiddenTrack`.
+  .filter((w) => RACE || !RACE_TRACKS.some((t) => t.slug === w.slug))
+  .map((w) => ({
+    ...w,
+    kind: "world" as const,
+    href: `/play/${w.slug}`,
+    thumb: `/covers/${w.slug}.png`,
+    tags: WORLD_TAGS,
+  }));
 
 /** Phase 3.2. Empty rather than absent, so the kind is already wired. */
 const TRACKS: readonly GameEntry[] = [];

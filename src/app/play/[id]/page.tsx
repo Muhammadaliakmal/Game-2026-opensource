@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { WorldMount } from "@/components/world/WorldMount";
 import { IMMERSIVE_VIEWPORT } from "@/lib/immersive";
 import { RememberPlay } from "@/components/RememberPlay";
-import { getBuiltInWorld } from "@/lib/built-in-worlds";
+import { redirect } from "next/navigation";
+import { getBuiltInWorld, isHiddenTrack } from "@/lib/built-in-worlds";
 import { CountPlay } from "@/components/stats/CountPlay";
 import { bySlug } from "@/content/registry";
 import { notesFor } from "@/content/course-notes";
@@ -79,6 +80,8 @@ export default async function PlayPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  // Temporary, like /race: an old link to a track lands on the games list.
+  if (isHiddenTrack(id)) redirect("/games");
   // The shareable link. Same canvas as /build/<id>, opened in play mode.
   return (
     <>

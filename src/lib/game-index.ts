@@ -1,5 +1,5 @@
 import { CABINETS } from "@/arcade/registry";
-import { BUILT_IN_WORLDS } from "./built-in-worlds";
+import { LISTED_WORLDS } from "./built-in-worlds";
 import { RACE } from "./features";
 
 /**
@@ -62,7 +62,7 @@ export const GAME_INDEX: GameEntry[] = [
     kind: "arcade",
     terms: ["arcade", "cabinet", c.id.replace(/-/g, " "), ...(c.board ? ["board", "dice"] : [])],
   })),
-  ...BUILT_IN_WORLDS.map<GameEntry>((w) => ({
+  ...LISTED_WORLDS.map<GameEntry>((w) => ({
     href: `/play/${w.slug}`,
     title: w.name,
     blurb: w.tier ? `${w.tier} course` : w.blurb,

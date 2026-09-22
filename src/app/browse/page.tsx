@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { worlds } from "@/lib/db/schema";
-import { BUILT_IN_WORLDS } from "@/lib/built-in-worlds";
+import { LISTED_WORLDS } from "@/lib/built-in-worlds";
 import {
   CommunityCourses,
   CommunityCoursesFallback,
@@ -57,8 +57,8 @@ export const metadata: Metadata = {
 export default async function BrowsePage() {
   // BUILT_IN_WORLDS is already in ladder order, so this is a partition and not
   // a sort — the difficulty sequence is defined once, where the maps are.
-  const ladder = BUILT_IN_WORLDS.filter((w) => w.tier);
-  const sandboxes = BUILT_IN_WORLDS.filter((w) => !w.tier);
+  const ladder = LISTED_WORLDS.filter((w) => w.tier);
+  const sandboxes = LISTED_WORLDS.filter((w) => !w.tier);
 
   // Metadata only — see the note on the home page: a gallery of 60 worlds
   // would otherwise pull 60 full WorldDocs just to render a part count.

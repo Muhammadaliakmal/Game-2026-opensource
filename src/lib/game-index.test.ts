@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { GAME_INDEX, searchIndex } from "./game-index";
 import { CABINETS } from "@/arcade/registry";
-import { BUILT_IN_WORLDS } from "./built-in-worlds";
+import { LISTED_WORLDS } from "./built-in-worlds";
 import { escapeLike } from "@/app/api/worlds/search/route";
 import { RACE } from "./features";
 
@@ -23,7 +23,7 @@ test("every game the site has is reachable from the search index", () => {
     assert.ok(hit, `cabinet ${c.id} is not in the search index`);
     assert.equal(hit.title, c.title);
   }
-  for (const w of BUILT_IN_WORLDS) {
+  for (const w of LISTED_WORLDS) {
     const hit = GAME_INDEX.find((e) => e.href === `/play/${w.slug}`);
     assert.ok(hit, `world ${w.slug} is not in the search index`);
     assert.equal(hit.kind, w.tier ? "course" : "world");

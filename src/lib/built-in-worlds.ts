@@ -6,6 +6,8 @@ import { circuitWorldDoc } from "./circuit";
 import { vaporRidgeWorldDoc } from "./vapor-ridge";
 import { TIERED_COURSES } from "./courses";
 import type { Tier } from "./course-kit";
+import { RACE } from "./features";
+import { RACE_TRACKS } from "./race-track";
 import { COTTAGE, NATURAL, NEON, TRACK, dressDoc } from "./surface-dressing";
 
 /**
@@ -87,12 +89,27 @@ export const BUILT_IN_WORLDS: BuiltInWorld[] = [
  * `TIERED_COURSES` puts it on the parkour screen and nowhere else, with no
  * second list to remember to update.
  */
-export const PARKOUR_COURSES: BuiltInWorld[] = BUILT_IN_WORLDS.filter(
+const TRACK_SLUGS = new Set<string>(RACE_TRACKS.map((t) => t.slug));
+
+/**
+ * A race track the race is switched off for. Walked on foot it is a dark
+ * loop of asphalt under a black sky — on a phone, a black screen with
+ * controls on it — so it is not offered while `RACE` is off. It stays in
+ * `BUILT_IN_WORLDS`, because the race loads its track from there.
+ */
+export const isHiddenTrack = (slug: string): boolean => !RACE && TRACK_SLUGS.has(slug);
+
+/** The built-in worlds any menu, index or sitemap may offer. */
+export const LISTED_WORLDS: BuiltInWorld[] = BUILT_IN_WORLDS.filter(
+  (w) => !isHiddenTrack(w.slug)
+);
+
+export const PARKOUR_COURSES: BuiltInWorld[] = LISTED_WORLDS.filter(
   (w) => w.tier !== undefined
 );
 
 /** The worlds with nothing to complete. Somewhere to stand and build. */
-export const SANDBOX_WORLDS: BuiltInWorld[] = BUILT_IN_WORLDS.filter(
+export const SANDBOX_WORLDS: BuiltInWorld[] = LISTED_WORLDS.filter(
   (w) => w.tier === undefined
 );
 
