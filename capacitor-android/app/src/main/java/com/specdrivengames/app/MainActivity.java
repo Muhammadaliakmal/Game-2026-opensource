@@ -41,9 +41,20 @@ import java.io.ByteArrayInputStream;
  */
 public class MainActivity extends BridgeActivity {
 
+    private static final String SITE = "https://specdrivengames.com";
+
+    /**
+     * A sign-in ticket that arrived with the intent that STARTED the app. The
+     * shell is about to navigate to the site; that navigation is swapped for
+     * the ticket page instead (see {@link AppWebViewClient}), which is the
+     * only ordering that cannot race the shell's own handoff.
+     */
+    private String pendingTicket;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        pendingTicket = ticketFrom(getIntent());
 
         /*
          * Registered after super.onCreate() on purpose.
@@ -79,7 +90,7 @@ public class MainActivity extends BridgeActivity {
         });
 
         if (getBridge() != null) {
-            getBridge().setWebViewClient(new NoAdsWebViewClient(getBridge()));
+            getBridge().setWebViewClient(new AppWebViewClient(getBridge()));
 
             WebView webView = getBridge().getWebView();
 
@@ -101,13 +112,46 @@ public class MainActivity extends BridgeActivity {
              * the app, which is the one place an update gets offered. The
              * system browser downloads it and runs the installer.
              */
-            webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, length) -> {
-                try {
-                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-                } catch (ActivityNotFoundException ignored) {
-                    // No browser at all. Nothing further this app can do.
-                }
-            });
+            webView.setDownloadListener(
+                (url, userAgent, contentDisposition, mimeType, length) -> openInBrowser(url)
+            );
+        }
+    }
+
+    /**
+     * A ticket arriving while the app is already running: sign the WebView in
+     * now, wherever it is.
+     */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        String ticket = ticketFrom(intent);
+        if (ticket != null && getBridge() != null) {
+            getBridge().getWebView().loadUrl(ticketUrl(ticket));
+        }
+    }
+
+    /** {@code specdrivengames://auth?ticket=...}, sent by /app-auth/complete. */
+    private static String ticketFrom(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())) return null;
+        Uri data = intent.getData();
+        if (data == null || !"specdrivengames".equals(data.getScheme()) || !"auth".equals(data.getHost())) {
+            return null;
+        }
+        String ticket = data.getQueryParameter("ticket");
+        return ticket == null || ticket.isEmpty() ? null : ticket;
+    }
+
+    /** In the fragment, which is never sent to a server or written to its logs. */
+    private static String ticketUrl(String ticket) {
+        return SITE + "/app-auth/ticket#t=" + Uri.encode(ticket);
+    }
+
+    private void openInBrowser(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (ActivityNotFoundException ignored) {
+            // No browser at all. Nothing further this app can do.
         }
     }
 
@@ -123,7 +167,16 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * Refuses every request to Google's ad hosts.
+     * Two jobs, both about where a request is allowed to go.
+     *
+     * <p><b>Google sign-in goes to Chrome.</b> Google refuses to show its
+     * sign-in page inside a WebView, and Capacitor would open it in the
+     * browser anyway — signing the BROWSER in, not the app. So the moment the
+     * WebView heads for Google, the browser is sent to {@code
+     * /app-auth/complete} instead, which signs in there and hands a
+     * single-use ticket back to this activity.
+     *
+     * <p><b>Refuses every request to Google's ad hosts.</b>
      *
      * <p>{@code AdSlot} already renders nothing in the app, but the site's
      * root layout loads {@code adsbygoogle.js} on every page, and with Auto
@@ -137,7 +190,7 @@ public class MainActivity extends BridgeActivity {
      * everything else: its {@code shouldInterceptRequest} is what serves the
      * bundled shell, and replacing it outright would break the launch.
      */
-    private static final class NoAdsWebViewClient extends BridgeWebViewClient {
+    private final class AppWebViewClient extends BridgeWebViewClient {
         private static final String[] AD_HOST_SUFFIXES = {
             "googlesyndication.com",
             "doubleclick.net",
@@ -145,8 +198,28 @@ public class MainActivity extends BridgeActivity {
             "adtrafficquality.google",
         };
 
-        NoAdsWebViewClient(Bridge bridge) {
+        AppWebViewClient(Bridge bridge) {
             super(bridge);
+        }
+
+        @Override
+        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            if (request.isForMainFrame()) {
+                String host = request.getUrl().getHost();
+
+                if ("accounts.google.com".equals(host)) {
+                    openInBrowser(SITE + "/app-auth/complete");
+                    return true;
+                }
+
+                if (pendingTicket != null && "specdrivengames.com".equals(host)) {
+                    String ticket = pendingTicket;
+                    pendingTicket = null;
+                    view.loadUrl(ticketUrl(ticket));
+                    return true;
+                }
+            }
+            return super.shouldOverrideUrlLoading(view, request);
         }
 
         @Override

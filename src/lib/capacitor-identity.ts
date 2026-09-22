@@ -76,4 +76,23 @@ export const APP_BUILD_UA_PREFIX = "SDGAppBuild/";
  * `npm run cap:release` refuses to publish if it disagrees with
  * `capacitor-android/app/build.gradle`.
  */
-export const LATEST_APP_BUILD = 3;
+export const LATEST_APP_BUILD = 4;
+
+/**
+ * The link Chrome uses to hand a sign-in back to the app, after a Google
+ * sign-in the WebView cannot do itself (Google refuses to run its sign-in page
+ * inside one). `MainActivity` declares the scheme and redeems the ticket.
+ *
+ * An `intent:` URL naming our package rather than a bare
+ * `specdrivengames://` link: a custom scheme can be registered by any app on
+ * the phone, and the ticket signs in as the user. With the package named,
+ * Chrome delivers it to this app or to nobody.
+ */
+export const APP_AUTH_SCHEME = "specdrivengames";
+
+export function appAuthIntentUrl(ticket: string): string {
+  return (
+    `intent://auth?ticket=${encodeURIComponent(ticket)}` +
+    `#Intent;scheme=${APP_AUTH_SCHEME};package=${CAPACITOR_PACKAGE_ID};end`
+  );
+}

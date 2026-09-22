@@ -289,6 +289,24 @@ than `LATEST_APP_BUILD`. Its link works because `MainActivity` also hands
 downloads to the system browser — a WebView with no `DownloadListener`
 silently drops them, which is what Capacitor ships with.
 
+### Signing in with Google
+
+Google refuses to show its sign-in page inside a WebView, and Capacitor
+would open it in Chrome anyway — signing Chrome in, not the app. So:
+
+1. The WebView heads for `accounts.google.com`; `MainActivity` stops it and
+   opens `https://specdrivengames.com/app-auth/complete` in Chrome instead.
+2. That page signs in there (sending to `/sign-in` first if needed), mints a
+   single-use Clerk sign-in token that expires in two minutes, and shows
+   which account it is.
+3. It hands the token back with an `intent://` URL naming this package, so
+   Chrome delivers it to this app or nobody — a bare custom scheme could be
+   claimed by any app on the phone.
+4. `MainActivity` opens `/app-auth/ticket#t=…` (the fragment never reaches a
+   server log), which redeems it with `signIn.ticket()` and `finalize()`.
+
+Email sign-in never leaves the WebView and needs none of this.
+
 ## 9. Updating
 
 Unlike the TWA, **this app has no automatic relationship with a site deploy for
