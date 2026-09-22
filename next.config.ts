@@ -41,6 +41,26 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  /**
+   * Static file headers.
+   *
+   * The APK is served from `public/blockworld.apk` with the MIME type that
+   * browsers and phones recognize as an Android package.
+   */
+  async headers() {
+    return [
+      {
+        source: "/blockworld.apk",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/vnd.android.package-archive",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
