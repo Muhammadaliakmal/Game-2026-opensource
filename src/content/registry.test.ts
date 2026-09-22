@@ -18,6 +18,7 @@ import {
 } from "./registry";
 import { CABINETS } from "@/arcade/registry";
 import { PARKOUR_COURSES, SANDBOX_WORLDS } from "@/lib/built-in-worlds";
+import { RACE } from "@/lib/features";
 
 /**
  * The registry is a hand-written copy of three other lists, and this file is
@@ -66,7 +67,7 @@ test("the registry holds nothing the game does not ship", () => {
   // card linking to a 404 and a stats row nothing will ever read.
   const shipped = new Set<string>([
     "parkour-mode",
-    "race-mode",
+    ...(RACE ? ["race-mode"] : []),
     ...CABINETS.map((c) => c.id),
     ...PARKOUR_COURSES.map((w) => w.slug),
     ...SANDBOX_WORLDS.map((w) => w.slug),
@@ -171,7 +172,9 @@ test("a tag chip that would leave a single card is never offered", () => {
     const n = REGISTRY.filter((e) => e.tags.includes(t)).length;
     assert.ok(n >= 2, `tag "${t}" is on ${n} entries — too few to be a filter`);
   }
-  assert.ok(TAGS_IN_USE.includes("Multiplayer"), "Multiplayer should still be readable");
+  if (RACE) {
+    assert.ok(TAGS_IN_USE.includes("Multiplayer"), "Multiplayer should still be readable");
+  }
   assert.ok(
     !filterTagsFor(REGISTRY).includes("Multiplayer"),
     "Multiplayer is on one row and must not be a chip"

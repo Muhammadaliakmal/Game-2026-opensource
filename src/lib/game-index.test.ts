@@ -4,6 +4,7 @@ import { GAME_INDEX, searchIndex } from "./game-index";
 import { CABINETS } from "@/arcade/registry";
 import { BUILT_IN_WORLDS } from "./built-in-worlds";
 import { escapeLike } from "@/app/api/worlds/search/route";
+import { RACE } from "./features";
 
 /**
  * The search box, pinned at the two places it can silently go wrong.
@@ -27,7 +28,7 @@ test("every game the site has is reachable from the search index", () => {
     assert.ok(hit, `world ${w.slug} is not in the search index`);
     assert.equal(hit.kind, w.tier ? "course" : "world");
   }
-  for (const href of ["/parkour", "/race", "/arcade"]) {
+  for (const href of ["/parkour", ...(RACE ? ["/race"] : []), "/arcade"]) {
     assert.ok(
       GAME_INDEX.some((e) => e.href === href),
       `${href} is not in the search index`
@@ -52,7 +53,7 @@ test("an empty query matches nothing, rather than everything", () => {
   assert.deepEqual(searchIndex("   "), []);
 });
 
-test("a name prefix outranks a term match", () => {
+test("a name prefix outranks a term match", { skip: !RACE && "race is switched off" }, () => {
   // "race" is the Race mode's name and also a term on other entries.
   const rows = searchIndex("race");
   assert.equal(rows[0]?.href, "/race");
@@ -63,7 +64,7 @@ test("search is case- and whitespace-insensitive", () => {
   assert.deepEqual(searchIndex("  PARKOUR  ").map((e) => e.href), plain);
 });
 
-test("a word somebody would type, but that is in no name, still finds the game", () => {
+test("a word somebody would type, but that is in no name, still finds the game", { skip: !RACE && "race is switched off" }, () => {
   // The whole point of `terms`: nothing is called "bikes".
   assert.ok(searchIndex("bikes").some((e) => e.href === "/race"));
 });

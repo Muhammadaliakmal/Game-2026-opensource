@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_NAME, SITE_SHORT_NAME } from "@/lib/site";
+import { RACE } from "@/lib/features";
 
 /**
  * The web app manifest, served at /manifest.webmanifest.
@@ -66,12 +67,16 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     // Long-press the launcher icon. Cheap to offer and it skips the lobby.
     shortcuts: [
-      {
-        name: "Race",
-        short_name: "Race",
-        url: "/race",
-        description: "Open a grid or join one with a code",
-      },
+      ...(RACE
+        ? [
+            {
+              name: "Race",
+              short_name: "Race",
+              url: "/race",
+              description: "Open a grid or join one with a code",
+            },
+          ]
+        : []),
       {
         name: "Browse worlds",
         short_name: "Browse",

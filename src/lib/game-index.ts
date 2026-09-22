@@ -1,5 +1,6 @@
 import { CABINETS } from "@/arcade/registry";
 import { BUILT_IN_WORLDS } from "./built-in-worlds";
+import { RACE } from "./features";
 
 /**
  * Everything on the site a search can open, as one flat list.
@@ -32,13 +33,17 @@ const MODES: GameEntry[] = [
     kind: "mode",
     terms: ["jump", "run", "course", "platformer", "medal", "ghost", "time trial"],
   },
-  {
-    href: "/race",
-    title: "Race",
-    blurb: "Bikes on a neon loop. Multiplayer.",
-    kind: "mode",
-    terms: ["bike", "bikes", "racing", "drift", "boost", "multiplayer", "grid"],
-  },
+  ...(RACE
+    ? [
+        {
+          href: "/race",
+          title: "Race",
+          blurb: "Bikes on a neon loop. Multiplayer.",
+          kind: "mode" as const,
+          terms: ["bike", "bikes", "racing", "drift", "boost", "multiplayer", "grid"],
+        },
+      ]
+    : []),
   {
     href: "/arcade",
     title: "Arcade",

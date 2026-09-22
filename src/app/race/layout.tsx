@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { RACE } from "@/lib/features";
 import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -41,5 +43,8 @@ export default function RaceLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Temporary (307), so a shared race link lands on the games list rather
+  // than on "cannot connect" while there is no room server. See RACE.
+  if (!RACE) redirect("/games");
   return children;
 }

@@ -9,6 +9,7 @@ import { CABINETS } from "@/arcade/registry";
 import { PARKOUR_COURSES, SANDBOX_WORLDS } from "@/lib/built-in-worlds";
 import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
 import { StatBadge } from "@/components/stats/StatBadge";
+import { RACE } from "@/lib/features";
 
 /**
  * Every game, on one screen, one press from playing.
@@ -66,7 +67,7 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
             meta={["Solo", "Medals", "Ghosts", "Obby"]}
             cta="Choose a course"
           />
-          <ModeCard
+          {RACE && <ModeCard
             href="/race"
             art="race"
             eyebrow={`Up to ${MAX_RIDERS} riders · ${RACE_LAPS} laps`}
@@ -74,7 +75,7 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
             blurb="Bikes on a neon loop. Drift to fill the boost, spend it down the straight, send the code to your friends."
             meta={["Multiplayer", "Boost", "Drift"]}
             cta="Open a grid"
-          />
+          />}
         </div>
       </section>
 

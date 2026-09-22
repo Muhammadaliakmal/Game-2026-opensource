@@ -1,3 +1,5 @@
+import { RACE } from "@/lib/features";
+
 /**
  * Every playable thing on the site, as one flat list.
  *
@@ -122,16 +124,20 @@ const MODES: readonly GameEntry[] = [
     tags: ["Solo", "Timed", "Ghosts", "Medals"],
     addedAt: "2026-09-01",
   },
-  {
-    slug: "race-mode",
-    kind: "mode",
-    title: "Race",
-    tagline: "Bikes on a neon loop. Drift to fill the boost.",
-    href: "/race",
-    thumb: "/covers/circuit.png",
-    tags: ["Multiplayer", "Timed"],
-    addedAt: "2026-09-02",
-  },
+  ...(RACE
+    ? [
+        {
+          slug: "race-mode",
+          kind: "mode" as const,
+          title: "Race",
+          tagline: "Bikes on a neon loop. Drift to fill the boost.",
+          href: "/race",
+          thumb: "/covers/circuit.png",
+          tags: ["Multiplayer", "Timed"] as GameTag[],
+          addedAt: "2026-09-02",
+        },
+      ]
+    : []),
 ];
 
 const ARCADE: readonly GameEntry[] = [

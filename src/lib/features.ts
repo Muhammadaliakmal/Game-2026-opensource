@@ -42,3 +42,13 @@
  * sandboxes, and they were never the UGC feature.
  */
 export const UGC = false;
+
+/**
+ * The bike race: its cover, its lobby and every link to it.
+ *
+ * OFF while there is no room server deployed. A race is nothing without one —
+ * `/race/<code>` would open onto "cannot connect", which is worse than the
+ * mode not being offered. The code, the tracks and the server are untouched;
+ * point `NEXT_PUBLIC_MULTIPLAYER_URL` at a live room server and flip this.
+ */
+export const RACE = false;
