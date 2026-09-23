@@ -943,6 +943,32 @@ same tile in every screenshot. Three rules:
 Still no `shadowBlur`, still no gradient per row, still no allocation in
 `draw`: the one gradient a sky needs is made once per context in a WeakMap.
 
+## Ragdoll Rumble (the duel cabinet)
+
+`src/arcade/games/duel/`. The build plan and what it decided against the
+brief are in `plan-duel.md`, and the art pack is in `assets/duel/`. These five
+things will break quietly if forgotten:
+
+- **Muscles push back on their anchor** (`pull` in `ragdoll.ts`). A pull on a
+  limb with no reaction is a force from nowhere, and it walked the idle robot
+  backwards at 27 px/s. Only the walk controller moves the body as a whole.
+- **`S` is a similarity, not a size.** It scales every length, speed and
+  acceleration together, so the fight plays the same at any scale. A new
+  distance-valued constant must be multiplied by it, and a new per-px/s
+  damage number divided by it.
+- **One-way platforms are judged per body, not per particle.** `collide`
+  takes the lowest point of head-to-feet at the start of the substep. Per
+  particle, the high bridge caught a rising robot by the head. With the arms
+  counted, a low swing dropped a robot through the platform it stood on.
+- **The art is imported, not served from `public/`.** `npm run duel:art`
+  copies the sheets into `duel/art/` and writes `frames.ts`. A static import
+  lands under `/_next/static/`, which the service worker already caches.
+  `loadSprites` never rejects, and the vector fighters are the fallback.
+- **`ai.test.ts` is the difficulty claim.** The tiers differ only in timing
+  and accuracy, so "Hard is harder" is measured by playing matches, never
+  read off a profile. Anything that changes movement or reach can reorder
+  the ladder, and this test is what will report it.
+
 ## Frame rate
 
 Every continuously-animating canvas runs `frameloop="never"` with a

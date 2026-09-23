@@ -79,6 +79,16 @@ export const RATES: Record<string, number> = {
    * coins, alongside SwarmRush and well inside the daily soft cap.
    */
   reflex: 0.05,
+  /*
+   * Ragdoll Rumble pays only against the CPU (two players on one screen
+   * never reports a score — see the cabinet's index). A match is 100 a round
+   * won, the damage dealt and 300 for the match, times 1 / 2 / 3 for Easy /
+   * Medium / Hard: a clean Hard win is around 2,000 points, which a
+   * twentieth of a coin a point puts near a hundred coins — alongside
+   * SwarmRush and Reflex. A best-of-three has a top, so it farms only by
+   * winning, and winning on Hard is the thing it should pay for.
+   */
+  duel: 0.05,
 };
 
 /** The rate for a game, or zero for one that does not pay — the test pattern. */

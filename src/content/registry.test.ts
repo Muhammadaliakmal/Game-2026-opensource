@@ -209,11 +209,15 @@ test("isKnownSlug rejects everything that is not a shipped slug", () => {
 });
 
 test("the New pill expires fourteen days after the date on the row", () => {
-  const entry = { ...REGISTRY[0], addedAt: "2026-09-17" };
+  // A date from the newest cohort, not a literal one: the cohort moves every
+  // time something ships, and a hard-coded date fell out of it the day the
+  // duel cabinet landed.
+  const date = NEWEST_DATES[0];
+  const entry = { ...REGISTRY[0], addedAt: date };
   const day = 24 * 60 * 60 * 1000;
-  assert.equal(isNew(entry, Date.parse("2026-09-18")), true);
-  assert.equal(isNew(entry, Date.parse("2026-09-17") + 13 * day), true);
-  assert.equal(isNew(entry, Date.parse("2026-09-17") + 15 * day), false);
+  assert.equal(isNew(entry, Date.parse(date) + day), true);
+  assert.equal(isNew(entry, Date.parse(date) + 13 * day), true);
+  assert.equal(isNew(entry, Date.parse(date) + 15 * day), false);
 });
 
 test("the New pill is not on most of the catalogue", () => {

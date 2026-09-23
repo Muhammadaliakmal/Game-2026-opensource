@@ -1,0 +1,414 @@
+{
+ "frames": {
+  "head/astro_visor": {
+   "frame": {
+    "x": 2,
+    "y": 2,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "head/bolt_crown": {
+   "frame": {
+    "x": 134,
+    "y": 2,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "head/chef_hat": {
+   "frame": {
+    "x": 266,
+    "y": 2,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "head/halo": {
+   "frame": {
+    "x": 398,
+    "y": 2,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "head/hard_hat": {
+   "frame": {
+    "x": 530,
+    "y": 2,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "head/kabuto": {
+   "frame": {
+    "x": 662,
+    "y": 2,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "head/led_viking": {
+   "frame": {
+    "x": 794,
+    "y": 2,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "head/neon_headphones": {
+   "frame": {
+    "x": 2,
+    "y": 134,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "head/propeller_beanie": {
+   "frame": {
+    "x": 134,
+    "y": 134,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "head/traffic_cone": {
+   "frame": {
+    "x": 266,
+    "y": 134,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "head/tricorn": {
+   "frame": {
+    "x": 398,
+    "y": 134,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "head/welding_mask": {
+   "frame": {
+    "x": 530,
+    "y": 134,
+    "w": 128,
+    "h": 128
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 128,
+    "h": 128
+   },
+   "sourceSize": {
+    "w": 128,
+    "h": 128
+   }
+  },
+  "weapon/bola_flail": {
+   "frame": {
+    "x": 662,
+    "y": 134,
+    "w": 256,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 64
+   }
+  },
+  "weapon/kite_shield": {
+   "frame": {
+    "x": 2,
+    "y": 266,
+    "w": 256,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 64
+   }
+  },
+  "weapon/pylon_maul": {
+   "frame": {
+    "x": 262,
+    "y": 266,
+    "w": 256,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 64
+   }
+  },
+  "weapon/rebar": {
+   "frame": {
+    "x": 522,
+    "y": 266,
+    "w": 256,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 64
+   }
+  },
+  "weapon/sling_driver": {
+   "frame": {
+    "x": 2,
+    "y": 334,
+    "w": 256,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 64
+   }
+  },
+  "weapon/tesla_prod": {
+   "frame": {
+    "x": 262,
+    "y": 334,
+    "w": 256,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 64
+   }
+  },
+  "weapon/tether_hook": {
+   "frame": {
+    "x": 522,
+    "y": 334,
+    "w": 256,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 64
+   }
+  },
+  "weapon/wildcard": {
+   "frame": {
+    "x": 2,
+    "y": 402,
+    "w": 256,
+    "h": 64
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 64
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 64
+   }
+  }
+ },
+ "meta": {
+  "app": "ragdoll-rumble-packer",
+  "image": "items@2x.webp",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1024,
+   "h": 512
+  },
+  "scale": "1"
+ }
+}

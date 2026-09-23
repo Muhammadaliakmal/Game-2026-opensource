@@ -60,6 +60,7 @@ export function CabinetPreview({ id }: { id: string }) {
   if (id === "bullet") return <BulletArt />;
   if (id === "swarm") return <SwarmArt />;
   if (id === "reflex") return <ReflexArt />;
+  if (id === "duel") return <DuelArt />;
   return <GridArt />;
 }
 
@@ -619,6 +620,55 @@ function ReflexArt() {
       <circle cx="22" cy="16" r="3.5" fill="var(--color-accent, #22d3ee)" />
       <circle cx="34" cy="16" r="3.5" fill="var(--color-accent, #22d3ee)" />
       <circle cx="46" cy="16" r="3.5" fill="none" stroke="#eef1ff" strokeOpacity="0.25" strokeWidth="1.5" />
+    </Frame>
+  );
+}
+
+/**
+ * Ragdoll Rumble: the Magma Gauntlet in the pack's palette. Two stone banks
+ * over the lava, the bridge between them, and the two robots in their own
+ * colours — violet bare-headed, amber in the hard hat — mid-exchange, with
+ * the violet one's swing trail in cyan, as the game draws it.
+ */
+function DuelArt() {
+  const bank = (x: number) => (
+    <g>
+      {[0, 1, 2, 3, 4].map((k) => (
+        <rect key={k} x={x + k * 11} y="58" width="10" height="10" fill="#fce14b" stroke="#b8960f" strokeWidth="0.8" />
+      ))}
+    </g>
+  );
+  const robot = (x: number, limb: string, facing: 1 | -1, hat: boolean) => (
+    <g>
+      <line x1={x - 2} y1="57" x2={x - 1} y2="49" stroke={limb} strokeWidth="2.6" strokeLinecap="round" />
+      <line x1={x + 2} y1="57" x2={x + 1} y2="49" stroke={limb} strokeWidth="2.6" strokeLinecap="round" />
+      <rect x={x - 3.5} y="38" width="7" height="11" rx="2" fill="#f4f6ff" stroke="#11131c" strokeWidth="0.8" />
+      <rect x={x - 5} y="29" width="10" height="9" rx="2" fill="#f4f6ff" stroke="#11131c" strokeWidth="0.8" />
+      <rect x={x - 1 + facing * 1.5} y="32" width="4" height="2.6" rx="1" fill="#11131c" />
+      {hat ? <path d={`M ${x - 6} 29.5 L ${x + 6} 29.5 L ${x + 4} 25 Q ${x} 22 ${x - 4} 25 Z`} fill="#f29d0c" /> : null}
+    </g>
+  );
+  return (
+    <Frame>
+      <rect width="240" height="96" fill="#2a0f08" />
+      <rect y="40" width="240" height="56" fill="#5a1d0a" opacity="0.6" />
+      {bank(30)}
+      {bank(155)}
+      {/* The bridge, between the banks and a little low. */}
+      {[0, 1, 2].map((k) => (
+        <rect key={k} x={103 + k * 11} y="66" width="10" height="8" fill="#fce14b" stroke="#b8960f" strokeWidth="0.8" />
+      ))}
+      <rect y="78" width="240" height="18" fill="#ff5a1f" />
+      <path d="M 0 78 Q 10 75 20 78 T 40 78 T 60 78 T 80 78 T 100 78 T 120 78 T 140 78 T 160 78 T 180 78 T 200 78 T 220 78 T 240 78" fill="none" stroke="#ffd27a" strokeWidth="1.2" />
+      {/* The swing: a trail from the violet robot's weapon toward the other. */}
+      <path d="M 70 30 Q 92 30 104 44" fill="none" stroke="#22d3ee" strokeWidth="4" strokeOpacity="0.55" strokeLinecap="round" />
+      <line x1="66" y1="41" x2="84" y2="26" stroke="#c8d0e8" strokeWidth="1.6" strokeLinecap="round" />
+      {robot(60, "#a654f4", 1, false)}
+      <line x1="178" y1="40" x2="170" y2="24" stroke="#c8d0e8" strokeWidth="1.6" strokeLinecap="round" />
+      <rect x="166" y="19" width="8" height="7" rx="1" fill="#8fa3d9" />
+      {robot(182, "#f29d0c", -1, true)}
+      {/* The hit star. */}
+      <path d="M 120 34 L 122 42 L 130 44 L 122 46 L 120 54 L 118 46 L 110 44 L 118 42 Z" fill="#fff4b8" />
     </Frame>
   );
 }

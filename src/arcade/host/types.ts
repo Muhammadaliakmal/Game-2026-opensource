@@ -21,6 +21,23 @@ export interface InputState {
   readonly pointer: { x: number; y: number; down: boolean };
   /** -1..1 on each axis, from the keyboard or a virtual stick. */
   readonly axis: { x: number; y: number };
+  /**
+   * Every pointer currently down, in CSS pixels within the canvas.
+   *
+   * `pointer` is one point, and two thumbs on one phone overwrite it: the
+   * second finger's move lands on the first finger's position. A cabinet
+   * with two sticks — the duel's two players on one screen — has to tell
+   * fingers apart, and `id` is the browser's `pointerId`, stable for the
+   * life of one touch. Order is arrival order. A touch that begins and ends
+   * between two steps is still listed for one step, like `pointer` is.
+   */
+  readonly touches: readonly TouchPoint[];
+}
+
+export interface TouchPoint {
+  readonly id: number;
+  x: number;
+  y: number;
 }
 
 export interface GameServices {

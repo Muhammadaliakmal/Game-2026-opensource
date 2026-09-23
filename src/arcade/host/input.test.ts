@@ -122,3 +122,49 @@ test("clear forgets a deferred release along with everything else", () => {
     restore();
   }
 });
+
+test("two fingers are two touches, and moving one does not move the other", () => {
+  const handlers: Record<string, Handler> = {};
+  const listen = (type: string, fn: Handler) => {
+    handlers[type] = fn;
+  };
+  const target = {
+    addEventListener: listen,
+    removeEventListener: () => {},
+    getBoundingClientRect: () => ({ left: 0, top: 0 }),
+  };
+  const prev = (globalThis as { window?: unknown }).window;
+  (globalThis as { window: unknown }).window = { addEventListener: listen, removeEventListener: () => {} };
+  try {
+    const host = attachInput(target as unknown as HTMLCanvasElement);
+    const ev = (type: string, id: number, x: number, y: number) =>
+      handlers[type]({ clientX: x, clientY: y, pointerId: id });
+
+    ev("pointerdown", 7, 50, 300);
+    ev("pointerdown", 9, 700, 320);
+    host.endStep();
+    ev("pointermove", 9, 740, 280);
+    assert.deepEqual(
+      host.state.touches.map((t) => [t.id, t.x, t.y]),
+      [
+        [7, 50, 300],
+        [9, 740, 280],
+      ]
+    );
+
+    ev("pointerup", 7, 50, 300);
+    assert.deepEqual(host.state.touches.map((t) => t.id), [9], "a seen touch lifts at once");
+
+    // A tap inside one step is listed for that step, then gone.
+    ev("pointerdown", 11, 400, 200);
+    ev("pointerup", 11, 400, 200);
+    assert.deepEqual(host.state.touches.map((t) => t.id), [9, 11]);
+    host.endStep();
+    assert.deepEqual(host.state.touches.map((t) => t.id), [9]);
+
+    host.clear();
+    assert.equal(host.state.touches.length, 0);
+  } finally {
+    (globalThis as { window: unknown }).window = prev;
+  }
+});

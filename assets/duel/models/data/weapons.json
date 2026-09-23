@@ -1,0 +1,262 @@
+{
+ "units": "px @1x; sprite 128x32, grip at local (10,16) = hand socket",
+ "gripOffset": [
+  10,
+  16
+ ],
+ "weapons": [
+  {
+   "id": "rebar",
+   "name": "Rebar",
+   "desc": "Balanced reach and speed. Lunge on release.",
+   "sprite": "weapon/rebar",
+   "colliders": [
+    {
+     "type": "rect",
+     "x": 0,
+     "y": -4,
+     "w": 120,
+     "h": 8
+    }
+   ],
+   "mass": 1.2,
+   "damageCoeff": 1.0,
+   "minHitSpeed": 4.5,
+   "ability": "lunge",
+   "windupMax_s": 1.2,
+   "stats": {
+    "reach": 3,
+    "speed": 3,
+    "power": 3,
+    "control": 4
+   },
+   "unlock": {
+    "level": 1
+   }
+  },
+  {
+   "id": "pylon_maul",
+   "name": "Pylon Maul",
+   "desc": "Huge mass, slow. Ground-slam shockwave.",
+   "sprite": "weapon/pylon_maul",
+   "colliders": [
+    {
+     "type": "rect",
+     "x": 0,
+     "y": -3,
+     "w": 70,
+     "h": 6
+    },
+    {
+     "type": "rect",
+     "x": 92,
+     "y": -26,
+     "w": 34,
+     "h": 52
+    }
+   ],
+   "mass": 3.2,
+   "damageCoeff": 1.5,
+   "minHitSpeed": 4.5,
+   "ability": "groundSlam",
+   "windupMax_s": 1.2,
+   "stats": {
+    "reach": 3,
+    "speed": 1,
+    "power": 5,
+    "control": 2
+   },
+   "unlock": {
+    "level": 1
+   }
+  },
+  {
+   "id": "tether_hook",
+   "name": "Tether Hook",
+   "desc": "Fires a cable: reel yourself in or yank them.",
+   "sprite": "weapon/tether_hook",
+   "colliders": [
+    {
+     "type": "rect",
+     "x": 82,
+     "y": -6,
+     "w": 40,
+     "h": 12
+    }
+   ],
+   "mass": 0.9,
+   "damageCoeff": 0.6,
+   "minHitSpeed": 4.5,
+   "ability": "grapple",
+   "windupMax_s": 1.2,
+   "stats": {
+    "reach": 5,
+    "speed": 3,
+    "power": 1,
+    "control": 3
+   },
+   "unlock": {
+    "level": 5
+   }
+  },
+  {
+   "id": "tesla_prod",
+   "name": "Tesla Prod",
+   "desc": "Charged arc that stuns briefly.",
+   "sprite": "weapon/tesla_prod",
+   "colliders": [
+    {
+     "type": "rect",
+     "x": 0,
+     "y": -6,
+     "w": 112,
+     "h": 12
+    }
+   ],
+   "mass": 1.1,
+   "damageCoeff": 0.9,
+   "minHitSpeed": 4.5,
+   "ability": "arcStun",
+   "windupMax_s": 1.2,
+   "stats": {
+    "reach": 3,
+    "speed": 4,
+    "power": 2,
+    "control": 4
+   },
+   "unlock": {
+    "level": 3
+   }
+  },
+  {
+   "id": "bola_flail",
+   "name": "Bola Flail",
+   "desc": "Three chained weights. Chaos you can steer.",
+   "sprite": "weapon/bola_flail",
+   "colliders": [
+    {
+     "type": "rect",
+     "x": 0,
+     "y": -4,
+     "w": 40,
+     "h": 8
+    }
+   ],
+   "mass": 1.4,
+   "damageCoeff": 1.2,
+   "minHitSpeed": 4.5,
+   "ability": "wrapTrip",
+   "windupMax_s": 1.2,
+   "stats": {
+    "reach": 4,
+    "speed": 3,
+    "power": 3,
+    "control": 1
+   },
+   "unlock": {
+    "level": 7
+   }
+  },
+  {
+   "id": "sling_driver",
+   "name": "Sling Driver",
+   "desc": "Arcing shot that ricochets once.",
+   "sprite": "weapon/sling_driver",
+   "colliders": [
+    {
+     "type": "rect",
+     "x": 0,
+     "y": -6,
+     "w": 90,
+     "h": 12
+    }
+   ],
+   "mass": 0.8,
+   "damageCoeff": 0.7,
+   "minHitSpeed": 4.5,
+   "ability": "ricochetShot",
+   "windupMax_s": 1.2,
+   "stats": {
+    "reach": 5,
+    "speed": 2,
+    "power": 3,
+    "control": 3
+   },
+   "unlock": {
+    "level": 4
+   }
+  },
+  {
+   "id": "kite_shield",
+   "name": "Kite Shield",
+   "desc": "Block, parry, then bash.",
+   "sprite": "weapon/kite_shield",
+   "colliders": [
+    {
+     "type": "rect",
+     "x": 10,
+     "y": -28,
+     "w": 60,
+     "h": 56
+    },
+    {
+     "type": "rect",
+     "x": 70,
+     "y": -4,
+     "w": 54,
+     "h": 8
+    }
+   ],
+   "mass": 2.0,
+   "damageCoeff": 0.8,
+   "minHitSpeed": 4.5,
+   "ability": "parry",
+   "windupMax_s": 1.2,
+   "stats": {
+    "reach": 2,
+    "speed": 3,
+    "power": 2,
+    "control": 5
+   },
+   "unlock": {
+    "level": 9
+   }
+  },
+  {
+   "id": "wildcard",
+   "name": "Wildcard",
+   "desc": "Random weapon each round from your enabled pool.",
+   "sprite": "weapon/wildcard",
+   "colliders": [
+    {
+     "type": "rect",
+     "x": 0,
+     "y": -4,
+     "w": 70,
+     "h": 8
+    },
+    {
+     "type": "rect",
+     "x": 84,
+     "y": -14,
+     "w": 28,
+     "h": 28
+    }
+   ],
+   "mass": 1.0,
+   "damageCoeff": 1.0,
+   "minHitSpeed": 4.5,
+   "ability": "random",
+   "windupMax_s": 1.2,
+   "stats": {
+    "reach": 3,
+    "speed": 3,
+    "power": 3,
+    "control": 3
+   },
+   "unlock": {
+    "level": 1
+   }
+  }
+ ]
+}

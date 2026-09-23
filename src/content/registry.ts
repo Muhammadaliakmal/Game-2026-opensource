@@ -223,6 +223,15 @@ const ARCADE: readonly GameEntry[] = [
     tags: ["Solo", "Reflex", "Hard"],
     addedAt: "2026-09-18",
   },
+  {
+    slug: "duel",
+    kind: "arcade",
+    title: "Ragdoll Rumble",
+    tagline: "Two robots, one lava sea. Swing like you mean it.",
+    href: "/arcade?play=duel",
+    tags: ["Solo", "Bots", "Hard"],
+    addedAt: "2026-09-23",
+  },
 ];
 
 /** Every course carries these; the hard end of the ladder adds "Hard". */

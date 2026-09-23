@@ -118,7 +118,7 @@ export function GameHost({ className }: { className?: string }) {
       // Recreated per run from the store's seed, so a run is reproducible.
       rng: mulberry32(seed),
       // Replaced once input is attached; a game cannot step before then.
-      input: { keys: {}, pointer: { x: 0, y: 0, down: false }, axis: { x: 0, y: 0 } },
+      input: { keys: {}, pointer: { x: 0, y: 0, down: false }, axis: { x: 0, y: 0 }, touches: [] },
       sfx,
       onScore: (n) => {
         score = n;

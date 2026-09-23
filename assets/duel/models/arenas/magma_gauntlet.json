@@ -1,0 +1,107 @@
+{
+ "platforms": [
+  [
+   3,
+   12,
+   8,
+   2
+  ],
+  [
+   19,
+   12,
+   8,
+   2
+  ],
+  [
+   12,
+   9,
+   6,
+   1
+  ],
+  [
+   1,
+   6,
+   5,
+   1
+  ],
+  [
+   24,
+   6,
+   5,
+   1
+  ]
+ ],
+ "moving": [
+  {
+   "rect": [
+    12,
+    14,
+    6,
+    1
+   ],
+   "path": [
+    [
+     12,
+     14
+    ],
+    [
+     12,
+     11
+    ]
+   ],
+   "period_s": 5
+  }
+ ],
+ "hazards": [
+  {
+   "type": "lava",
+   "rect": [
+    0,
+    15,
+    30,
+    2
+   ],
+   "rise_to_row": 13,
+   "beat_s": 12,
+   "telegraph_s": 2,
+   "effect": "instant_ko"
+  }
+ ],
+ "spawns": [
+  [
+   6,
+   11
+  ],
+  [
+   23,
+   11
+  ]
+ ],
+ "id": "magma_gauntlet",
+ "title": "Magma Gauntlet",
+ "tileSize": 64,
+ "cols": 30,
+ "rows": 17,
+ "world": {
+  "w": 1920,
+  "h": 1088
+ },
+ "palette": {
+  "block": "#FCE14B",
+  "accent": "#F29D0C",
+  "hazard": "#FF5A1F",
+  "sky": [
+   "#2A0F08",
+   "#8A2E0B"
+  ]
+ },
+ "parallax": {
+  "far": 0.1,
+  "mid": 0.4
+ },
+ "textures": {
+  "far": "textures/arenas/magma_gauntlet/bg_far",
+  "mid": "textures/arenas/magma_gauntlet/bg_mid",
+  "tiles": "textures/arenas/magma_gauntlet/tiles"
+ }
+}

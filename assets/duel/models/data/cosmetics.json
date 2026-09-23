@@ -1,0 +1,195 @@
+{
+ "headgear": [
+  {
+   "id": "hard_hat",
+   "sprite": "head/hard_hat",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "level",
+    "value": 2
+   }
+  },
+  {
+   "id": "kabuto",
+   "sprite": "head/kabuto",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "level",
+    "value": 4
+   }
+  },
+  {
+   "id": "propeller_beanie",
+   "sprite": "head/propeller_beanie",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "level",
+    "value": 6
+   }
+  },
+  {
+   "id": "bolt_crown",
+   "sprite": "head/bolt_crown",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "level",
+    "value": 8
+   }
+  },
+  {
+   "id": "welding_mask",
+   "sprite": "head/welding_mask",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "level",
+    "value": 10
+   }
+  },
+  {
+   "id": "led_viking",
+   "sprite": "head/led_viking",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "level",
+    "value": 12
+   }
+  },
+  {
+   "id": "chef_hat",
+   "sprite": "head/chef_hat",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "level",
+    "value": 14
+   }
+  },
+  {
+   "id": "astro_visor",
+   "sprite": "head/astro_visor",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "level",
+    "value": 16
+   }
+  },
+  {
+   "id": "tricorn",
+   "sprite": "head/tricorn",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "achievement",
+    "value": "first_ring_out"
+   }
+  },
+  {
+   "id": "neon_headphones",
+   "sprite": "head/neon_headphones",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "achievement",
+    "value": "win_streak_5"
+   }
+  },
+  {
+   "id": "traffic_cone",
+   "sprite": "head/traffic_cone",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "achievement",
+    "value": "nightmare_win"
+   }
+  },
+  {
+   "id": "halo",
+   "sprite": "head/halo",
+   "anchor": "head.top",
+   "offset": [
+    0,
+    -22
+   ],
+   "scale": 0.8,
+   "unlock": {
+    "type": "achievement",
+    "value": "season1_tier30"
+   }
+  }
+ ],
+ "accentColors": [
+  "#A654F4",
+  "#F29D0C",
+  "#0EA4E6",
+  "#F271B4",
+  "#A3E436",
+  "#FCF08B"
+ ],
+ "trailStyles": [
+  {
+   "id": "solid"
+  },
+  {
+   "id": "dashed"
+  },
+  {
+   "id": "sparkle",
+   "unlock": {
+    "type": "mastery",
+    "value": 5
+   }
+  }
+ ]
+}

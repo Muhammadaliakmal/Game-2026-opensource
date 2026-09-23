@@ -161,6 +161,34 @@ export const CABINET_NOTES: Record<string, CabinetNotes> = {
       "times the hit itself at full stretch, so a target you are not sure of " +
       "is worth taking slowly rather than missing fast.",
   },
+  duel: {
+    what:
+      "A best-of-three duel between two robots on the Magma Gauntlet: two " +
+      "stone banks, a bridge between them that rides up and down, a high " +
+      "bridge over it, and lava under everything. The robots are ragdolls " +
+      "driven by muscles, so nothing is an animation — the stick names a " +
+      "direction and the weapon arm reaches for it. Every twelve seconds the " +
+      "lava shows a tell and two seconds later rises far enough to swallow " +
+      "the low bridge. Play it against the CPU on three levels, or with a " +
+      "second person on the same screen or keyboard.",
+    scoring:
+      "Damage is the speed of the weapon at the point of contact, relative " +
+      "to the part it touched, above a graze threshold — a head takes one " +
+      "and a half times a chest, a limb about half. A round is won by " +
+      "knockout, by the lava, or on health when the sixty-second clock runs " +
+      "out. Against the CPU the score is 100 a round won, the damage you " +
+      "dealt and 300 for the match, times one, two or three for Easy, Medium " +
+      "or Hard, at a twentieth of a coin a point. Two players on one screen " +
+      "pays nothing.",
+    approach:
+      "Push the stick part of the way. Past a third of its travel sideways " +
+      "it walks you; under that it only aims, so you can swing through " +
+      "somebody without stepping into their reach. The heavy swing is the " +
+      "biggest hit in the game and the easiest to read: the weapon glows " +
+      "while it charges, and Hard backs off from it — spend it on an " +
+      "opponent who is stunned, or standing on the low bridge as the lava " +
+      "comes up.",
+  },
 };
 
 /** Notes for a cabinet id, or undefined for one nobody has written about. */

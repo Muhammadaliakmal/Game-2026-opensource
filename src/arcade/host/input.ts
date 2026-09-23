@@ -1,4 +1,4 @@
-import type { InputState } from "./types";
+import type { InputState, TouchPoint } from "./types";
 
 /**
  * Keyboard and touch, collected into one map the games read once per step.
@@ -69,7 +69,21 @@ export function attachInput(target: HTMLCanvasElement): InputHost {
   let pointerUpPending = false;
   const pointer = { x: 0, y: 0, down: false };
   const axis = { x: 0, y: 0 };
-  const state: InputState = { keys, pointer, axis };
+  /**
+   * Every pointer that is down. Mutated in place, so a game holding the array
+   * reads the live list — `state.touches` is the same object for the run.
+   */
+  const touches: TouchPoint[] = [];
+  /** Ids pressed since the last step, and ids whose release waits on one. */
+  const freshTouch = new Set<number>();
+  const pendingTouchUp = new Set<number>();
+  const state: InputState = { keys, pointer, axis, touches };
+
+  const touchAt = (id: number) => touches.findIndex((t) => t.id === id);
+  const dropTouch = (id: number) => {
+    const i = touchAt(id);
+    if (i >= 0) touches.splice(i, 1);
+  };
 
   const recomputeAxis = () => {
     let x = 0;
@@ -117,18 +131,43 @@ export function attachInput(target: HTMLCanvasElement): InputHost {
     pointer.y = e.clientY - r.top;
   };
 
+  const placeTouch = (e: PointerEvent) => {
+    const r = target.getBoundingClientRect();
+    const i = touchAt(e.pointerId);
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    if (i >= 0) {
+      touches[i].x = x;
+      touches[i].y = y;
+    }
+    return { x, y };
+  };
+
   const onPointerDown = (e: PointerEvent) => {
     movePointer(e);
+    if (touchAt(e.pointerId) < 0) {
+      const { x, y } = placeTouch(e);
+      touches.push({ id: e.pointerId, x, y });
+    }
+    freshTouch.add(e.pointerId);
+    pendingTouchUp.delete(e.pointerId);
     if (!pointer.down) edges.Pointer = true;
     pointer.down = true;
     pointerUpPending = false;
     // So a finger that slides off the canvas still delivers its release.
     target.setPointerCapture?.(e.pointerId);
   };
-  const onPointerMove = (e: PointerEvent) => movePointer(e);
+  const onPointerMove = (e: PointerEvent) => {
+    movePointer(e);
+    placeTouch(e);
+  };
   const onPointerUp = (e: PointerEvent) => {
     movePointer(e);
+    placeTouch(e);
     target.releasePointerCapture?.(e.pointerId);
+    // The same rule as `pointer`: a touch no step has seen stays one step.
+    if (freshTouch.has(e.pointerId)) pendingTouchUp.add(e.pointerId);
+    else dropTouch(e.pointerId);
     if (edges.Pointer) {
       pointerUpPending = true;
       return;
@@ -144,6 +183,9 @@ export function attachInput(target: HTMLCanvasElement): InputHost {
     pointer.down = false;
     axis.x = 0;
     axis.y = 0;
+    touches.length = 0;
+    freshTouch.clear();
+    pendingTouchUp.clear();
   }
 
   window.addEventListener("keydown", onKeyDown);
@@ -171,6 +213,9 @@ export function attachInput(target: HTMLCanvasElement): InputHost {
         pointerUpPending = false;
         pointer.down = false;
       }
+      freshTouch.clear();
+      for (const id of pendingTouchUp) dropTouch(id);
+      pendingTouchUp.clear();
     },
     clear,
     detach() {

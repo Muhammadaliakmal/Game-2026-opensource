@@ -1,0 +1,91 @@
+{
+ "platforms": [
+  [
+   6,
+   11,
+   18,
+   3
+  ],
+  [
+   3,
+   7,
+   5,
+   1
+  ],
+  [
+   22,
+   7,
+   5,
+   1
+  ],
+  [
+   13,
+   5,
+   4,
+   1
+  ]
+ ],
+ "moving": [],
+ "hazards": [
+  {
+   "type": "crumble",
+   "rects": [
+    [
+     3,
+     7,
+     5,
+     1
+    ],
+    [
+     22,
+     7,
+     5,
+     1
+    ]
+   ],
+   "break_after_s": 1.2,
+   "respawn_s": 6
+  },
+  {
+   "type": "ring_out",
+   "below_row": 17
+  }
+ ],
+ "spawns": [
+  [
+   9,
+   10
+  ],
+  [
+   20,
+   10
+  ]
+ ],
+ "id": "island_garden",
+ "title": "Island Garden",
+ "tileSize": 64,
+ "cols": 30,
+ "rows": 17,
+ "world": {
+  "w": 1920,
+  "h": 1088
+ },
+ "palette": {
+  "block": "#4CC38A",
+  "accent": "#A3E436",
+  "hazard": "#F271B4",
+  "sky": [
+   "#07080F",
+   "#141A2E"
+  ]
+ },
+ "parallax": {
+  "far": 0.1,
+  "mid": 0.4
+ },
+ "textures": {
+  "far": "textures/arenas/island_garden/bg_far",
+  "mid": "textures/arenas/island_garden/bg_mid",
+  "tiles": "textures/arenas/island_garden/tiles"
+ }
+}

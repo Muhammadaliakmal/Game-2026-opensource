@@ -1,0 +1,87 @@
+{
+ "platforms": [
+  [
+   2,
+   12,
+   26,
+   2
+  ],
+  [
+   5,
+   8,
+   5,
+   1
+  ],
+  [
+   20,
+   8,
+   5,
+   1
+  ],
+  [
+   12,
+   5,
+   6,
+   1
+  ]
+ ],
+ "moving": [],
+ "hazards": [
+  {
+   "type": "laser_sweep",
+   "row": 10,
+   "beat_s": 9,
+   "telegraph_s": 1.5,
+   "damage": 25
+  },
+  {
+   "type": "portal_pair",
+   "a": [
+    3,
+    11
+   ],
+   "b": [
+    26,
+    4
+   ],
+   "cooldown_s": 1.0
+  }
+ ],
+ "spawns": [
+  [
+   7,
+   11
+  ],
+  [
+   22,
+   11
+  ]
+ ],
+ "id": "violet_loom",
+ "title": "Violet Loom",
+ "tileSize": 64,
+ "cols": 30,
+ "rows": 17,
+ "world": {
+  "w": 1920,
+  "h": 1088
+ },
+ "palette": {
+  "block": "#6B4CE6",
+  "accent": "#A654F4",
+  "hazard": "#F271B4",
+  "sky": [
+   "#0C0D14",
+   "#1A1440"
+  ]
+ },
+ "parallax": {
+  "far": 0.1,
+  "mid": 0.4
+ },
+ "textures": {
+  "far": "textures/arenas/violet_loom/bg_far",
+  "mid": "textures/arenas/violet_loom/bg_mid",
+  "tiles": "textures/arenas/violet_loom/tiles"
+ }
+}

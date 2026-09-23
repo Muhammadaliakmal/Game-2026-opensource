@@ -22,12 +22,12 @@ import { CABINET_COUNT } from "@/content/registry";
  */
 export const metadata = {
   title: `Arcade — ${CABINET_COUNT} cabinets · ${SITE_NAME}`,
-  description: `${CABINET_COUNT} cabinets you walk up to inside the world. A run takes under two minutes and seven of them pay coins. No account needed.`,
+  description: `${CABINET_COUNT} cabinets you walk up to inside the world. A run takes under two minutes and eight of them pay coins. No account needed.`,
   /*
    * The canonical is the load-bearing line here, not the title.
    *
    * This page reads THREE query parameters — `?play=` (the hub links one per
-   * cabinet, so nine of them), `?sort=` and `?tags=`. Every combination is a
+   * cabinet, so ten of them), `?sort=` and `?tags=`. Every combination is a
    * URL serving the same lobby, which is how a filter turns into an unbounded
    * set of near-identical pages. That is the "filters that create infinite
    * thin pages" failure by name, and it was live.
@@ -52,7 +52,7 @@ export default function ArcadePage() {
       <PageHeader title="Arcade" back={null}>
         <p className="text-dim max-w-xl text-sm">
           Short games, played on a flat screen over the world. A run takes under
-          two minutes, and seven of the nine pay coins — the same coins the
+          two minutes, and eight of the ten pay coins — the same coins the
           courses pay, buying the same characters. The two board games pay
           nothing and are here to be played rather than earned from.
         </p>
@@ -88,7 +88,7 @@ export default function ArcadePage() {
         in the browser, so everything a crawler gets from this page came from
         the header and the coins note — about a hundred and forty words for a
         page that is one of the four things in the site header. This is the
-        same nine cabinets as text, each linking to its own guide.
+        same ten cabinets as text, each linking to its own guide.
       */}
       <div className="mt-12 flex max-w-2xl flex-col gap-8">
         <section className="flex flex-col gap-3">

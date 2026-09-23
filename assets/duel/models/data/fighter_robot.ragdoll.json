@@ -1,0 +1,445 @@
+{
+ "id": "sdg_robot",
+ "units": "px @1x world (1920x1088)",
+ "collisionGroup": "per-fighter negative group (no self-collision)",
+ "sprites": {
+  "atlas": "robot",
+  "tintable": [
+   "limb_upper",
+   "limb_lower",
+   "hand",
+   "foot"
+  ],
+  "fixed": [
+   "head",
+   "head_ko",
+   "torso",
+   "joint"
+  ]
+ },
+ "parts": {
+  "head": {
+   "shape": "rect",
+   "w": 44,
+   "h": 38,
+   "mass": 1.4,
+   "sprite": "robot/head",
+   "offset": [
+    0,
+    -4
+   ],
+   "damageMult": 1.6,
+   "friction": 0.4
+  },
+  "torso": {
+   "shape": "rect",
+   "w": 36,
+   "h": 46,
+   "mass": 4.0,
+   "sprite": "robot/torso",
+   "damageMult": 1.0
+  },
+  "upperArmL": {
+   "shape": "capsule",
+   "w": 14,
+   "h": 30,
+   "mass": 0.6,
+   "sprite": "robot/limb_upper",
+   "damageMult": 0.8
+  },
+  "lowerArmL": {
+   "shape": "capsule",
+   "w": 14,
+   "h": 30,
+   "mass": 0.5,
+   "sprite": "robot/limb_lower",
+   "damageMult": 0.8
+  },
+  "handL": {
+   "shape": "circle",
+   "r": 9,
+   "mass": 0.3,
+   "sprite": "robot/hand"
+  },
+  "upperArmR": {
+   "shape": "capsule",
+   "w": 14,
+   "h": 30,
+   "mass": 0.6,
+   "sprite": "robot/limb_upper",
+   "damageMult": 0.8
+  },
+  "lowerArmR": {
+   "shape": "capsule",
+   "w": 14,
+   "h": 30,
+   "mass": 0.5,
+   "sprite": "robot/limb_lower",
+   "damageMult": 0.8
+  },
+  "handR": {
+   "shape": "circle",
+   "r": 9,
+   "mass": 0.3,
+   "sprite": "robot/hand",
+   "weaponSocket": true
+  },
+  "upperLegL": {
+   "shape": "capsule",
+   "w": 15,
+   "h": 32,
+   "mass": 1.0,
+   "sprite": "robot/limb_upper",
+   "damageMult": 0.7
+  },
+  "lowerLegL": {
+   "shape": "capsule",
+   "w": 15,
+   "h": 32,
+   "mass": 0.8,
+   "sprite": "robot/limb_lower",
+   "damageMult": 0.7
+  },
+  "footL": {
+   "shape": "rect",
+   "w": 24,
+   "h": 12,
+   "mass": 0.5,
+   "sprite": "robot/foot",
+   "friction": 0.9,
+   "groundSensor": true
+  },
+  "upperLegR": {
+   "shape": "capsule",
+   "w": 15,
+   "h": 32,
+   "mass": 1.0,
+   "sprite": "robot/limb_upper",
+   "damageMult": 0.7
+  },
+  "lowerLegR": {
+   "shape": "capsule",
+   "w": 15,
+   "h": 32,
+   "mass": 0.8,
+   "sprite": "robot/limb_lower",
+   "damageMult": 0.7
+  },
+  "footR": {
+   "shape": "rect",
+   "w": 24,
+   "h": 12,
+   "mass": 0.5,
+   "sprite": "robot/foot",
+   "friction": 0.9,
+   "groundSensor": true
+  }
+ },
+ "restPose": {
+  "head": [
+   0,
+   -62
+  ],
+  "torso": [
+   0,
+   -18
+  ],
+  "upperArmL": [
+   -24,
+   -26
+  ],
+  "lowerArmL": [
+   -24,
+   2
+  ],
+  "handL": [
+   -24,
+   22
+  ],
+  "upperArmR": [
+   24,
+   -26
+  ],
+  "lowerArmR": [
+   24,
+   2
+  ],
+  "handR": [
+   24,
+   22
+  ],
+  "upperLegL": [
+   -10,
+   24
+  ],
+  "lowerLegL": [
+   -10,
+   54
+  ],
+  "footL": [
+   -8,
+   74
+  ],
+  "upperLegR": [
+   10,
+   24
+  ],
+  "lowerLegR": [
+   10,
+   54
+  ],
+  "footR": [
+   12,
+   74
+  ]
+ },
+ "joints": [
+  {
+   "a": "torso",
+   "b": "head",
+   "anchorA": [
+    0,
+    -23
+   ],
+   "anchorB": [
+    0,
+    17
+   ],
+   "stiffness": 0.9,
+   "limit": [
+    -25,
+    25
+   ],
+   "motor": "headStabilize"
+  },
+  {
+   "a": "torso",
+   "b": "upperArmL",
+   "anchorA": [
+    -20,
+    -18
+   ],
+   "anchorB": [
+    0,
+    -13
+   ],
+   "stiffness": 0.8,
+   "limit": [
+    -170,
+    170
+   ]
+  },
+  {
+   "a": "upperArmL",
+   "b": "lowerArmL",
+   "anchorA": [
+    0,
+    13
+   ],
+   "anchorB": [
+    0,
+    -13
+   ],
+   "stiffness": 0.8,
+   "limit": [
+    0,
+    150
+   ]
+  },
+  {
+   "a": "lowerArmL",
+   "b": "handL",
+   "anchorA": [
+    0,
+    13
+   ],
+   "anchorB": [
+    0,
+    0
+   ],
+   "stiffness": 0.9
+  },
+  {
+   "a": "torso",
+   "b": "upperArmR",
+   "anchorA": [
+    20,
+    -18
+   ],
+   "anchorB": [
+    0,
+    -13
+   ],
+   "stiffness": 0.8,
+   "limit": [
+    -170,
+    170
+   ],
+   "motor": "aimArm"
+  },
+  {
+   "a": "upperArmR",
+   "b": "lowerArmR",
+   "anchorA": [
+    0,
+    13
+   ],
+   "anchorB": [
+    0,
+    -13
+   ],
+   "stiffness": 0.8,
+   "limit": [
+    -150,
+    0
+   ],
+   "motor": "aimArm"
+  },
+  {
+   "a": "lowerArmR",
+   "b": "handR",
+   "anchorA": [
+    0,
+    13
+   ],
+   "anchorB": [
+    0,
+    0
+   ],
+   "stiffness": 0.95
+  },
+  {
+   "a": "torso",
+   "b": "upperLegL",
+   "anchorA": [
+    -9,
+    22
+   ],
+   "anchorB": [
+    0,
+    -14
+   ],
+   "stiffness": 0.8,
+   "limit": [
+    -100,
+    60
+   ],
+   "motor": "legBalance"
+  },
+  {
+   "a": "upperLegL",
+   "b": "lowerLegL",
+   "anchorA": [
+    0,
+    14
+   ],
+   "anchorB": [
+    0,
+    -14
+   ],
+   "stiffness": 0.8,
+   "limit": [
+    -140,
+    0
+   ]
+  },
+  {
+   "a": "lowerLegL",
+   "b": "footL",
+   "anchorA": [
+    0,
+    14
+   ],
+   "anchorB": [
+    -2,
+    -4
+   ],
+   "stiffness": 0.9
+  },
+  {
+   "a": "torso",
+   "b": "upperLegR",
+   "anchorA": [
+    9,
+    22
+   ],
+   "anchorB": [
+    0,
+    -14
+   ],
+   "stiffness": 0.8,
+   "limit": [
+    -100,
+    60
+   ],
+   "motor": "legBalance"
+  },
+  {
+   "a": "upperLegR",
+   "b": "lowerLegR",
+   "anchorA": [
+    0,
+    14
+   ],
+   "anchorB": [
+    0,
+    -14
+   ],
+   "stiffness": 0.8,
+   "limit": [
+    -140,
+    0
+   ]
+  },
+  {
+   "a": "lowerLegR",
+   "b": "footR",
+   "anchorA": [
+    0,
+    14
+   ],
+   "anchorB": [
+    -2,
+    -4
+   ],
+   "stiffness": 0.9
+  }
+ ],
+ "motors": {
+  "headStabilize": {
+   "targetAngle": 0,
+   "gain": 0.02,
+   "damp": 0.3
+  },
+  "aimArm": {
+   "gain": 0.09,
+   "damp": 0.18,
+   "maxTorque": 0.9
+  },
+  "legBalance": {
+   "gain": 0.05,
+   "damp": 0.25,
+   "uprightTorque": 0.6
+  }
+ },
+ "stats": {
+  "hp": 100,
+  "stamina": 100,
+  "staminaRegenPerSec": 28,
+  "jumpImpulse": 11,
+  "walkTorque": 0.35
+ },
+ "colors": {
+  "accentOptions": [
+   "#A654F4",
+   "#F29D0C",
+   "#0EA4E6",
+   "#F271B4",
+   "#A3E436",
+   "#FCF08B"
+  ],
+  "p1Default": "#A654F4",
+  "p2Default": "#F29D0C",
+  "cpuDefault": "#F271B4"
+ }
+}

@@ -23,6 +23,7 @@
     "bike:preview": "node --import tsx scripts/preview-bike.ts",
     "textures:fetch": "node --import tsx scripts/fetch-textures.ts",
     "textures": "node --import tsx scripts/build-textures.ts",
+    "duel:art": "node --import tsx scripts/build-duel-art.ts",
     "courses:stats": "node --import tsx scripts/course-stats.ts",
     "android:update": "cd android && npx @bubblewrap/cli update",
     "android:build": "cd android && npx @bubblewrap/cli build",

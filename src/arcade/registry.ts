@@ -173,6 +173,19 @@ export const ARCADE: ArcadeEntry[] = [
     load: () => import("./games/reflex"),
   },
   {
+    id: "duel",
+    title: "Ragdoll Rumble",
+    tagline: "Two robots, one lava sea. Swing like you mean it.",
+    hint: {
+      touch: "Drag to move and swing · hold SKILL to wind up · JUMP",
+      keys: "WASD to move and swing · hold F to wind up · Space to jump",
+    },
+    // A fight has a pulse of its own — swing, recover, swing — and a track
+    // at a brisk walk sits under it without racing the exchanges.
+    bpm: 140,
+    load: () => import("./games/duel"),
+  },
+  {
     id: "stub",
     title: "Test Pattern",
     tagline: "A square, at exactly 200 pixels a second.",

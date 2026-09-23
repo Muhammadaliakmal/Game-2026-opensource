@@ -27,6 +27,7 @@ const input: InputState = {
   keys: {},
   pointer: { x: 0, y: 0, down: false },
   axis: { x: 0, y: 0 },
+  touches: [],
 };
 
 interface Result {
