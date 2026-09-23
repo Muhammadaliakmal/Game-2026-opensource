@@ -5,6 +5,9 @@ import type { Match } from "./match";
 import { MENU, buttonsFor, type Choice, type ModeKind, type Pad } from "./controls";
 import { ITEMS, ITEMS_SCALE, ROBOT, TILES, UI, VFX, type Frame } from "./art/frames";
 import { TINTS, sprites, type Sprites } from "./sprites";
+import { gameFont, outlinedText } from "@/arcade/host/type";
+import { reducedMotion } from "@/lib/motion";
+import { frameFight, follow, type Cam } from "./camera";
 
 /**
  * The asset pack's robots in the Magma Gauntlet, and the vector fallback.
@@ -170,8 +173,20 @@ export function createRenderer(rng: () => number): Renderer {
   let shakeY = 0;
   let flashA = 0;
   let clock = 0;
+  // The fight's framing (camera.ts). Whole arena until a match exists.
+  const cam: Cam = { x: T.VIEW_W / 2, y: T.VIEW_H / 2, z: 1 };
+
+  function camTarget(m: Match, solo: boolean): Cam {
+    // Reduced motion: a camera that moves is the first thing lib/motion.ts
+    // drops, so the arena holds still at the full view.
+    if (reducedMotion()) return { x: T.VIEW_W / 2, y: T.VIEW_H / 2, z: 1 };
+    const [p, o] = m.fighters;
+    return frameFight(p.x[R.PELVIS], p.y[R.PELVIS], o.x[R.PELVIS], o.y[R.PELVIS], solo, T.VIEW_W, T.VIEW_H);
+  }
 
   function snap(m: Match) {
+    // A new round starts framed, not with a pan across from the last one.
+    Object.assign(cam, camTarget(m, true));
     for (const f of m.fighters) {
       for (let i = 0; i < R.N; i++) {
         prevX[f.id][i] = curX[f.id][i] = f.x[i];
@@ -584,13 +599,10 @@ export function createRenderer(rng: () => number): Renderer {
   function banner(ctx: CanvasRenderingContext2D, text: string, sub: string | null, color: string = INK) {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "900 64px ui-sans-serif, system-ui, sans-serif";
-    ctx.fillStyle = "rgba(20, 8, 6, 0.6)";
-    ctx.fillText(text, T.VIEW_W / 2 + 3, 173);
-    ctx.fillStyle = color;
-    ctx.fillText(text, T.VIEW_W / 2, 170);
+    ctx.font = gameFont(64);
+    outlinedText(ctx, text, T.VIEW_W / 2, 170, color, 64);
     if (sub) {
-      ctx.font = "600 18px ui-sans-serif, system-ui, sans-serif";
+      ctx.font = gameFont(18);
       ctx.fillStyle = "rgba(255, 244, 232, 0.9)";
       ctx.fillText(sub, T.VIEW_W / 2, 220);
     }
@@ -677,12 +689,9 @@ export function createRenderer(rng: () => number): Renderer {
     ctx.fillRect(0, 0, T.VIEW_W, T.VIEW_H);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "900 58px ui-sans-serif, system-ui, sans-serif";
-    ctx.fillStyle = COLORS[1].glow;
-    ctx.fillText("RAGDOLL RUMBLE", T.VIEW_W / 2 + 3, 123);
-    ctx.fillStyle = INK;
-    ctx.fillText("RAGDOLL RUMBLE", T.VIEW_W / 2, 120);
-    ctx.font = "600 16px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = gameFont(58);
+    outlinedText(ctx, "RAGDOLL RUMBLE", T.VIEW_W / 2, 120, INK, 58);
+    ctx.font = gameFont(16);
     ctx.fillStyle = "rgba(255, 244, 232, 0.85)";
     ctx.fillText("Swing with the stick. Hold SKILL to wind up a heavy. Stay out of the lava.", T.VIEW_W / 2, 178);
     MENU.forEach((card, i) => {
@@ -692,9 +701,8 @@ export function createRenderer(rng: () => number): Renderer {
       ctx.strokeStyle = on ? "#fce14b" : "rgba(252, 225, 75, 0.35)";
       ctx.lineWidth = on ? 3 : 1.5;
       ctx.strokeRect(card.x + 0.5, card.y + 0.5, card.w - 1, card.h - 1);
-      ctx.fillStyle = card.choice.kind === "versus" ? "#6ff5ff" : INK;
-      ctx.font = "800 24px ui-sans-serif, system-ui, sans-serif";
-      ctx.fillText(card.label, card.x + card.w / 2, card.y + card.h / 2 - 10);
+      ctx.font = gameFont(24);
+      outlinedText(ctx, card.label, card.x + card.w / 2, card.y + card.h / 2 - 10, card.choice.kind === "versus" ? "#6ff5ff" : INK, 24);
       ctx.font = "600 13px ui-monospace, monospace";
       ctx.fillStyle = "rgba(255, 244, 232, 0.7)";
       ctx.fillText(card.sub, card.x + card.w / 2, card.y + card.h / 2 + 20);
@@ -703,7 +711,7 @@ export function createRenderer(rng: () => number): Renderer {
         ctx.fillText(String(i + 1), card.x + 14, card.y + 14);
       }
     });
-    ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = gameFont(13);
     ctx.fillStyle = "rgba(255, 244, 232, 0.75)";
     ctx.fillText(
       scene.showTouch
@@ -723,11 +731,17 @@ export function createRenderer(rng: () => number): Renderer {
       ctx.lineWidth = 2;
       ctx.strokeRect(b.x + 0.5, b.y + 0.5, b.w - 1, b.h - 1);
       if (s && b.action === "rematch") blit(ctx, s.ui, UI["ctl/btn_rematch"], b.x + 8, b.y + 8, b.h - 16, b.h - 16);
-      ctx.fillStyle = INK;
-      ctx.font = "800 20px ui-sans-serif, system-ui, sans-serif";
+      ctx.font = gameFont(20);
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(b.action === "rematch" ? "REMATCH" : "MENU", b.x + b.w / 2 + (s && b.action === "rematch" ? 18 : 0), b.y + b.h / 2);
+      outlinedText(
+        ctx,
+        b.action === "rematch" ? "REMATCH" : "MENU",
+        b.x + b.w / 2 + (s && b.action === "rematch" ? 18 : 0),
+        b.y + b.h / 2,
+        INK,
+        20
+      );
     }
     ctx.font = "600 12px ui-monospace, monospace";
     ctx.fillStyle = "rgba(255, 244, 232, 0.65)";
@@ -748,6 +762,7 @@ export function createRenderer(rng: () => number): Renderer {
         }
       }
       if (frozen) return;
+      if (m && scene.screen !== "menu") follow(cam, camTarget(m, scene.mode === "cpu"), dt);
       for (const e of fx) if (e.t < e.life) e.t += dt;
       for (let k = 0; k < MAX_PARTS; k++) {
         const o = k * 6;
@@ -796,6 +811,14 @@ export function createRenderer(rng: () => number): Renderer {
       }
 
       ctx.save();
+      // The camera, around the arena only: the HUD, the banners and the thumb
+      // pads below are drawn after this restore, in screen space, so a zoom
+      // never moves a control out from under a thumb.
+      if (cam.z !== 1 || cam.x !== T.VIEW_W / 2 || cam.y !== T.VIEW_H / 2) {
+        ctx.translate(T.VIEW_W / 2, T.VIEW_H / 2);
+        ctx.scale(cam.z, cam.z);
+        ctx.translate(-cam.x, -cam.y);
+      }
       if (shake > 0) {
         // Kicked along the blow, with a little wobble across it.
         const wob = Math.sin(clock * 60) * shake * 0.3;

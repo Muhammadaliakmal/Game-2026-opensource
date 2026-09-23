@@ -98,6 +98,38 @@ hand; use `FACING`.
 looking down it; a sandbox leaves it undefined and keeps whatever yaw the rig
 was holding.
 
+## Light theme
+
+`lib/theme.ts` holds the choice (Auto / Light / Dark, `sdg_theme`), and an
+inline script in the root layout's `<head>` writes `<html data-theme>` before
+the first paint. `theme.test.ts` executes that script string against
+`resolveTheme`, because it restates it.
+
+- **Games are always dark.** The light tokens in `tokens.css` are scoped to
+  `:root[data-theme="light"]:not(:has([data-immersive], [data-dark]))`, so any
+  page with an `ImmersiveMarker`, or with the cabinet overlay (`data-dark`)
+  open, keeps the dark tokens. Do not add a light override outside that block.
+- **Art draws through `var(--art-*, <night value>)`.** Mode covers, card
+  scrims and cabinet previews name their colours that way and only the light
+  block defines the variables, so dark renders exactly as before.
+- **Colour white-alpha as ink-alpha.** `rgb(255 255 255 / a)` is invisible on
+  a light page; `color-mix(in oklab, var(--color-ink) a%, transparent)` is
+  the same on dark and a hairline on light.
+- Clerk's modal is restated as literals (`clerk-appearance.ts`) and switched
+  by `ClerkThemeSync` through an internal Clerk method — guarded, so a rename
+  leaves the modal dark rather than breaking sign-in.
+- `.hud-chip` sets `display` in unlayered CSS, which beats every Tailwind
+  utility: `sm:hidden` on a chip does nothing. Hide a wrapper instead.
+
+## Opening a cabinet
+
+`useArcade.open` calls `enterLandscape()` (`arcade/host/orientation.ts`)
+synchronously, inside the press that opened it — the only place
+`requestFullscreen` + `screen.orientation.lock` can work. Close undoes it.
+Where it cannot (iPhone, `?play=` links) `RotateHint` offers it once, with a
+dismiss. The fixed 960×540 view stays: see `view.ts` for why the canvas size
+must not drive the simulation.
+
 ## Juice and `prefers-reduced-motion`
 
 `lib/motion.ts` is the only reader of the setting outside `globals.css`. The

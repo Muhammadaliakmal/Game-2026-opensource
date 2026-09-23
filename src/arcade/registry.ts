@@ -53,12 +53,25 @@ export interface ArcadeEntry {
    * player is doing. See `host/types.ts`'s `onPlaced`.
    */
   board?: boolean;
+  /**
+   * Offers a choice of fight-sound pack on the pause screen. The pack lives
+   * in `arcade/sound-pack.ts` so the overlay can show it without loading the
+   * cabinet that plays it.
+   */
+  soundPacks?: boolean;
+  /**
+   * The cabinet's own colour, as a hex — the rim, stripe and glow of its card
+   * (`--card-hue`). One per cabinet, taken from its own art, so a shelf of
+   * cards reads as ten different machines rather than ten copies of a form.
+   */
+  hue: string;
   load: () => Promise<{ default: GameModule }>;
 }
 
 export const ARCADE: ArcadeEntry[] = [
   {
     id: "chunk-runner",
+    hue: "#22d3ee",
     title: "Chunk Runner",
     tagline: "Don't stop. Don't blink.",
     hint: { touch: "Tap to jump · hold to glide", keys: "Space to jump · hold to glide" },
@@ -69,6 +82,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "tower-stack",
+    hue: "#a654f4",
     title: "Tower Stack",
     tagline: "Perfect or nothing.",
     hint: { touch: "Tap to drop", keys: "Space to drop" },
@@ -79,6 +93,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "ludo",
+    hue: "#e8484e",
     title: "Ludo",
     tagline: "Four seats. One of them is yours.",
     hint: {
@@ -94,6 +109,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "snakes",
+    hue: "#3fbf7f",
     title: "Snakes & Ladders",
     tagline: "The board decides. The cards are yours.",
     hint: {
@@ -109,6 +125,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "echo",
+    hue: "#8fb8ff",
     title: "ECHO",
     tagline: "Your last run is still in the room.",
     hint: {
@@ -122,6 +139,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "gravity",
+    hue: "#ffd166",
     title: "Gravity Shift",
     tagline: "Down is whichever way you say.",
     hint: {
@@ -135,6 +153,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "bullet",
+    hue: "#ff3d6a",
     title: "One Bullet",
     tagline: "One shot. Make it do everything.",
     hint: {
@@ -148,6 +167,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "swarm",
+    hue: "#7dffb0",
     title: "SwarmRush",
     tagline: "Eat. Grow. Don't get eaten.",
     hint: {
@@ -161,6 +181,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "reflex",
+    hue: "#00fff5",
     title: "Reflex",
     tagline: "It appears. The ring closes. Go.",
     hint: {
@@ -174,6 +195,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "duel",
+    hue: "#f29d0c",
     title: "Ragdoll Rumble",
     tagline: "Two robots, one lava sea. Swing like you mean it.",
     hint: {
@@ -183,10 +205,12 @@ export const ARCADE: ArcadeEntry[] = [
     // A fight has a pulse of its own — swing, recover, swing — and a track
     // at a brisk walk sits under it without racing the exchanges.
     bpm: 140,
+    soundPacks: true,
     load: () => import("./games/duel"),
   },
   {
     id: "stub",
+    hue: "#8fa3d9",
     title: "Test Pattern",
     tagline: "A square, at exactly 200 pixels a second.",
     hint: {

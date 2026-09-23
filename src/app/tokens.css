@@ -74,13 +74,13 @@
   --color-danger: #ff3b30;
 
   /* ── Type ───────────────────────────────────────────────────────────
-     Three roles. Orbitron is the techno display face the direction asks for
-     and is used ONLY for headings and HUD labels — it is unreadable as body
-     copy. IBM Plex Sans stays the UI face: drafting-table utilitarian and
+     Three roles. Lilita One is the game face — the lettering of a title
+     screen — and is used ONLY for headings and HUD labels; it is unreadable
+     as body copy. IBM Plex Sans stays the UI face: drafting-table utilitarian and
      excellent at the sizes chrome actually renders at. JetBrains Mono carries
      every number, because telemetry wants tabular figures with unambiguous
      digits. */
-  --font-display: var(--font-orbitron);
+  --font-display: var(--font-game);
   --font-sans: var(--font-plex);
   --font-mono: var(--font-jetbrains);
 
@@ -113,7 +113,9 @@
   /* Interactive chrome is barely rounded; block swatches are not rounded at
      all, because blocks are not round and a pill stops reading as a block. */
   --radius: 3px;
-  --border-color: rgb(255 255 255 / 0.1);
+  /* Ink-tinted rather than white, so a border is still a border on the light
+     theme below. On dark the two are within a hair of each other. */
+  --border-color: color-mix(in oklab, var(--color-ink) 10%, transparent);
   --border: 1px solid var(--border-color);
 
   /* ── Glass ──────────────────────────────────────────────────────────
@@ -144,7 +146,7 @@
      need more. The ladder is 58 / 78 / 94 percent, and a panel should sit on
      the lowest rung it can be read from. */
   --glass-bg: color-mix(in oklab, var(--color-base) 58%, transparent);
-  --glass-border: rgb(255 255 255 / 0.16);
+  --glass-border: color-mix(in oklab, var(--color-ink) 16%, transparent);
   --glass-blur: blur(16px) saturate(130%);
 
   /*
@@ -157,6 +159,26 @@
   --glow: 0 0 20px color-mix(in oklab, var(--color-accent) 22%, transparent);
   --glow-strong: 0 0 28px
     color-mix(in oklab, var(--color-accent) 45%, transparent);
+
+  /* ── Game tiles (globals.css, `.card`) ─────────────────────────────
+     A card is a chunky tile standing on a solid ledge, the way a game's
+     menu buttons are: rounder than the chrome's 3px, a two-pixel rim, and a
+     hard offset shadow underneath that the tile lifts off on hover and
+     presses into on tap. `--card-hue` is set per card (a cabinet's own
+     colour); with none set it is the mode's accent. */
+  --radius-card: 14px;
+  --radius-btn: 10px;
+  --card-rim: color-mix(in oklab, var(--color-ink) 10%, transparent);
+  --card-ledge: #04050b;
+  --card-drop: 0 14px 26px -12px rgb(0 0 0 / 0.7);
+
+  /* The heading outline and drop shadow (globals.css, h1/h2). On a dark
+     page a black drop shadow is invisible, so the shadow is the lighter edge
+     colour: the letter reads as extruded, which is the logo look the outline
+     alone cannot give here. */
+  --type-stroke: 0.08em;
+  --type-outline: #05060d;
+  --type-shadow: #2f3350;
 
   --ease-ui: cubic-bezier(0.2, 0, 0, 1);
   --dur-ui: 120ms;
@@ -342,4 +364,86 @@
         var(--touch-inset) + var(--space-1)
     );
   }
+}
+
+/*
+  ── The light theme ───────────────────────────────────────────────────
+
+  Chosen in the header (components/ThemeToggle, lib/theme.ts), written to
+  <html data-theme> before the first paint. Everything above is the dark
+  theme and stays the default: with no attribute, or with scripts off, the
+  site is what it has always been.
+
+  The selector is the whole scoping rule. A game screen mounts an
+  `ImmersiveMarker` and the arcade's cabinet overlay carries `data-dark`, and
+  while either is in the document these overrides do not apply at all — the
+  game is dark whatever the setting says. That is deliberate: the sky, the
+  block palette and the neon HUD were authored against a dark ground, and
+  what a player placed is the content (CLAUDE.md, "The sky").
+
+  The accents are not the neon ones darkened by eye. Each is picked to clear
+  WCAG AA both ways at once — as text on --color-base, and under white text
+  as a filled button — which is why --color-accent-ink flips to white here:
+  no single accent can carry dark text AND read as text on a light page.
+  Measured, not estimated:
+
+    ink on base 17.3   dim on base 7.6   dim on panel 8.3
+    accent  #00788a  4.75 on base, 5.18 under white
+    race    #c4005c  5.50 / 6.00
+    parkour #2d7a0c  4.94 / 5.38
+    danger  #c4271f  5.26 / 5.74
+*/
+:root[data-theme="light"]:not(:has([data-immersive], [data-dark])) {
+  color-scheme: light;
+  --color-base: #f3f5fa;
+  --color-surface: #ffffff;
+  --color-panel: #ffffff;
+  --color-edge: #c5cbdc;
+  --color-dim: #474d66;
+  --color-ink: #0d1020;
+  --color-accent: #00788a;
+  --color-accent-race: #c4005c;
+  --color-accent-parkour: #2d7a0c;
+  --color-accent-ink: #ffffff;
+  --color-danger: #c4271f;
+  --lift: 0 8px 24px rgb(16 24 40 / 0.12);
+  --glow: 0 0 16px color-mix(in oklab, var(--color-accent) 14%, transparent);
+  --glow-strong: 0 0 20px color-mix(in oklab, var(--color-accent) 28%, transparent);
+
+  /*
+    The banners by day. Mode covers, course cards and the arcade's card
+    backdrops draw with `var(--art-*, <night value>)`, and these are only
+    ever defined here — so the dark theme renders exactly the night art it
+    always did, and the light theme gets the same shapes under a pale sky.
+    The scrim is an RGB triple because it is used at several alphas.
+  */
+  --card-ledge: #c9d1e3;
+  --card-drop: 0 14px 26px -14px rgb(16 24 40 / 0.28);
+
+  --type-stroke: 0;
+  --type-outline: transparent;
+  --type-shadow: rgb(13 16 32 / 0.14);
+
+  --art-sky-0: #eaf2fd; /* horizon */
+  --art-sky-1: #c9dcf6;
+  --art-sky-2: #9ebfed;
+  --art-sky-3: #6f9be0; /* zenith */
+  --art-stars: 0;
+  --art-ground: #d5deee;
+  --art-shade: #8a97b8;
+  --art-block: #9aa9cc;
+  --art-block-2: #c2cde3;
+  --art-kerb: #6f7da3;
+  --art-wheel: #2a3150;
+  --art-wheel-edge: #56608a;
+  --art-figure: #1b2450;
+  --art-backdrop: #dde6f5;
+  --art-cab-bg: #d3dcee;
+  --art-cab-panel: #c6d1e8;
+  --art-cab-edge: #a8b6d6;
+  --art-cab-line: #7d8bb3;
+  --art-cab-dusk-0: #ece4f3;
+  --art-cab-dusk-1: #ddd1e9;
+  --art-cab-dusk-2: #c7b8d9;
+  --art-scrim: 243 245 250;
 }

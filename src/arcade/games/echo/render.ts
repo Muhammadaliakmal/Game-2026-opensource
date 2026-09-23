@@ -3,6 +3,7 @@ import { LEVELS, type EchoLevel } from "./levels";
 import type { Sim } from "./sim";
 import { bevelRect, grainOverlay, plateOverlay } from "@/arcade/host/texture";
 import { enterView, fitView } from "@/arcade/host/view";
+import { gameFont } from "@/arcade/host/type";
 
 /**
  * ECHO's drawing, and nothing else.
@@ -94,7 +95,7 @@ export function createRenderer(rng: () => number): Renderer {
     ctx.fillRect(Math.round(x - r + 4), Math.round(y - r + 5), r * 2 - 8, 5);
     if (label) {
       ctx.fillStyle = INK;
-      ctx.font = "bold 13px system-ui, sans-serif";
+      ctx.font = gameFont(13);
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(label, Math.round(x), Math.round(y + 3));
@@ -123,7 +124,7 @@ export function createRenderer(rng: () => number): Renderer {
       ctx.fillStyle = frac < 0.25 ? DOOR : ACCENT;
       ctx.fillRect(16, 14, Math.round((T.VIEW_W - 32) * frac), 12);
       ctx.fillStyle = "rgba(255,255,255,0.75)";
-      ctx.font = "bold 13px system-ui, sans-serif";
+      ctx.font = gameFont(13);
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
       ctx.fillText(`${sim.level + 1}/${LEVELS.length}  ${level.name.toUpperCase()}`, 16, 37);
@@ -146,7 +147,7 @@ export function createRenderer(rng: () => number): Renderer {
       ctx.lineWidth = 2;
       ctx.strokeRect(e.x + 1, e.y + 1, e.w - 2, e.h - 2);
       ctx.fillStyle = EXIT;
-      ctx.font = "bold 12px system-ui, sans-serif";
+      ctx.font = gameFont(12);
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText("EXIT", e.x + e.w / 2, e.y + e.h / 2);
@@ -166,7 +167,7 @@ export function createRenderer(rng: () => number): Renderer {
         ctx.fillStyle = on ? PLATE_ON : PLATE_OFF;
         ctx.fill();
         ctx.fillStyle = INK;
-        ctx.font = "bold 14px system-ui, sans-serif";
+        ctx.font = gameFont(14);
         ctx.fillText(p.id.toUpperCase(), p.x, p.y + 1);
       }
 
@@ -187,7 +188,7 @@ export function createRenderer(rng: () => number): Renderer {
           ctx.setLineDash([]);
         }
         ctx.fillStyle = solid ? INK : DOOR;
-        ctx.font = "bold 11px system-ui, sans-serif";
+        ctx.font = gameFont(11);
         ctx.fillText((d.inverted ? "¬" : "") + d.plate.toUpperCase(), d.x + d.w / 2, d.y + d.h / 2);
       }
 
@@ -225,7 +226,7 @@ export function createRenderer(rng: () => number): Renderer {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "#fff";
-        ctx.font = "bold 44px system-ui, sans-serif";
+        ctx.font = gameFont(44);
         let title = "";
         let sub = "";
         if (sim.phase === "reset") {
@@ -239,7 +240,7 @@ export function createRenderer(rng: () => number): Renderer {
           sub = sim.outcome === "won" ? "Every room, cleared by you and yours." : "The exit was one loop further.";
         }
         ctx.fillText(title, T.ROOM_W / 2, T.ROOM_H / 2 - 14);
-        ctx.font = "16px system-ui, sans-serif";
+        ctx.font = gameFont(16);
         ctx.fillStyle = "rgba(255,255,255,0.8)";
         ctx.fillText(sub, T.ROOM_W / 2, T.ROOM_H / 2 + 26);
       } else if (sim.tick < 150 && sim.ghosts.length === 0) {
@@ -247,7 +248,7 @@ export function createRenderer(rng: () => number): Renderer {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "rgba(255,255,255,0.85)";
-        ctx.font = "15px system-ui, sans-serif";
+        ctx.font = gameFont(15);
         ctx.fillText(level.hint, T.ROOM_W / 2, T.ROOM_H - 26);
       }
 

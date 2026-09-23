@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { entryFor } from "./registry";
+import { enterLandscape, leaveLandscape } from "./host/orientation";
 import { DAILY_HARD_CAP } from "@/lib/arcade-payout";
 import {
   creditCoins,
@@ -107,7 +108,11 @@ export const useArcade = create<ArcadeState>((set, get) => ({
   error: null,
 
   open: (id, seed) => {
-    if (!entryFor(id)) return;
+    const entry = entryFor(id);
+    if (!entry) return;
+    // Inside the opening gesture, which is the only place it can work. A
+    // board cabinet lays itself out for portrait and is left alone.
+    if (!entry.board) enterLandscape();
     const s = typeof window === "undefined" ? { best: {} } : savedNow();
     set({
       activeGame: id,
@@ -128,14 +133,16 @@ export const useArcade = create<ArcadeState>((set, get) => ({
     });
   },
 
-  close: () =>
+  close: () => {
+    leaveLandscape();
     set({
       activeGame: null,
       status: "loading",
       score: 0,
       placement: null,
       error: null,
-    }),
+    });
+  },
 
   // A new run of the same game: the host watches `runId` and rebuilds. The
   // seed is rerolled, because replaying an identical course after dying on it

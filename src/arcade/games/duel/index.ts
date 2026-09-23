@@ -19,6 +19,7 @@ import {
 } from "./controls";
 import { RESULT_BUTTONS, createRenderer, type Scene } from "./render";
 import { loadSprites } from "./sprites";
+import { burnSound, clashSound, hitSound, koSound, whooshSound, windupSound } from "./sound";
 
 /**
  * Ragdoll Rumble — the menu, the match, and the juice, wired to the host.
@@ -148,10 +149,8 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
           break;
         case "hit": {
           renderer.effect("star", e.x, e.y, 22 + e.dmg * 1.6);
-          s.sfx("place", Math.max(-6, Math.min(12, e.dmg / 2 - 4)));
-          if (e.part === "head") s.sfx("coin", 3);
+          hitSound(e.dmg, e.heavy, e.part === "head", e.x, m.fighters[e.attacker].weapon.id);
           if (e.heavy) {
-            s.sfx("land", -5);
             renderer.effect("ring", e.x, e.y, 60 + e.dmg * 2);
           }
           if (!calm) {
@@ -160,7 +159,7 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
             renderer.kick(e.nx, e.ny, Math.min(T.SHAKE_MAX, e.dmg * T.SHAKE_PER_DMG));
           }
           if (e.ko) {
-            s.sfx("die");
+            koSound(e.x);
             renderer.flash(0.5);
             renderer.effect("ring", e.x, e.y, 110);
             if (!calm) slowT = T.KO_SLOW_T;
@@ -169,7 +168,7 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
         }
         case "clash":
           renderer.effect("star", e.x, e.y, 18);
-          s.sfx("coin", 7);
+          clashSound(e.speed, e.x);
           if (!calm) renderer.burst(e.x, e.y, 0, -1, 8, 220, 2);
           break;
         case "jump": {
@@ -179,10 +178,10 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
           break;
         }
         case "windup":
-          s.sfx("close", 5);
+          windupSound();
           break;
         case "heavy":
-          s.sfx("jump", -7);
+          whooshSound(e.power);
           break;
         case "tired":
           s.sfx("close", -8);
@@ -195,7 +194,7 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
           break;
         case "burn":
           renderer.effect("splat", e.x, m.lava.y - 6, 48, e.fighter);
-          s.sfx("die", -5);
+          burnSound(e.x);
           renderer.flash(0.3);
           if (!calm) renderer.burst(e.x, m.lava.y, 0, -1, 16, 260, 4);
           break;

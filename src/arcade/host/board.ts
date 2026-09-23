@@ -1,4 +1,5 @@
 import type { TokenView, Vec2 } from "./anim";
+import { gameFont } from "./type";
 
 /**
  * The one board painter, and the geometry both board games share.
@@ -381,7 +382,7 @@ export function createPainter(graph: BoardGraph): BoardPainter {
       // Board space is undone once, so a board point (x, y) is at (x * scale,
       // y * scale) inside this pass. Everything drawn here is in real pixels.
       ctx.scale(1 / scale, 1 / scale);
-      ctx.font = `600 ${px}px ui-sans-serif, system-ui, -apple-system, sans-serif`;
+      ctx.font = gameFont(px);
       ctx.textAlign = align;
       ctx.textBaseline = "middle";
       ctx.fillStyle = colour;

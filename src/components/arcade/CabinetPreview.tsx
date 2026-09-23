@@ -49,6 +49,16 @@ import { LADDERS, SNAKES, gridOf } from "@/arcade/games/snakes/board";
  * for it. Same mechanism as the mode covers.
  */
 
+/*
+  ── On the light theme ───────────────────────────────────────────────────
+
+  The grounds, panels, walls and grid lines below are `var(--art-*, <dark>)`,
+  defined only by the light theme in tokens.css — the same arrangement as the
+  mode covers. The pieces (a stack, a coin, a robot, a ludo seat) keep their
+  own colours on both: they are what identifies the game, and every one was
+  already picked to be saturated enough to read on either ground.
+*/
+
 /** The shapes, keyed by cabinet id. Unknown ids get the neutral grid. */
 export function CabinetPreview({ id }: { id: string }) {
   if (id === "tower-stack") return <TowerArt />;
@@ -86,8 +96,8 @@ function Frame({ children }: { children: React.ReactNode }) {
             along the bottom edge always has a ground to sit on regardless of
             what the art is doing behind it. */}
         <linearGradient id="cab-scrim" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0b1030" stopOpacity="0" />
-          <stop offset="100%" stopColor="#0b1030" stopOpacity="0.85" />
+          <stop offset="0%" stopColor="var(--art-backdrop, #0b1030)" stopOpacity="0" />
+          <stop offset="100%" stopColor="var(--art-backdrop, #0b1030)" stopOpacity="0.85" />
         </linearGradient>
       </defs>
       {children}
@@ -116,7 +126,7 @@ function TowerArt() {
   ];
   return (
     <Frame>
-      <rect width="240" height="96" fill="#0b1030" />
+      <rect width="240" height="96" fill="var(--art-backdrop, #0b1030)" />
       {/* The offcut the last drop shaved, still falling. It is the difference
           between a stack of rectangles and a game about precision. */}
       <rect x={120 + 58 / 2} y="34" width="8" height="10" rx="1" fill="hsl(260 60% 46%)" opacity="0.7" />
@@ -141,8 +151,8 @@ function TowerArt() {
         fill="hsl(260 70% 62%)"
         opacity="0.9"
       />
-      <rect x="0" y="86" width="240" height="10" fill="#141a3d" />
-      <rect x="0" y="86" width="240" height="1.5" fill="#2b3570" />
+      <rect x="0" y="86" width="240" height="10" fill="var(--art-cab-panel, #141a3d)" />
+      <rect x="0" y="86" width="240" height="1.5" fill="var(--art-cab-edge, #2b3570)" />
     </Frame>
   );
 }
@@ -157,7 +167,7 @@ function TowerArt() {
 function RunnerArt() {
   return (
     <Frame>
-      <rect width="240" height="96" fill="#0b1030" />
+      <rect width="240" height="96" fill="var(--art-backdrop, #0b1030)" />
       {/* Two rows of far chunks, dimmer and smaller. Depth is what stops the
           card reading as a diagram of three rectangles. */}
       {[
@@ -165,7 +175,7 @@ function RunnerArt() {
         { x: 96, w: 44, y: 44 },
         { x: 168, w: 56, y: 44 },
       ].map((p) => (
-        <rect key={`far${p.x}`} x={p.x} y={p.y} width={p.w} height="8" fill="#141c40" />
+        <rect key={`far${p.x}`} x={p.x} y={p.y} width={p.w} height="8" fill="var(--art-cab-panel, #141c40)" />
       ))}
       {[
         { x: 0, w: 74 },
@@ -173,7 +183,7 @@ function RunnerArt() {
         { x: 190, w: 50 },
       ].map((p) => (
         <g key={p.x}>
-          <rect x={p.x} y="62" width={p.w} height="34" fill="#1b2452" />
+          <rect x={p.x} y="62" width={p.w} height="34" fill="var(--art-cab-edge, #1b2452)" />
           <rect
             x={p.x}
             y="62"
@@ -232,7 +242,7 @@ function LudoArt() {
 
   return (
     <Frame>
-      <rect width="240" height="96" fill="#0b1030" />
+      <rect width="240" height="96" fill="var(--art-backdrop, #0b1030)" />
       {/* The table the board is lying on. */}
       <rect x={px(0)} y={py(0)} width={u * 15} height={u * 15} rx="2" fill="#f4f1e8" />
 
@@ -339,7 +349,7 @@ function SnakesArt() {
 
   return (
     <Frame>
-      <rect width="240" height="96" fill="#0b1030" />
+      <rect width="240" height="96" fill="var(--art-backdrop, #0b1030)" />
       <rect x={BOARD.x} y={BOARD.y} width={BOARD.size} height={BOARD.size} rx="2" fill="#f4f1e8" />
 
       {/* The checker. It is what makes a hundred squares countable at a glance
@@ -444,7 +454,7 @@ function EchoArt() {
       <rect x={x - 6} y={y - 6} width="12" height="12" rx="1" fill="#e2e8f0" />
       <rect x={x - 4} y={y - 3} width="8" height="3" fill="var(--color-accent, #5ce1ff)" />
       {label && (
-        <text x={x} y={y + 5} fontSize="7" fontWeight="700" fill="#0b0f1e" textAnchor="middle">
+        <text x={x} y={y + 5} fontSize="7" fontWeight="700" fill="var(--art-cab-bg, #0b0f1e)" textAnchor="middle">
           {label}
         </text>
       )}
@@ -452,11 +462,11 @@ function EchoArt() {
   );
   return (
     <Frame>
-      <rect width="240" height="96" fill="#0b1030" />
-      <rect x="40" y="10" width="160" height="76" fill="#141a30" />
+      <rect width="240" height="96" fill="var(--art-backdrop, #0b1030)" />
+      <rect x="40" y="10" width="160" height="76" fill="var(--art-cab-panel, #141a30)" />
       {/* A wall with a door in it, open, and the plate that opened it. */}
-      <rect x="128" y="10" width="8" height="30" fill="#2a3358" />
-      <rect x="128" y="58" width="8" height="28" fill="#2a3358" />
+      <rect x="128" y="10" width="8" height="30" fill="var(--art-cab-edge, #2a3358)" />
+      <rect x="128" y="58" width="8" height="28" fill="var(--art-cab-edge, #2a3358)" />
       <rect x="129" y="41" width="6" height="16" fill="none" stroke="#ff6a3d" strokeWidth="1" strokeDasharray="2 2" />
       <circle cx="70" cy="70" r="9" fill="rgba(92,225,255,0.25)" stroke="var(--color-accent, #5ce1ff)" strokeWidth="1.5" />
       <rect x="168" y="24" width="20" height="20" fill="rgba(125,255,176,0.12)" stroke="#7dffb0" strokeWidth="1.5" />
@@ -477,13 +487,13 @@ function EchoArt() {
 function GravityArt() {
   return (
     <Frame>
-      <rect width="240" height="96" fill="#0b1030" />
-      <rect x="40" y="6" width="160" height="84" fill="#12182b" />
-      <rect x="40" y="6" width="160" height="6" fill="#2b355c" />
-      <rect x="40" y="84" width="160" height="6" fill="#2b355c" />
+      <rect width="240" height="96" fill="var(--art-backdrop, #0b1030)" />
+      <rect x="40" y="6" width="160" height="84" fill="var(--art-cab-panel, #12182b)" />
+      <rect x="40" y="6" width="160" height="6" fill="var(--art-cab-edge, #2b355c)" />
+      <rect x="40" y="84" width="160" height="6" fill="var(--art-cab-edge, #2b355c)" />
       {/* The pillar the ball is resting against, sideways. */}
-      <rect x="150" y="12" width="12" height="72" fill="#2b355c" />
-      <rect x="150" y="12" width="2" height="72" fill="#46538a" />
+      <rect x="150" y="12" width="12" height="72" fill="var(--art-cab-edge, #2b355c)" />
+      <rect x="150" y="12" width="2" height="72" fill="var(--art-cab-line, #46538a)" />
       {/* Coins along the way it fell. */}
       {[70, 95, 120].map((x) => (
         <circle key={x} cx={x} cy="48" r="4" fill="#ffd166" />
@@ -504,12 +514,12 @@ function GravityArt() {
 function BulletArt() {
   return (
     <Frame>
-      <rect width="240" height="96" fill="#0b1030" />
-      <rect x="40" y="6" width="160" height="84" fill="#1a1424" />
-      <rect x="40" y="6" width="160" height="6" fill="#3a2e4e" />
-      <rect x="40" y="84" width="160" height="6" fill="#3a2e4e" />
+      <rect width="240" height="96" fill="var(--art-backdrop, #0b1030)" />
+      <rect x="40" y="6" width="160" height="84" fill="var(--art-cab-dusk-0, #1a1424)" />
+      <rect x="40" y="6" width="160" height="6" fill="var(--art-cab-dusk-2, #3a2e4e)" />
+      <rect x="40" y="84" width="160" height="6" fill="var(--art-cab-dusk-2, #3a2e4e)" />
       {/* A wall to come off. */}
-      <rect x="120" y="12" width="10" height="40" fill="#3a2e4e" />
+      <rect x="120" y="12" width="10" height="40" fill="var(--art-cab-dusk-2, #3a2e4e)" />
       {/* The mirror, corner to corner. */}
       <line x1="150" y1="78" x2="164" y2="64" stroke="#c8f0ff" strokeWidth="3" strokeLinecap="round" />
       {/* The path: turret → wall → mirror → target. */}
@@ -522,7 +532,7 @@ function BulletArt() {
         opacity="0.85"
       />
       {/* The turret. */}
-      <circle cx="58" cy="30" r="8" fill="#2a2238" stroke="var(--color-accent, #ffd166)" strokeWidth="1.5" />
+      <circle cx="58" cy="30" r="8" fill="var(--art-cab-dusk-1, #2a2238)" stroke="var(--color-accent, #ffd166)" strokeWidth="1.5" />
       <rect x="58" y="27" width="14" height="6" fill="var(--color-accent, #ffd166)" />
       {/* The target. */}
       <circle cx="157" cy="20" r="7" fill="none" stroke="#7dffb0" strokeWidth="2" />
@@ -537,7 +547,7 @@ function BulletArt() {
 function GridArt() {
   return (
     <Frame>
-      <rect width="240" height="96" fill="#0b1030" />
+      <rect width="240" height="96" fill="var(--art-backdrop, #0b1030)" />
       {Array.from({ length: 10 }, (_, i) => (
         <rect
           key={i}
@@ -545,7 +555,7 @@ function GridArt() {
           y="0"
           width="1"
           height="96"
-          fill="#1b2452"
+          fill="var(--art-cab-edge, #1b2452)"
         />
       ))}
     </Frame>
@@ -564,7 +574,7 @@ function SwarmArt() {
   ];
   return (
     <Frame>
-      <rect width="240" height="96" fill="#0b1022" />
+      <rect width="240" height="96" fill="var(--art-cab-bg, #0b1022)" />
       {/* The grid. */}
       <g stroke="#7a8cdc" strokeOpacity="0.12" strokeWidth="1">
         {[40, 80, 120, 160, 200].map((x) => <line key={x} x1={x} y1="0" x2={x} y2="96" />)}
@@ -596,17 +606,17 @@ function SwarmArt() {
 function ReflexArt() {
   return (
     <Frame>
-      <rect width="240" height="96" fill="#0b1030" />
+      <rect width="240" height="96" fill="var(--art-backdrop, #0b1030)" />
       {/* The field edge, as in the game. */}
       <rect x="10" y="8" width="220" height="80" fill="none" stroke="#eef1ff" strokeOpacity="0.06" strokeWidth="1" />
 
       {/* Fresh: the ring is almost whole. */}
-      <circle cx="52" cy="48" r="20" fill="#10233f" />
+      <circle cx="52" cy="48" r="20" fill="var(--art-cab-panel, #10233f)" />
       <circle cx="52" cy="48" r="8" fill="var(--color-accent, #22d3ee)" />
       <path d="M 52.0 33.0 A 15 15 0 1 1 40.4 38.4" fill="none" stroke="var(--color-accent, #22d3ee)" strokeWidth="3" strokeLinecap="round" />
 
       {/* Half gone. */}
-      <circle cx="120" cy="44" r="20" fill="#10233f" />
+      <circle cx="120" cy="44" r="20" fill="var(--art-cab-panel, #10233f)" />
       <circle cx="120" cy="44" r="8" fill="var(--color-accent, #22d3ee)" />
       <path d="M 120.0 29.0 A 15 15 0 0 1 121.9 58.9" fill="none" stroke="var(--color-accent, #22d3ee)" strokeWidth="3" strokeLinecap="round" />
 
@@ -642,9 +652,9 @@ function DuelArt() {
     <g>
       <line x1={x - 2} y1="57" x2={x - 1} y2="49" stroke={limb} strokeWidth="2.6" strokeLinecap="round" />
       <line x1={x + 2} y1="57" x2={x + 1} y2="49" stroke={limb} strokeWidth="2.6" strokeLinecap="round" />
-      <rect x={x - 3.5} y="38" width="7" height="11" rx="2" fill="#f4f6ff" stroke="#11131c" strokeWidth="0.8" />
-      <rect x={x - 5} y="29" width="10" height="9" rx="2" fill="#f4f6ff" stroke="#11131c" strokeWidth="0.8" />
-      <rect x={x - 1 + facing * 1.5} y="32" width="4" height="2.6" rx="1" fill="#11131c" />
+      <rect x={x - 3.5} y="38" width="7" height="11" rx="2" fill="#f4f6ff" stroke="var(--art-cab-bg, #11131c)" strokeWidth="0.8" />
+      <rect x={x - 5} y="29" width="10" height="9" rx="2" fill="#f4f6ff" stroke="var(--art-cab-bg, #11131c)" strokeWidth="0.8" />
+      <rect x={x - 1 + facing * 1.5} y="32" width="4" height="2.6" rx="1" fill="var(--art-cab-bg, #11131c)" />
       {hat ? <path d={`M ${x - 6} 29.5 L ${x + 6} 29.5 L ${x + 4} 25 Q ${x} 22 ${x - 4} 25 Z`} fill="#f29d0c" /> : null}
     </g>
   );

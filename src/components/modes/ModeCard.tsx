@@ -43,7 +43,7 @@ export function ModeCard({
     <Link
       href={href}
       data-mode={art}
-      className="group border-[var(--border-color)] hover:border-accent/70 focus-visible:border-accent/70 relative flex min-h-[12rem] flex-col justify-end overflow-hidden sm:min-h-[15rem] rounded-[var(--radius)] border transition-colors md:min-h-[17rem]"
+      className="group card relative flex min-h-[12rem] flex-col justify-end overflow-hidden sm:min-h-[15rem] md:min-h-[17rem]"
     >
       <ModeCover art={art} />
 
@@ -55,13 +55,13 @@ export function ModeCard({
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(to top, rgba(2,3,10,0.92) 0%, rgba(2,3,10,0.72) 34%, rgba(2,3,10,0.12) 66%, rgba(2,3,10,0) 100%)",
+            "linear-gradient(to top, rgb(var(--art-scrim, 2 3 10) / 0.92) 0%, rgb(var(--art-scrim, 2 3 10) / 0.72) 34%, rgb(var(--art-scrim, 2 3 10) / 0.12) 66%, rgb(var(--art-scrim, 2 3 10) / 0) 100%)",
         }}
       />
 
       <div className="relative flex flex-col gap-2 p-5">
         <span className="hud-label text-accent">{eyebrow}</span>
-        <h3 className="text-ink text-2xl leading-tight font-bold">{title}</h3>
+        <h3 className="art-title text-3xl sm:text-4xl">{title}</h3>
         <p className="text-dim max-w-sm text-sm">{blurb}</p>
 
         {meta && meta.length > 0 && (

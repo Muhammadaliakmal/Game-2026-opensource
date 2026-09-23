@@ -137,7 +137,7 @@ export function CourseCard({
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(to top, rgba(2,3,10,0.85) 0%, rgba(2,3,10,0.25) 55%, rgba(2,3,10,0) 100%)",
+              "linear-gradient(to top, rgb(var(--art-scrim, 2 3 10) / 0.85) 0%, rgb(var(--art-scrim, 2 3 10) / 0.25) 55%, rgb(var(--art-scrim, 2 3 10) / 0) 100%)",
           }}
         />
         {/* The ladder position, big and in the corner — the fastest way to say

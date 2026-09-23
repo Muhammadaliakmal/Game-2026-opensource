@@ -15,9 +15,9 @@
       the way, and it is deliberately the only thing between the launcher icon
       and the game.
 
-      ── Why it looks like nothing ────────────────────────────────────────
+      ── Why the ground never changes ─────────────────────────────────────
 
-      Because it should be invisible. The splash screen, this page and the
+      Because the seams should be invisible. The splash screen, this page and the
       site it hands off to are all #1a1d21, and the native WebView background
       is set to the same value in `capacitor.config.ts`. So the seam between
       "splash", "shell" and "site" is not a flash of white — it is the same
@@ -32,8 +32,30 @@
       missing at the moment it is needed.
     -->
     <style>
+      /*
+        ── The opening ───────────────────────────────────────────────────
+
+        This page is on screen for as long as the live site takes to load —
+        on a cold phone connection, seconds — so it is the app's title card,
+        and it was a pulsing square and one word. Now: four voxels drop in
+        and lock into the site's own mark (the rotated block in the header),
+        it lights, the name arrives under it, and a bar runs until the site
+        replaces the page.
+
+        Pure CSS on a fixed timeline. Nothing waits on it: the handoff below
+        starts on the first tick, so a fast connection cuts the intro short,
+        which is the right way round — the animation is for waiting, never a
+        reason to.
+
+        Still self-contained (see above). The cyan is the site's
+        `--color-accent`, so the mark that lands here is the mark the header
+        shows a moment later.
+      */
       :root {
         color-scheme: dark;
+        --accent: #00fff5;
+        --ink: #edf0f3;
+        --dim: #c3c9d0;
       }
       body {
         margin: 0;
@@ -42,54 +64,148 @@
         align-items: center;
         justify-content: center;
         background: #1a1d21;
-        color: #edf0f3;
+        color: var(--ink);
         font: 400 14px/1.6 "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
         padding: 24px;
         text-align: center;
+        overflow: hidden;
       }
       .wrap {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 16px;
+        gap: 22px;
       }
+
+      /* Four blocks, 2×2, turned 45° as a group so they read as the mark. */
       .mark {
-        width: 18px;
-        height: 18px;
-        background: #ffb020;
+        position: relative;
+        width: 44px;
+        height: 44px;
         transform: rotate(45deg);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3px;
       }
-      p {
+      .mark i {
+        display: block;
+        background: var(--accent);
+        border-radius: 1px;
+      }
+      .mark::after {
+        content: "";
+        position: absolute;
+        inset: -18px;
+        border-radius: 50%;
+        background: radial-gradient(closest-side, rgb(0 255 245 / 0.35), transparent);
+        opacity: 0;
+      }
+
+      .name {
         margin: 0;
-        color: #c3c9d0;
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        padding-left: 0.32em; /* the tracking hangs off the right otherwise */
+      }
+      .bar {
+        position: relative;
+        width: 132px;
+        height: 2px;
+        border-radius: 2px;
+        background: rgb(255 255 255 / 0.1);
+        overflow: hidden;
+      }
+      .bar::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        width: 40%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent);
+        transform: translateX(-100%);
+      }
+      p.status {
+        margin: 0;
+        color: var(--dim);
         font-size: 0.8125rem;
       }
+
       /*
-        The mark pulses rather than spins: reduced motion is a setting this
-        page has no way to read a preference file for, so the animation is one
-        a vestibular trigger would not catch, and it is removed outright for
-        anyone who has asked the OS for that.
+        Reduced motion gets the finished card with no movement at all — the
+        mark lit, the name set, a still bar. This page cannot read the app's
+        own motion setting, so the OS one is the whole rule.
       */
       @media (prefers-reduced-motion: no-preference) {
+        .mark i {
+          opacity: 0;
+          animation: drop 520ms cubic-bezier(0.2, 0.9, 0.3, 1.25) forwards;
+        }
+        .mark i:nth-child(1) { --from: -34px, -34px; animation-delay: 60ms; }
+        .mark i:nth-child(2) { --from: 34px, -34px; animation-delay: 180ms; }
+        .mark i:nth-child(3) { --from: -34px, 34px; animation-delay: 300ms; }
+        .mark i:nth-child(4) { --from: 34px, 34px; animation-delay: 420ms; }
         .mark {
-          animation: pulse 1.4s ease-in-out infinite;
+          animation: lock 360ms ease-out 900ms both, breathe 2.4s ease-in-out 1.6s infinite;
+        }
+        .mark::after {
+          animation: bloom 700ms ease-out 900ms forwards;
+        }
+        .name {
+          opacity: 0;
+          animation: rise 600ms cubic-bezier(0.2, 0, 0, 1) 1000ms forwards;
+        }
+        .bar,
+        p.status {
+          opacity: 0;
+          animation: fade 400ms ease-out 1300ms forwards;
+        }
+        .bar::before {
+          animation: run 1.1s cubic-bezier(0.5, 0, 0.5, 1) 1300ms infinite;
         }
       }
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.35;
-        }
+      @media (prefers-reduced-motion: reduce) {
+        .mark::after { opacity: 1; }
+        .bar::before { transform: none; width: 100%; opacity: 0.4; }
+      }
+
+      @keyframes drop {
+        from { opacity: 0; transform: translate(var(--from)) scale(0.4); }
+        to { opacity: 1; transform: none; }
+      }
+      @keyframes lock {
+        0% { transform: rotate(45deg) scale(1); }
+        40% { transform: rotate(45deg) scale(0.86); }
+        100% { transform: rotate(45deg) scale(1); }
+      }
+      @keyframes breathe {
+        50% { filter: drop-shadow(0 0 10px rgb(0 255 245 / 0.55)); }
+      }
+      @keyframes bloom {
+        0% { opacity: 0; transform: scale(0.4); }
+        40% { opacity: 1; }
+        100% { opacity: 0.55; transform: scale(1); }
+      }
+      @keyframes rise {
+        from { opacity: 0; transform: translateY(8px); letter-spacing: 0.6em; }
+        to { opacity: 1; transform: none; letter-spacing: 0.32em; }
+      }
+      @keyframes fade {
+        to { opacity: 1; }
+      }
+      @keyframes run {
+        from { transform: translateX(-100%); }
+        to { transform: translateX(250%); }
       }
     </style>
   </head>
   <body>
-    <div class="wrap">
-      <span class="mark" aria-hidden="true"></span>
-      <p>Starting…</p>
+    <div class="wrap" role="status">
+      <span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <h1 class="name">Spec Driven Games</h1>
+      <span class="bar" aria-hidden="true"></span>
+      <p class="status">Starting…</p>
     </div>
 
     <script type="module">
@@ -151,12 +267,12 @@
         // Still here means the navigation stalled or left the app, and a
         // spinner with no end is the worst answer to either.
         setTimeout(() => {
-          document.querySelector(".wrap p").textContent =
+          document.querySelector(".wrap p.status").textContent =
             "This is taking longer than it should.";
           const retry = document.createElement("button");
           retry.textContent = "Try again";
           retry.style.cssText =
-            "font:inherit;font-size:.8125rem;color:#1a1d21;background:#ffb020;border:0;border-radius:3px;padding:8px 14px";
+            "font:inherit;font-size:.8125rem;color:#1a1d21;background:#00fff5;border:0;border-radius:3px;padding:8px 14px";
           retry.onclick = () => location.replace(SITE);
           document.querySelector(".wrap").append(retry);
         }, 15000);

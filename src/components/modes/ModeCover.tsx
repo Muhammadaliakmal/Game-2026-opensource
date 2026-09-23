@@ -69,10 +69,10 @@ function NightBackdrop({ id }: { id: string }) {
     <>
       <defs>
         <linearGradient id={`${id}-sky`} x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0" stopColor={NIGHT_STOPS[0].hex} />
-          <stop offset="0.3" stopColor={NIGHT_STOPS[2].hex} />
-          <stop offset="0.65" stopColor={NIGHT_STOPS[3].hex} />
-          <stop offset="1" stopColor={NIGHT_STOPS[4].hex} />
+          <stop offset="0" stopColor={`var(--art-sky-0, ${NIGHT_STOPS[0].hex})`} />
+          <stop offset="0.3" stopColor={`var(--art-sky-1, ${NIGHT_STOPS[2].hex})`} />
+          <stop offset="0.65" stopColor={`var(--art-sky-2, ${NIGHT_STOPS[3].hex})`} />
+          <stop offset="1" stopColor={`var(--art-sky-3, ${NIGHT_STOPS[4].hex})`} />
         </linearGradient>
         <radialGradient id={`${id}-moon`}>
           <stop offset="0" stopColor="#ffffff" stopOpacity="0.9" />
@@ -103,7 +103,7 @@ function Moon({ id, cx, cy }: { id: string; cx: number; cy: number }) {
 
 function Stars({ from }: { from: typeof PARKOUR_STARS }) {
   return (
-    <g fill="#ffffff">
+    <g fill="#ffffff" style={{ opacity: "var(--art-stars, 1)" }}>
       {from.map((s, i) => (
         <circle key={i} cx={s.x} cy={s.y} r={s.r} opacity={s.o} />
       ))}
@@ -131,7 +131,7 @@ function ParkourArt() {
       <Moon id="pk" cx={330} cy={46} />
 
       {/* The void under the course: what makes a gap a gap. */}
-      <rect y="150" width="400" height="75" fill="#02030a" opacity="0.55" />
+      <rect y="150" width="400" height="75" fill="var(--art-shade, #02030a)" opacity="0.55" />
 
       {pads.map((p, i) => (
         <g key={i}>
@@ -142,7 +142,7 @@ function ParkourArt() {
             width={p.w}
             height={p.h}
             rx="1.5"
-            fill="#1b2450"
+            fill="var(--art-block, #1b2450)"
           />
           <rect
             x={p.x}
@@ -167,18 +167,18 @@ function ParkourArt() {
       {/* The runner, mid-jump between the third pad and the fourth — the one
           instant that is worth drawing. */}
       <g transform="translate(246 108)">
-        <rect x="-3.2" y="-14" width="6.4" height="9" rx="2" fill="#eef1ff" />
-        <circle cx="0" cy="-18" r="3.4" fill="#eef1ff" />
+        <rect x="-3.2" y="-14" width="6.4" height="9" rx="2" fill="var(--art-figure, #eef1ff)" />
+        <circle cx="0" cy="-18" r="3.4" fill="var(--art-figure, #eef1ff)" />
         <rect
           x="-4.5"
           y="-5"
           width="3.6"
           height="8"
           rx="1.6"
-          fill="#eef1ff"
+          fill="var(--art-figure, #eef1ff)"
           transform="rotate(-22)"
         />
-        <rect x="1.4" y="-5" width="3.6" height="8" rx="1.6" fill="#eef1ff" />
+        <rect x="1.4" y="-5" width="3.6" height="8" rx="1.6" fill="var(--art-figure, #eef1ff)" />
       </g>
     </>
   );
@@ -197,13 +197,13 @@ function RaceArt() {
       <Moon id="rc" cx={68} cy={42} />
 
       {/* Ground plane, darker than the sky so the horizon reads. */}
-      <rect y="126" width="400" height="99" fill="#070b1c" />
-      <rect y="124" width="400" height="2.5" fill="#1b2450" />
+      <rect y="126" width="400" height="99" fill="var(--art-ground, #070b1c)" />
+      <rect y="124" width="400" height="2.5" fill="var(--art-block, #1b2450)" />
 
       {/* The road: wide at the bottom, pinched at the horizon, bending right. */}
       <path
         d="M96 225 L176 128 L232 128 L344 225 Z"
-        fill="#12172e"
+        fill="var(--art-block-2, #12172e)"
       />
       {/* Kerbs. The accent is the whole point of the frame, so it is on the
           two edges that define the road and nowhere else. */}
@@ -219,7 +219,7 @@ function RaceArt() {
       />
 
       {/* Centre dashes, shortening with distance. */}
-      <g fill="#5b6796" opacity="0.75">
+      <g fill="var(--art-kerb, #5b6796)" opacity="0.75">
         <rect x="216" y="213" width="7" height="12" rx="1" />
         <rect x="214" y="192" width="6" height="9" rx="1" />
         <rect x="211" y="175" width="5" height="7" rx="1" />
@@ -237,15 +237,15 @@ function RaceArt() {
           fill="none"
           opacity="0.28"
         />
-        <ellipse cx="0" cy="15" rx="17" ry="4" fill="#02030a" opacity="0.5" />
-        <circle cx="-9" cy="10" r="6.5" fill="#0d1124" stroke="#39406b" strokeWidth="2" />
-        <circle cx="11" cy="10" r="6.5" fill="#0d1124" stroke="#39406b" strokeWidth="2" />
+        <ellipse cx="0" cy="15" rx="17" ry="4" fill="var(--art-shade, #02030a)" opacity="0.5" />
+        <circle cx="-9" cy="10" r="6.5" fill="var(--art-wheel, #0d1124)" stroke="var(--art-wheel-edge, #39406b)" strokeWidth="2" />
+        <circle cx="11" cy="10" r="6.5" fill="var(--art-wheel, #0d1124)" stroke="var(--art-wheel-edge, #39406b)" strokeWidth="2" />
         <path
           d="M-9 10 L-1 -2 L11 -1 L13 9 Z"
           fill="var(--color-accent)"
         />
-        <rect x="-6" y="-11" width="9" height="10" rx="3" fill="#eef1ff" />
-        <circle cx="-1.5" cy="-15" r="3.6" fill="#eef1ff" />
+        <rect x="-6" y="-11" width="9" height="10" rx="3" fill="var(--art-figure, #eef1ff)" />
+        <circle cx="-1.5" cy="-15" r="3.6" fill="var(--art-figure, #eef1ff)" />
         {/* Headlight, aimed down the road. */}
         <circle cx="14" cy="2" r="2.6" fill="#ffffff" opacity="0.9" />
       </g>

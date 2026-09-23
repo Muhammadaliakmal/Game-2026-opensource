@@ -52,110 +52,164 @@ import type { ClerkAppearanceTheme } from "@clerk/shared/types";
  * opened it reads as a bug rather than as theming.
  */
 
-/** tokens.css `--color-base` — the page ground, deepest surface. */
-const BASE = "#0a0a0f";
-/** tokens.css `--color-surface` — raised chrome, one step up from the ground. */
-const SURFACE = "#12121b";
-/** tokens.css `--color-panel` — opaque cards on a page. */
-const PANEL = "#16161f";
-/** tokens.css `--color-ink` — primary text on dark. */
-const INK = "#eef1ff";
-/** tokens.css `--color-dim` — secondary text. */
-const DIM = "#a3a8c8";
-/** tokens.css `--color-accent` (build / neutral cyan). */
-const ACCENT = "#00fff5";
-/** tokens.css `--color-accent-ink` — text placed ON a filled accent. */
-const ACCENT_INK = "#0a0a0f";
-/** tokens.css `--color-danger`. */
-const DANGER = "#ff3b30";
-/** tokens.css `--color-accent-parkour` — reused as the success green. */
-const SUCCESS = "#7cff3d";
-
-export const clerkAppearance: ClerkAppearanceTheme = {
-  variables: {
-    // ── Accent ──────────────────────────────────────────────────────────
-    colorPrimary: ACCENT,
-    // Bug 1 above. Without this the primary button is white on cyan.
-    colorPrimaryForeground: ACCENT_INK,
-
-    // ── Surfaces and text ───────────────────────────────────────────────
-    // The card is `--color-panel`, matching `.card` on the rest of the site,
-    // so a Clerk modal over the home page sits at the same elevation as the
-    // world cards behind it rather than floating at its own.
-    colorBackground: PANEL,
-    colorForeground: INK,
-    colorMutedForeground: DIM,
-    // Muted fills — the "or" divider row, secondary list rows. One step
-    // toward the ground from the card, which is the same two-elevation rule
-    // globals.css states for `.hud-panel` and `.card`.
-    colorMuted: SURFACE,
-
-    // Bug 2 above. Light, because every alpha Clerk derives from this is
-    // composited over a dark card.
-    colorNeutral: INK,
-
-    // ── Inputs ──────────────────────────────────────────────────────────
-    // The well is darker than the card it sits in — a recessed field reads as
-    // editable without needing a heavy border to say so.
-    colorInput: BASE,
-    colorInputForeground: INK,
-    colorBorder: "rgba(255, 255, 255, 0.12)",
-
-    // The focus ring is the accent, which is the one thing globals.css calls a
-    // quality floor: ":focus-visible { outline: 2px solid var(--color-accent) }"
-    // is never removed, and Clerk's tree should not be the exception.
-    colorRing: ACCENT,
-    colorShadow: "rgba(0, 0, 0, 0.55)",
-    // `--lift` over the page, not Clerk's default light scrim, which greys the
-    // neon out from behind the modal.
-    colorModalBackdrop: "rgba(10, 10, 15, 0.72)",
-
-    // ── Status ──────────────────────────────────────────────────────────
-    colorDanger: DANGER,
-    colorSuccess: SUCCESS,
-    // `colorWarning` is deliberately left at Clerk's default. There is no
-    // warning token in tokens.css, and inventing an amber here would put a
-    // colour on screen that no other surface in the app can match.
-
-    // ── Type ────────────────────────────────────────────────────────────
-    // These DO resolve as `var()`: the font variables are declared on <html>
-    // by the root layout, custom properties inherit, and Clerk's tree — modal
-    // portals included — renders inside <body>. They are also never parsed,
-    // only emitted, so the rule about literals above does not apply.
-    fontFamily: "var(--font-plex), ui-sans-serif, system-ui, sans-serif",
-    // Buttons take the UI face too. globals.css is explicit that button
-    // labels are "read, not shouted" — the display face belongs to headings.
-    fontFamilyButtons: "var(--font-plex), ui-sans-serif, system-ui, sans-serif",
-    // The verification-code field is a row of digits, and `.num` in
-    // globals.css says every number in the app is mono with tabular figures.
-    fontFamilyMono: "var(--font-jetbrains), ui-monospace, monospace",
-
-    // `--radius`. Interactive chrome is barely rounded; a pill would stop
-    // reading as part of this interface.
-    borderRadius: "3px",
+/**
+ * Both themes' tokens, as literals. The dark column is tokens.css `@theme`;
+ * the light column is its `[data-theme="light"]` block. Change a token there,
+ * change it here.
+ */
+const PALETTE = {
+  dark: {
+    /** `--color-base` — the page ground, deepest surface. */
+    BASE: "#0a0a0f",
+    /** `--color-surface` — raised chrome, one step up from the ground. */
+    SURFACE: "#12121b",
+    /** `--color-panel` — opaque cards on a page. */
+    PANEL: "#16161f",
+    /** `--color-ink` — primary text. */
+    INK: "#eef1ff",
+    /** `--color-dim` — secondary text. */
+    DIM: "#a3a8c8",
+    /** `--color-accent` (build / neutral cyan). */
+    ACCENT: "#00fff5",
+    /** `--color-accent-ink` — text placed ON a filled accent. */
+    ACCENT_INK: "#0a0a0f",
+    /** `--color-danger`. */
+    DANGER: "#ff3b30",
+    /** `--color-accent-parkour` — reused as the success green. */
+    SUCCESS: "#7cff3d",
+    BORDER: "rgba(255, 255, 255, 0.12)",
+    SHADOW: "rgba(0, 0, 0, 0.55)",
+    BACKDROP: "rgba(10, 10, 15, 0.72)",
   },
-
   /*
-   * ── Why there is an `elements` block, and why it is this small ──────────
-   *
-   * This repo has been burned by patching a library's internals through
-   * string keys before — see materials.test.ts, which exists because a
-   * `replace()` against three's shader source shipped broken and could only
-   * fail at runtime. The instinct to avoid that here is right, but the risk is
-   * not the same shape: an `elements` key Clerk renames does not throw, does
-   * not fail to compile and does not break auth. The style simply stops
-   * applying and the variables above still carry the theme. Benign failure,
-   * so a small number of stable keys is a fair trade for the one thing
-   * variables genuinely cannot express — the display face on the heading.
-   *
-   * Kept to headings only. Anything more and this becomes a stylesheet for a
-   * component tree we do not own.
-   */
-  elements: {
-    headerTitle: {
-      fontFamily: "var(--font-orbitron), var(--font-plex), sans-serif",
-      fontWeight: 700,
-      letterSpacing: "-0.01em",
-    },
+    Bug 2 above runs the other way here: on a light card the neutral must be
+    the DARK end, which is Clerk's own default and the reason it was wrong
+    for us before. The accent-ink flips to white for the reason tokens.css
+    gives — no accent can carry dark text and still read as text on white.
+  */
+  light: {
+    BASE: "#f3f5fa",
+    SURFACE: "#f3f5fa",
+    PANEL: "#ffffff",
+    INK: "#0d1020",
+    DIM: "#474d66",
+    ACCENT: "#00788a",
+    ACCENT_INK: "#ffffff",
+    DANGER: "#c4271f",
+    SUCCESS: "#2d7a0c",
+    BORDER: "rgba(13, 16, 32, 0.14)",
+    SHADOW: "rgba(16, 24, 40, 0.12)",
+    BACKDROP: "rgba(13, 16, 32, 0.4)",
   },
-};
+} as const;
+
+export function clerkAppearanceFor(
+  theme: "light" | "dark",
+): ClerkAppearanceTheme {
+  const {
+    BASE,
+    SURFACE,
+    PANEL,
+    INK,
+    DIM,
+    ACCENT,
+    ACCENT_INK,
+    DANGER,
+    SUCCESS,
+    BORDER,
+    SHADOW,
+    BACKDROP,
+  } = PALETTE[theme];
+  return {
+    variables: {
+      // ── Accent ──────────────────────────────────────────────────────────
+      colorPrimary: ACCENT,
+      // Bug 1 above. Without this the primary button is white on cyan.
+      colorPrimaryForeground: ACCENT_INK,
+
+      // ── Surfaces and text ───────────────────────────────────────────────
+      // The card is `--color-panel`, matching `.card` on the rest of the site,
+      // so a Clerk modal over the home page sits at the same elevation as the
+      // world cards behind it rather than floating at its own.
+      colorBackground: PANEL,
+      colorForeground: INK,
+      colorMutedForeground: DIM,
+      // Muted fills — the "or" divider row, secondary list rows. One step
+      // toward the ground from the card, which is the same two-elevation rule
+      // globals.css states for `.hud-panel` and `.card`.
+      colorMuted: SURFACE,
+
+      // Bug 2 above. Light, because every alpha Clerk derives from this is
+      // composited over a dark card.
+      colorNeutral: INK,
+
+      // ── Inputs ──────────────────────────────────────────────────────────
+      // The well is darker than the card it sits in — a recessed field reads as
+      // editable without needing a heavy border to say so.
+      colorInput: BASE,
+      colorInputForeground: INK,
+      colorBorder: BORDER,
+
+      // The focus ring is the accent, which is the one thing globals.css calls a
+      // quality floor: ":focus-visible { outline: 2px solid var(--color-accent) }"
+      // is never removed, and Clerk's tree should not be the exception.
+      colorRing: ACCENT,
+      colorShadow: SHADOW,
+      // `--lift` over the page, not Clerk's default light scrim, which greys the
+      // neon out from behind the modal.
+      colorModalBackdrop: BACKDROP,
+
+      // ── Status ──────────────────────────────────────────────────────────
+      colorDanger: DANGER,
+      colorSuccess: SUCCESS,
+      // `colorWarning` is deliberately left at Clerk's default. There is no
+      // warning token in tokens.css, and inventing an amber here would put a
+      // colour on screen that no other surface in the app can match.
+
+      // ── Type ────────────────────────────────────────────────────────────
+      // These DO resolve as `var()`: the font variables are declared on <html>
+      // by the root layout, custom properties inherit, and Clerk's tree — modal
+      // portals included — renders inside <body>. They are also never parsed,
+      // only emitted, so the rule about literals above does not apply.
+      fontFamily: "var(--font-plex), ui-sans-serif, system-ui, sans-serif",
+      // Buttons take the UI face too. globals.css is explicit that button
+      // labels are "read, not shouted" — the display face belongs to headings.
+      fontFamilyButtons:
+        "var(--font-plex), ui-sans-serif, system-ui, sans-serif",
+      // The verification-code field is a row of digits, and `.num` in
+      // globals.css says every number in the app is mono with tabular figures.
+      fontFamilyMono: "var(--font-jetbrains), ui-monospace, monospace",
+
+      // `--radius`. Interactive chrome is barely rounded; a pill would stop
+      // reading as part of this interface.
+      borderRadius: "3px",
+    },
+
+    /*
+     * ── Why there is an `elements` block, and why it is this small ──────────
+     *
+     * This repo has been burned by patching a library's internals through
+     * string keys before — see materials.test.ts, which exists because a
+     * `replace()` against three's shader source shipped broken and could only
+     * fail at runtime. The instinct to avoid that here is right, but the risk is
+     * not the same shape: an `elements` key Clerk renames does not throw, does
+     * not fail to compile and does not break auth. The style simply stops
+     * applying and the variables above still carry the theme. Benign failure,
+     * so a small number of stable keys is a fair trade for the one thing
+     * variables genuinely cannot express — the display face on the heading.
+     *
+     * Kept to headings only. Anything more and this becomes a stylesheet for a
+     * component tree we do not own.
+     */
+    elements: {
+      headerTitle: {
+        fontFamily: "var(--font-game), var(--font-plex), sans-serif",
+        fontWeight: 400,
+        letterSpacing: "0.01em",
+      },
+    },
+  };
+}
+
+/** What the server renders with: dark, which is what the page is before the theme script has run. */
+export const clerkAppearance: ClerkAppearanceTheme = clerkAppearanceFor("dark");

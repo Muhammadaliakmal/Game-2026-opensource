@@ -57,7 +57,7 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
           </div>
         </div>
         <DailyChallenge />
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 sm:[&>*:only-child]:col-span-2">
           <ModeCard
             href="/parkour"
             art="parkour"
@@ -92,21 +92,25 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
               {/* A stretched link, not a link around the tile: the badge
                   carries a <button>, and one cannot be nested in an <a>.
                   See globals.css. */}
-              <article className="group card card-linked hover:border-accent/70 focus-within:border-accent/70 overflow-hidden transition-colors">
-                <div className="relative aspect-[5/3] w-full overflow-hidden bg-[#0b1030]">
+              {/* A game tile (globals.css `.card`) in the cabinet's own
+                  colour, with its name set on its picture the way a game's
+                  menu labels a mode — not a picture with a caption under it. */}
+              <article
+                className="group card card-linked h-full overflow-hidden"
+                style={{ "--card-hue": entry.hue, "--card-hue-ink": "#0a0a0f" } as React.CSSProperties}
+              >
+                <div className="relative aspect-[5/3] w-full overflow-hidden bg-[var(--art-backdrop,#0b1030)]">
                   <CabinetPreview id={entry.id} />
-                </div>
-                <div className="flex flex-col gap-0.5 p-3">
-                  <h3 className="text-ink truncate text-sm font-semibold">
+                  <h3 className="art-title absolute inset-x-3 bottom-2 truncate text-lg sm:text-xl">
                     <Link href={`/arcade?play=${entry.id}`} className="stretched-link">
                       {entry.title}
                     </Link>
                   </h3>
+                </div>
+                <div className="flex flex-col gap-2 p-3">
                   <p className="text-dim line-clamp-2 text-xs">{entry.tagline}</p>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="hud-chip hud-chip--primary group-hover:brightness-110 w-fit">
-                      Play
-                    </span>
+                  <div className="mt-auto flex items-center justify-between gap-2">
+                    <span className="hud-chip hud-chip--primary w-fit">Play</span>
                     <StatBadge slug={entry.id} />
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 import * as T from "./tuning";
 import { radiusOf, type Orb, type Sim } from "./sim";
 import { enterView, fitView } from "@/arcade/host/view";
+import { gameFont } from "@/arcade/host/type";
 
 /**
  * SwarmRush's drawing, and nothing else.
@@ -263,7 +264,7 @@ export function createRenderer(rng: () => number): Renderer {
       }
       if (r * zoom > 14) {
         ctx.fillStyle = "rgba(255,255,255,0.85)";
-        ctx.font = `600 ${Math.max(11, Math.min(18, r * zoom * 0.5)) / zoom}px system-ui, sans-serif`;
+        ctx.font = gameFont(Math.max(11, Math.min(18, r * zoom * 0.5)) / zoom);
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(b.name, bx, by);
@@ -350,9 +351,9 @@ export function createRenderer(rng: () => number): Renderer {
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.fillStyle = "rgba(255,255,255,0.92)";
-    ctx.font = "bold 22px system-ui, sans-serif";
+    ctx.font = gameFont(22);
     ctx.fillText(`${Math.floor(sim.dead ? 0 : sim.mass())}`, 18, 14);
-    ctx.font = "600 11px system-ui, sans-serif";
+    ctx.font = gameFont(11);
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     ctx.fillText("MASS", 18, 40);
     ctx.fillText(`RANK #${sim.rank}`, 80, 40);
@@ -368,13 +369,13 @@ export function createRenderer(rng: () => number): Renderer {
     if (sim.phase === "normal") {
       const left = Math.max(0, T.NORMAL_S - sim.t);
       ctx.fillStyle = "rgba(255,255,255,0.55)";
-      ctx.font = "600 11px system-ui, sans-serif";
+      ctx.font = gameFont(11);
       ctx.fillText(`BIG MODE IN ${Math.ceil(left)}s`, W / 2, 14);
     } else if (sim.phase === "big") {
       const t = sim.bigT - T.BIG_INTRO_S;
       const left = t < 0 ? T.BIG_S : Math.max(0, T.BIG_S - t);
       ctx.fillStyle = STORM_EDGE;
-      ctx.font = "bold 12px system-ui, sans-serif";
+      ctx.font = gameFont(12);
       ctx.fillText(left > 0 ? `STORM CLOSES IN ${Math.ceil(left)}s` : "HOLD THE EYE", W / 2, 14);
       // Progress of the ring, as a thin bar.
       const f = Math.min(1, Math.max(0, t / T.BIG_S));
@@ -387,10 +388,10 @@ export function createRenderer(rng: () => number): Renderer {
     // Top-right: the board.
     const bx = W - 18;
     ctx.textAlign = "right";
-    ctx.font = "600 11px system-ui, sans-serif";
+    ctx.font = gameFont(11);
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     ctx.fillText("LEADERS", bx, 14);
-    ctx.font = "600 13px system-ui, sans-serif";
+    ctx.font = gameFont(13);
     for (let i = 0; i < sim.board.length; i++) {
       const row = sim.board[i];
       ctx.fillStyle = row.you ? PLAYER : "rgba(255,255,255,0.85)";
@@ -400,7 +401,7 @@ export function createRenderer(rng: () => number): Renderer {
     // Bottom-left: the feed.
     ctx.textAlign = "left";
     ctx.textBaseline = "bottom";
-    ctx.font = "600 13px system-ui, sans-serif";
+    ctx.font = gameFont(13);
     for (let i = 0; i < sim.feed.length; i++) {
       const line = sim.feed[i];
       ctx.globalAlpha = Math.min(1, line.ttl / 0.6);
@@ -429,7 +430,7 @@ export function createRenderer(rng: () => number): Renderer {
     ctx.fill();
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.font = "600 10px system-ui, sans-serif";
+    ctx.font = gameFont(10);
     ctx.fillStyle = "rgba(255,255,255,0.5)";
     ctx.fillText("SPLIT", sx + size / 2, sy + size + 4);
 
@@ -442,10 +443,10 @@ export function createRenderer(rng: () => number): Renderer {
       ctx.fillStyle = STORM_EDGE;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = "bold 52px system-ui, sans-serif";
+      ctx.font = gameFont(52);
       ctx.fillText("BIG MODE", W / 2, H / 2 - 12);
       ctx.fillStyle = "rgba(255,255,255,0.85)";
-      ctx.font = "600 15px system-ui, sans-serif";
+      ctx.font = gameFont(15);
       ctx.fillText("The world has grown. The storm is closing. Stay inside the ring.", W / 2, H / 2 + 30);
       ctx.globalAlpha = 1;
     }
@@ -457,10 +458,10 @@ export function createRenderer(rng: () => number): Renderer {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = THREAT;
-      ctx.font = "bold 36px system-ui, sans-serif";
+      ctx.font = gameFont(36);
       ctx.fillText(`Eaten by ${sim.eatenBy}`, W / 2, H / 2 - 14);
       ctx.fillStyle = "rgba(255,255,255,0.8)";
-      ctx.font = "600 14px system-ui, sans-serif";
+      ctx.font = gameFont(14);
       const lives = sim.lives === 1 ? "last life" : `${sim.lives} lives left`;
       ctx.fillText(sim.deathSteps > 0 ? lives : `${lives} · back in ${Math.max(0, sim.respawnIn).toFixed(1)}s`, W / 2, H / 2 + 22);
     }

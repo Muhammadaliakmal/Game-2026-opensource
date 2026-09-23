@@ -84,7 +84,7 @@ export function DailyChallenge() {
       href={`/play/${course.slug}`}
       className={`group card hover:border-accent/70 focus-visible:border-accent/70 border-accent/40 flex overflow-hidden transition-colors ${CARD_MIN_H}`}
     >
-      <div className="relative w-32 shrink-0 bg-[#0b1030] sm:w-44">
+      <div className="relative w-32 shrink-0 bg-[var(--art-backdrop,#0b1030)] sm:w-44">
         {COVERS[course.slug] && (
           <Image
             src={`/covers/${course.slug}.png`}

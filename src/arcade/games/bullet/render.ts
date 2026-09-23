@@ -3,6 +3,7 @@ import { LEVELS } from "./levels";
 import { Tile, tileAt, type BulletSim } from "./sim";
 import { bevelRect, grainOverlay } from "@/arcade/host/texture";
 import { enterView, fitView } from "@/arcade/host/view";
+import { gameFont } from "@/arcade/host/type";
 
 /**
  * One Bullet's drawing.
@@ -194,7 +195,7 @@ export function createRenderer(rng: () => number): Renderer {
             ctx.fillStyle = CHARGE;
             ctx.fill();
             ctx.fillStyle = INK;
-            ctx.font = "bold 12px system-ui, sans-serif";
+            ctx.font = gameFont(12);
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText("!", cx, cy + 1);
@@ -279,17 +280,17 @@ export function createRenderer(rng: () => number): Renderer {
       ctx.fillStyle = INK;
       ctx.fillRect(0, 0, T.VIEW_W, T.HUD_H);
       ctx.fillStyle = "rgba(255,255,255,0.75)";
-      ctx.font = "bold 13px system-ui, sans-serif";
+      ctx.font = gameFont(13);
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
       ctx.fillText(`${sim.level + 1}/${LEVELS.length}  ${level.name.toUpperCase()}`, 16, 24);
       ctx.fillStyle = "rgba(255,255,255,0.5)";
-      ctx.font = "12px system-ui, sans-serif";
+      ctx.font = gameFont(12);
       ctx.fillText(level.hint, 16, 44);
 
       // Bounces: one pip per bounce in the budget, spent ones hollow.
       ctx.textAlign = "right";
-      ctx.font = "bold 13px system-ui, sans-serif";
+      ctx.font = gameFont(13);
       ctx.fillStyle = "rgba(255,255,255,0.75)";
       ctx.fillText(`${sim.targetsLeft} LEFT`, T.VIEW_W - 16, 24);
       const budget = level.bounces;
@@ -309,13 +310,13 @@ export function createRenderer(rng: () => number): Renderer {
       }
       if (budget === 0) {
         ctx.fillStyle = "rgba(255,255,255,0.45)";
-        ctx.font = "11px system-ui, sans-serif";
+        ctx.font = gameFont(11);
         ctx.fillText("NO BOUNCES", T.VIEW_W - 16, 44);
       }
       // Lives, at the centre.
       ctx.textAlign = "center";
       ctx.fillStyle = "rgba(255,255,255,0.75)";
-      ctx.font = "bold 13px system-ui, sans-serif";
+      ctx.font = gameFont(13);
       ctx.fillText("●".repeat(Math.max(0, sim.lives)) + "○".repeat(Math.max(0, T.LIVES - sim.lives)), T.VIEW_W / 2, 26);
 
       // ── The room ─────────────────────────────────────────────────────
@@ -395,7 +396,7 @@ export function createRenderer(rng: () => number): Renderer {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "#fff";
-        ctx.font = "bold 44px system-ui, sans-serif";
+        ctx.font = gameFont(44);
         let title = "";
         let sub = "";
         if (sim.phase === "spent") {
@@ -409,7 +410,7 @@ export function createRenderer(rng: () => number): Renderer {
           sub = sim.outcome === "won" ? "One bullet, all of it." : "The shot was there. The angle was not.";
         }
         ctx.fillText(title, roomW / 2, roomH / 2 - 14);
-        ctx.font = "16px system-ui, sans-serif";
+        ctx.font = gameFont(16);
         ctx.fillStyle = "rgba(255,255,255,0.8)";
         ctx.fillText(sub, roomW / 2, roomH / 2 + 26);
       }

@@ -178,31 +178,19 @@ export function ArcadeLobby() {
               named for the common case and works for either — it only spreads
               the hit area of whatever carries it.
             */}
-            <div className="group card card-linked hover:border-accent/70 focus-within:border-accent/70 w-full overflow-hidden text-left transition-colors">
+            <div
+              className="group card card-linked w-full overflow-hidden text-left"
+              style={{ "--card-hue": entry.hue, "--card-hue-ink": "#0a0a0f" } as React.CSSProperties}
+            >
               {/* The shelf display. It used to be an empty rectangle holding
                   two labels, which is what an arcade with nothing on its
                   shelves looks like. `CabinetPreview` draws the game's verb
                   from the same numbers the game is built from — see that file
-                  for why it is generated rather than captured. */}
-              <div className="relative aspect-[5/2] w-full overflow-hidden bg-[#0b1030]">
+                  for why it is generated rather than captured. The name is
+                  set on it, title-screen style (`.art-title`). */}
+              <div className="relative aspect-[5/2] w-full overflow-hidden bg-[var(--art-backdrop,#0b1030)]">
                 <CabinetPreview id={entry.id} />
-                <span className="hud-label text-accent absolute bottom-2 left-3">
-                  {RATES[entry.id]
-                    ? `${RATES[entry.id]} coins per point`
-                    : "Practice"}
-                </span>
-                {/* Always rendered, reading an em dash when unplayed.
-
-                    It used to appear only once there was a score, so the first
-                    run on a cabinet silently changed the card's layout — and a
-                    row of cards where one has a slot the other does not reads
-                    as a rendering fault rather than as progress. */}
-                <span className="hud-label num absolute right-3 bottom-2">
-                  best {best[entry.id] ? best[entry.id] : "—"}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 p-4">
-                <h3 className="text-ink text-base font-semibold">
+                <h3 className="art-title absolute inset-x-4 bottom-2 truncate text-2xl">
                   <button
                     type="button"
                     onClick={() => open(entry.id)}
@@ -211,30 +199,53 @@ export function ArcadeLobby() {
                     {entry.title}
                   </button>
                 </h3>
+              </div>
+              <div className="flex flex-col gap-1 p-4">
+                {/* Rate and best, always both. The best reads an em dash
+                    when unplayed: it used to appear only once there was a
+                    score, so the first run on a cabinet silently changed the
+                    card's layout — and a row of cards where one has a slot
+                    the other does not reads as a rendering fault. */}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="hud-label flex items-center gap-1.5">
+                    <span
+                      aria-hidden
+                      className="inline-block h-2 w-2 rotate-45"
+                      style={{ background: entry.hue }}
+                    />
+                    {RATES[entry.id] ? `${RATES[entry.id]} coins per point` : "Practice"}
+                  </span>
+                  <span className="hud-label num">best {best[entry.id] ? best[entry.id] : "—"}</span>
+                </div>
                 <p className="text-dim text-sm">{entry.tagline}</p>
                 <div className="mt-2 flex items-end justify-between gap-3">
                   {/* One input's instructions, not both. See components/hud/Hotkey. */}
                   <ControlsHint hint={entry.hint} className="hud-label block" />
                   <StatBadge slug={entry.id} />
                 </div>
-                {/* The written half of this cabinet: what it is, how it
-                    scores, and one thing to do differently. `card-actions`
-                    because the title above is a stretched link and covers the
-                    whole tile — the same reason the like button needs it.
+                {/* The tile is the control (the stretched button above); this
+                    is the affordance that says so, as on the hub's cards. */}
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <span className="hud-chip hud-chip--primary w-fit">Play</span>
+                  {/* The written half of this cabinet: what it is, how it
+                      scores, and one thing to do differently. `card-actions`
+                      because the title above is a stretched link and covers the
+                      whole tile — the same reason the like button needs it.
 
-                    It is also the only link a crawler has from here to a page
-                    with words on it; the tile itself opens an overlay and
-                    changes no URL it could follow. */}
-                <Link
-                  href={`/games/${entry.id}`}
-                  // Same reason as `<CourseCard>`: nine links whose visible
-                  // text is identical are fine on screen and unusable in a
-                  // screen reader's link list.
-                  aria-label={`${entry.title} cabinet guide`}
-                  className="card-actions hud-label text-dim hover:text-accent mt-1 w-fit underline"
-                >
-                  Cabinet guide &rarr;
-                </Link>
+                      It is also the only link a crawler has from here to a page
+                      with words on it; the tile itself opens an overlay and
+                      changes no URL it could follow. */}
+                  <Link
+                    href={`/games/${entry.id}`}
+                    // Same reason as `<CourseCard>`: nine links whose visible
+                    // text is identical are fine on screen and unusable in a
+                    // screen reader's link list.
+                    aria-label={`${entry.title} cabinet guide`}
+                    className="card-actions hud-label text-dim hover:text-accent w-fit underline"
+                  >
+                    Cabinet guide &rarr;
+                  </Link>
+                </div>
               </div>
             </div>
           </li>
@@ -279,7 +290,7 @@ export function ArcadeLobbySkeleton() {
         {CABINETS.map((entry) => (
           <li key={entry.id}>
             <div className="card w-full overflow-hidden opacity-40">
-              <div className="aspect-[5/2] w-full animate-pulse bg-[#0b1030]" />
+              <div className="aspect-[5/2] w-full animate-pulse bg-[var(--art-backdrop,#0b1030)]" />
               <div className="flex flex-col gap-2 p-4">
                 <div className="bg-surface h-4 w-1/2 rounded animate-pulse" />
                 <div className="bg-surface h-3 w-3/4 rounded animate-pulse" />

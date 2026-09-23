@@ -1,10 +1,10 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
-import { Orbitron, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
+import { Lilita_One, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { RoomAuth } from "@/components/RoomAuth";
-import { SiteNav } from "@/components/SiteNav";
+import { SiteNav, SiteTabBar } from "@/components/SiteNav";
 import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import { UiSounds } from "@/components/UiSounds";
 import { InstallToast } from "@/components/InstallToast";
@@ -17,17 +17,26 @@ import { SITE_URL } from "@/lib/site";
 // these numbers had gone stale. See `content/registry.ts`.
 import { COURSE_COUNT } from "@/content/registry";
 import "./globals.css";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import { ClerkThemeSync } from "@/components/ClerkThemeSync";
 
 /**
  * Three families, each with one job (Neon Drift direction, tokens.css).
  *
- * Orbitron is the techno display face: wide, geometric, and the thing that
- * makes a heading or a HUD legend read as instrumentation. It is used ONLY
- * for headings and `.hud-label` — it is genuinely unreadable as body copy,
- * which is why the UI face below still exists.
+ * Lilita One is the game face: heavy, rounded and a little condensed — the
+ * lettering of a game's title screen rather than of a dashboard. It is used
+ * ONLY for headings, `.hud-label` and the text the cabinets draw on canvas
+ * (`arcade/host/type.ts`, which reads `--font-game` off <html> for that), and
+ * never as body copy, which is why the UI face below still exists.
+ *
+ * It replaced Orbitron, the techno face of the first "Neon Drift" pass. One
+ * weight only: every rule that sets it says `font-weight: 400`, because a
+ * synthesised bold over a display face is the tell of a web page dressed as
+ * a game.
  */
-const orbitron = Orbitron({
-  variable: "--font-orbitron",
+const lilita = Lilita_One({
+  variable: "--font-game",
+  weight: "400",
   subsets: ["latin"],
   display: "swap",
 });
@@ -113,8 +122,28 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${orbitron.variable} ${plex.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${lilita.variable} ${plex.variable} ${jetbrains.variable} h-full antialiased`}
+      // The theme script below writes `data-theme` before hydration; React
+      // never renders it, so this is the one attribute it is told to expect.
+      suppressHydrationWarning
     >
+      {/*
+        The theme, before the first paint. A plain inline script rather than
+        next/script: it must block, because the whole point is that the page
+        never paints in the wrong theme. See lib/theme.ts.
+
+        Inside an explicit <head>, not loose under <html>: React hoists an
+        `async` script (AdSense, below) wherever it is written, but a
+        blocking one it has to leave where it is, and a <script> as a child
+        of <html> is a hydration error.
+      */}
+      <head>
+        {/* suppressHydrationWarning: AdSense inserts its own script at the
+            top of <head> before React hydrates, and React then pairs this
+            element with that one and reports the difference. This script has
+            already run by then; nothing about it needs reconciling. */}
+        <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       {/*
         AdSense, and why it is a bare <script> rather than next/script.
 
@@ -148,6 +177,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ClerkProvider appearance={clerkAppearance}>
           {/* Renders nothing; it is how a room join gets a Clerk token. */}
           <RoomAuth />
+          {/* Renders nothing: gives Clerk's modal the light palette on a
+              light page. See the component for why it is not the prop. */}
+          <ClerkThemeSync />
           {/* Also renders nothing. Production only — see the component. */}
           <ServiceWorkerRegistrar />
           {/* Renders nothing: every control on the site gets a press, a
@@ -192,6 +224,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 anywhere without first arranging a provider for it. */}
             <StatsProvider>{children}</StatsProvider>
           </main>
+          {/* Phones only; the destinations under the thumb. See SiteNav. */}
+          <SiteTabBar />
           {/* The one popup the site has: install, offered once somebody has
               played something. See the component for when it may appear. */}
           <InstallToast />

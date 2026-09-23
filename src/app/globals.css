@@ -59,14 +59,15 @@ body {
   game wherever it is opened.
 
   `[data-immersive]` is what marks a page as a world rather than a document —
-  see components/ImmersiveMarker. The home page, the gallery and the builder do
-  not set it and keep their header.
+  see components/ImmersiveMarker. The home page and the gallery do not set it
+  and keep their header; the builder does (it mounts through WorldMount).
 
   Pure CSS on purpose. The header is server-rendered in the root layout, so a
   JavaScript check would paint it and then remove it — a visible jump on the
   way into every world.
 */
 body:has([data-immersive]) .site-header,
+body:has([data-immersive]) .site-tabbar,
 body:has([data-immersive]) .app-update {
   display: none;
 }
@@ -98,26 +99,48 @@ body:has([data-immersive]) {
 }
 
 /* Headlines carry the character; the UI face stays neutral underneath them.
-   Orbitron is wide, so headings get negative tracking to stop them sprawling
-   — the opposite of the HUD labels below, which want the extra air.
+   The display face is Lilita One (root layout): one weight, so weight is 400
+   here and synthesis is off — this rule is unlayered, so it beats the
+   `font-bold` a heading's className carries, which would otherwise smear a
+   fake bold over it.
 
    `overflow-wrap` and the width cap are the floor under the fluid sizes
-   below. Orbitron is a WIDE face, so a heading that fits in Plex can still be
-   a third too long here, and a single long word — a world's name, a course
-   title someone typed — has no break opportunity in it at all. Without these
-   such a word does not wrap, it sticks out of its container and widens the
-   page. `anywhere` rather than `break-word` because only the former also
-   shrinks the element's own min-content width, which is what stops a flex or
-   grid child from refusing to narrow in the first place. */
+   below. A single long word — a world's name, a course title someone typed —
+   has no break opportunity in it at all. Without these such a word does not
+   wrap, it sticks out of its container and widens the page. `anywhere`
+   rather than `break-word` because only the former also shrinks the
+   element's own min-content width, which is what stops a flex or grid child
+   from refusing to narrow in the first place. */
 h1,
 h2,
 h3 {
-  font-family: var(--font-orbitron), var(--font-plex), ui-sans-serif, system-ui,
+  font-family: var(--font-game), var(--font-plex), ui-sans-serif, system-ui,
     sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-weight: 400;
+  font-synthesis: none;
+  letter-spacing: 0.01em;
   max-width: 100%;
   overflow-wrap: anywhere;
+}
+
+/*
+  The title-screen treatment, for the big headings only: a dark outline
+  painted UNDER the fill (`paint-order`, so the stroke thickens the letter
+  outward instead of eating into it) and a solid drop shadow beneath that —
+  the look of a game's logo, and of the reference it was taken from. The
+  canvas does the same thing in `outlinedText` (arcade/host/type.ts).
+
+  On the light theme the outline is dropped and the shadow softened
+  (tokens.css, `--type-*`): a black rim around dark ink on a white page is
+  just a heavier letter.
+*/
+h1,
+h2,
+.text-display,
+.game-title {
+  paint-order: stroke fill;
+  -webkit-text-stroke: var(--type-stroke) var(--type-outline);
+  text-shadow: 0 0.07em 0 var(--type-shadow);
 }
 
 /*
@@ -232,7 +255,7 @@ input {
 */
 .hud-panel--readout {
   background: color-mix(in oklab, var(--color-base) 78%, transparent);
-  border-color: rgb(255 255 255 / 0.2);
+  border-color: color-mix(in oklab, var(--color-ink) 20%, transparent);
 }
 @supports not (backdrop-filter: blur(1px)) {
   .hud-panel--readout {
@@ -259,7 +282,7 @@ input {
 */
 .hud-panel--modal {
   background: rgb(12 12 18 / 0.94);
-  border-color: rgb(255 255 255 / 0.18);
+  border-color: color-mix(in oklab, var(--color-ink) 18%, transparent);
   box-shadow: var(--lift), var(--glow-strong);
 }
 @supports not (backdrop-filter: blur(1px)) {
@@ -315,10 +338,70 @@ input {
     color-mix(in oklab, var(--color-accent) 60%, transparent);
 }
 
+/*
+  ══ The game tile ═══════════════════════════════════════════════════════
+
+  Every card on the site. It was a flat panel with a hairline border — the
+  shape of a blog's post list, which is what the site read as. Now a card is
+  a tile standing on a ledge (tokens.css, "Game tiles"): a rim tinted with
+  its own colour, a sheen across the top, and a hard shadow it lifts off on
+  hover and sinks into on press — the physical click every game menu has.
+
+  The motion is transform-only, so it never reflows the grid, and the
+  global reduced-motion rule shortens it to a state change.
+*/
 .card {
-  background: var(--color-panel);
-  border: var(--border);
-  border-radius: var(--radius);
+  --hue: var(--card-hue, var(--color-accent));
+  position: relative;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--hue) 7%, transparent), transparent 40%),
+    var(--color-panel);
+  border: 2px solid color-mix(in oklab, var(--hue) 22%, var(--card-rim));
+  border-radius: var(--radius-card);
+  box-shadow:
+    0 5px 0 var(--card-ledge),
+    var(--card-drop);
+  transition:
+    transform 160ms var(--ease-ui),
+    box-shadow 160ms var(--ease-ui),
+    border-color 160ms var(--ease-ui);
+}
+/* A card you can press: a link card, or one carrying a stretched link. */
+a.card:hover,
+.card-linked:hover,
+a.card:focus-visible,
+.card-linked:focus-within {
+  transform: translateY(-3px);
+  border-color: color-mix(in oklab, var(--hue) 75%, transparent);
+  box-shadow:
+    0 8px 0 var(--card-ledge),
+    0 18px 34px -12px color-mix(in oklab, var(--hue) 45%, transparent);
+}
+a.card:active,
+.card-linked:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 2px 0 var(--card-ledge),
+    var(--card-drop);
+}
+
+/*
+  A title set ON the art — a cabinet's name over its picture, a mode's name
+  over its sky. White with a dark rim and a drop, whatever the page theme,
+  because the art behind it is a picture and not the page: this is the
+  title-screen lettering of the references, and it holds on both a night
+  cover and a daytime one.
+*/
+.art-title {
+  font-family: var(--font-game), var(--font-plex), sans-serif;
+  font-weight: 400;
+  font-synthesis: none;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+  paint-order: stroke fill;
+  -webkit-text-stroke: 0.16em #0b0f24;
+  text-shadow: 0 0.1em 0 #0b0f24;
 }
 
 /*
@@ -506,7 +589,7 @@ input {
 /* Lit from above. One inset hairline is the difference between a panel that
    sits on the page and one that is a flat patch of a different colour. */
 .panel-lit {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--color-ink) 6%, transparent);
 }
 
 /*
@@ -617,7 +700,7 @@ input {
   font-weight: 500;
   line-height: 1.2;
   color: var(--color-dim);
-  background: rgb(255 255 255 / 0.05);
+  background: color-mix(in oklab, var(--color-ink) 5%, transparent);
   transition:
     background-color var(--dur-ui) var(--ease-ui),
     color var(--dur-ui) var(--ease-ui),
@@ -625,7 +708,7 @@ input {
     box-shadow var(--dur-ui) var(--ease-ui);
 }
 .hud-chip:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.1);
+  background: color-mix(in oklab, var(--color-ink) 10%, transparent);
   color: var(--color-ink);
 }
 .hud-chip:disabled {
@@ -635,17 +718,37 @@ input {
 
 /* The primary action on a screen. There is only ever one that matters, which
    is why it is the one element allowed to glow at rest. */
+/* The primary action is a game button: the game face, rounder, and standing
+   on a ledge of its own colour that it presses down into — so "Play" feels
+   like pressing Play. The ledge is the accent darkened, so it follows the
+   mode (and a card's own hue when it sits in one). */
 .hud-chip--primary {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-accent-ink);
-  font-weight: 600;
-  box-shadow: var(--glow);
+  --btn: var(--card-hue, var(--color-accent));
+  background: linear-gradient(180deg, color-mix(in oklab, var(--btn) 82%, white), var(--btn) 55%);
+  border-color: color-mix(in oklab, var(--btn) 70%, black);
+  /* A card's own hue brings its own ink: every cabinet colour is bright,
+     and the light theme's white accent-ink would vanish on yellow. */
+  color: var(--card-hue-ink, var(--color-accent-ink));
+  font-family: var(--font-game), var(--font-plex), sans-serif;
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: var(--text-xs);
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-btn);
+  box-shadow:
+    0 4px 0 color-mix(in oklab, var(--btn) 45%, black),
+    var(--glow);
 }
 .hud-chip--primary:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--color-accent) 88%, white);
-  color: var(--color-accent-ink);
-  box-shadow: var(--glow-strong);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--btn) 70%, white), color-mix(in oklab, var(--btn) 90%, white) 55%);
+  color: var(--card-hue-ink, var(--color-accent-ink));
+  box-shadow:
+    0 4px 0 color-mix(in oklab, var(--btn) 45%, black),
+    var(--glow-strong);
+}
+.hud-chip--primary:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--btn) 45%, black);
 }
 
 /* An armed tool: outlined rather than filled, so a row of them reads as a
@@ -732,7 +835,7 @@ input {
     color var(--dur-ui) var(--ease-ui);
 }
 .hud-menu-item:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.1);
+  background: color-mix(in oklab, var(--color-ink) 10%, transparent);
   color: var(--color-ink);
 }
 .hud-menu-item:disabled {
@@ -779,9 +882,10 @@ input {
   number underneath is what the eye is going to.
 */
 .hud-label {
-  font-family: var(--font-orbitron), var(--font-plex), sans-serif;
+  font-family: var(--font-game), var(--font-plex), sans-serif;
   font-size: var(--label-size); /* below the type scale on purpose; see above */
-  font-weight: 500;
+  font-weight: 400;
+  font-synthesis: none;
   text-transform: uppercase;
   letter-spacing: var(--label-track);
   color: var(--color-dim);
@@ -851,6 +955,36 @@ input {
   animation: panel-in var(--dur-ui) var(--ease-ui) both;
 }
 
+/* The phone tab bar (components/SiteNav, `SiteTabBar`). Each tab is a full
+   fifth of the bar and at least 56px tall — above the 48px floor
+   tokens.css holds every touch target to — and the current one takes the
+   accent, the one saturated thing allowed per surface. */
+.site-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-family: var(--font-game), var(--font-plex), sans-serif;
+  font-synthesis: none;
+  font-size: var(--text-2xs);
+  letter-spacing: 0.03em;
+  color: var(--color-dim);
+  transition: color var(--dur-ui) var(--ease-ui);
+}
+.site-tab span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.site-tab[aria-current="page"] {
+  color: var(--color-accent);
+}
+
 /* Horizontally scrollable clusters: keep the scrollbar out of the chrome. */
 .hud-scroll {
   scrollbar-width: none;
@@ -887,6 +1021,49 @@ input {
   100% { opacity: 0; transform: scale(1.35); }
 }
 
+/* A cabinet's controls, said over the first seconds of a run and then gone.
+   The four seconds are a delay, not a duration, which is what makes it survive
+   the reduced-motion rule above: that rule shortens durations and leaves
+   delays alone, so the line still stays long enough to read and then cuts
+   rather than fades. */
+.arcade-start-hint {
+  animation: arcadeHintOut 0.5s var(--ease-ui) 4s forwards;
+}
+
+@keyframes arcadeHintOut {
+  to { opacity: 0; visibility: hidden; }
+}
+
+/*
+  ── A cabinet opening ──────────────────────────────────────────────────
+
+  Three beats, all in CSS on classes the overlay already toggles by status,
+  so nothing counts milliseconds in React: the screen powers on (the overlay
+  itself), the title card holds while the cabinet's chunk loads, and the game
+  arrives as an old tube turns on — a bright line that opens to the picture.
+  Under reduced motion the global rule above cuts each to its end state:
+  the screen simply appears. The reveal replays on Again, which is right —
+  a new run is the machine starting over.
+*/
+.cabinet-enter {
+  animation: cabinetOn 280ms var(--ease-ui) both;
+}
+@keyframes cabinetOn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.cabinet-card {
+  animation: panel-in 320ms var(--ease-ui) both;
+}
+.cabinet-reveal {
+  animation: tubeOn 420ms var(--ease-ui) both;
+}
+@keyframes tubeOn {
+  0% { clip-path: inset(49.5% 0 49.5% 0); filter: brightness(3); }
+  45% { clip-path: inset(49.5% 0 49.5% 0); filter: brightness(2); }
+  100% { clip-path: inset(0 0 0 0); filter: none; }
+}
+
 /*
   ── The loading screen's blocks ────────────────────────────────────────
 
@@ -903,7 +1080,7 @@ input {
 .loader-block {
   width: var(--unit);
   height: calc(var(--unit) * 2);
-  background: rgb(255 255 255 / 0.12);
+  background: color-mix(in oklab, var(--color-ink) 12%, transparent);
   animation: loaderFill 1.1s var(--ease-ui) infinite;
 }
 
@@ -913,7 +1090,7 @@ input {
   0%,
   55%,
   100% {
-    background: rgb(255 255 255 / 0.12);
+    background: color-mix(in oklab, var(--color-ink) 12%, transparent);
     box-shadow: none;
     transform: scaleY(1);
   }

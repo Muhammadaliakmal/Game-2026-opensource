@@ -58,7 +58,7 @@ export async function CommunityCourses({ limit = 24 }: { limit?: number }) {
               href={`/play/${c.id}`}
               className="group card hover:border-accent/70 focus-visible:border-accent/70 block overflow-hidden transition-colors"
             >
-              <div className="relative h-28 w-full bg-[#0b1030]">
+              <div className="relative h-28 w-full bg-[var(--art-backdrop,#0b1030)]">
                 {c.thumbnailUrl ? (
                   // A data URI or an R2 URL — next/image has nothing to
                   // optimize here, the same as on /browse.
@@ -83,7 +83,7 @@ export async function CommunityCourses({ limit = 24 }: { limit?: number }) {
                   className="absolute inset-0"
                   style={{
                     background:
-                      "linear-gradient(to top, rgba(2,3,10,0.85) 0%, rgba(2,3,10,0.2) 60%, rgba(2,3,10,0) 100%)",
+                      "linear-gradient(to top, rgb(var(--art-scrim, 2 3 10) / 0.85) 0%, rgb(var(--art-scrim, 2 3 10) / 0.2) 60%, rgb(var(--art-scrim, 2 3 10) / 0) 100%)",
                   }}
                 />
                 <span className="hud-label text-accent absolute bottom-2 left-3">

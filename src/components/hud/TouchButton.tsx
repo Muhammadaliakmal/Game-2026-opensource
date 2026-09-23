@@ -232,10 +232,11 @@ export function TouchButton({
         borderRadius: square ? "var(--radius)" : "50%",
         display: "grid",
         placeItems: "center",
-        fontFamily: "var(--font-orbitron), sans-serif",
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: "0.1em",
+        fontFamily: "var(--font-game), sans-serif",
+        fontSize: 12,
+        // The game face has one weight; see the root layout.
+        fontWeight: 400,
+        letterSpacing: "0.06em",
         touchAction: "none",
         // Opted in here rather than by the caller. <ThumbCluster> is
         // pointer-events:none so its gaps stay transparent to the world

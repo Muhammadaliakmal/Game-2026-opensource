@@ -7,6 +7,7 @@ import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import { useInstallPrompt } from "@/lib/use-install-prompt";
 import { CurrencyRail } from "@/components/hud/CurrencyRail";
 import { DiscordLink } from "@/components/DiscordLink";
+import { ThemeToggle } from "./ThemeToggle";
 
 /**
  * The site header's right-hand side, in two layouts.
@@ -194,6 +195,7 @@ export function SiteNav() {
             destination the header has. See components/DiscordLink for why it
             loses its label below 1024px and disappears entirely below `sm`. */}
         <DiscordLink />
+        <ThemeToggle />
         <Show when="signed-out">
           {/* Modal, not a page: UI spec §3.5 — signing in must not take
               someone away from the world they are in the middle of building.
@@ -234,41 +236,45 @@ export function SiteNav() {
         </UserButton>
       </Show>
 
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        aria-controls="site-menu"
-        aria-label={open ? "Close menu" : "Open menu"}
-        className={`hud-chip hud-chip--icon hud-chip--touch sm:hidden ${
-          open ? "is-active" : ""
-        }`}
-      >
-        {/* Drawn rather than a glyph character, so the bars carry the same
-            stroke weight as the home icon and the two read as one family. */}
-        <svg
-          viewBox="0 0 16 16"
-          className="h-4 w-4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          aria-hidden="true"
+      {/* The wrapper is what hides it. `sm:hidden` on the button itself
+          never worked: `.hud-chip` sets `display` in unlayered CSS, which
+          beats every Tailwind utility, so the menu button sat beside the
+          full desktop row on every page. */}
+      <div className="contents sm:hidden">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          aria-controls="site-menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+          className={`hud-chip hud-chip--icon hud-chip--touch ${open ? "is-active" : ""}`}
         >
-          {open ? (
-            <>
-              <path d="M3.5 3.5l9 9" />
-              <path d="M12.5 3.5l-9 9" />
-            </>
-          ) : (
-            <>
-              <path d="M2.5 4.5h11" />
-              <path d="M2.5 8h11" />
-              <path d="M2.5 11.5h11" />
-            </>
-          )}
-        </svg>
-      </button>
+          {/* Drawn rather than a glyph character, so the bars carry the same
+            stroke weight as the home icon and the two read as one family. */}
+          <svg
+            viewBox="0 0 16 16"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            {open ? (
+              <>
+                <path d="M3.5 3.5l9 9" />
+                <path d="M12.5 3.5l-9 9" />
+              </>
+            ) : (
+              <>
+                <path d="M2.5 4.5h11" />
+                <path d="M2.5 8h11" />
+                <path d="M2.5 11.5h11" />
+              </>
+            )}
+          </svg>
+        </button>
+      </div>
 
       {open && (
         <div
@@ -298,6 +304,9 @@ export function SiteNav() {
               icon-only item genuinely is unreadable. */}
           <DiscordLink variant="menu" />
 
+          <span className="hud-menu-sep" />
+          <ThemeToggle variant="menu" />
+
           <Show when="signed-out">
             <span className="hud-menu-sep" />
             <SignInButton mode="modal">
@@ -317,5 +326,89 @@ export function SiteNav() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * The phone's tab bar: the five places people go, under the thumb.
+ *
+ * Below `sm` the header's destinations sit behind a menu button in the top
+ * corner, which is the one corner of a phone a thumb cannot reach. The menu
+ * stays — it is still where signing in, the theme, Discord and "Get the app"
+ * live — but the destinations people move between all session are here too,
+ * one press away, where every app they have used puts them.
+ *
+ * Built from `LINKS` by href, so a renamed destination renames its tab. A
+ * flex child of the root layout's shell rather than `position: fixed`, so it
+ * takes its own height instead of lying over the end of every page; the body
+ * already pads for the home indicator, so it sits above it for free. Hidden
+ * on every game screen by the same `:has([data-immersive])` rule as the
+ * header (globals.css).
+ */
+const TABS: readonly { href: string; icon: React.ReactNode }[] = [
+  { href: "/", icon: <path d="M2.5 7.5L8 3l5.5 4.5V13H10V9.5H6V13H2.5z" /> },
+  {
+    href: "/games",
+    icon: (
+      <path d="M3 5.5h10a1.5 1.5 0 011.5 1.5v3A2.5 2.5 0 0110 11.5H6A2.5 2.5 0 011.5 10V7A1.5 1.5 0 013 5.5zM5 7.5v2M4 8.5h2M10.5 8h.01M12 9.5h.01" />
+    ),
+  },
+  {
+    href: "/arcade",
+    icon: (
+      <path d="M4 14V3.5A1.5 1.5 0 015.5 2h5A1.5 1.5 0 0112 3.5V14M5.5 4h5v4h-5zM6 11h.01M10 11h.01" />
+    ),
+  },
+  {
+    href: "/browse",
+    icon: (
+      <path d="M2.5 2.5h4.5v4.5H2.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5H2.5zM9 9h4.5v4.5H9z" />
+    ),
+  },
+  {
+    href: "/shop",
+    icon: (
+      <path d="M8 7.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM3 14c.5-3 2.5-4.5 5-4.5s4.5 1.5 5 4.5" />
+    ),
+  },
+];
+
+export function SiteTabBar() {
+  const pathname = usePathname();
+  const label = (href: string) =>
+    LINKS.find((l) => l.href === href)?.label ?? href;
+  const current = (href: string) =>
+    href === "/"
+      ? pathname === "/"
+      : pathname === href || pathname.startsWith(`${href}/`);
+
+  return (
+    <nav
+      aria-label="Main"
+      className="site-tabbar bg-surface flex shrink-0 border-t border-[var(--border-color)] sm:hidden"
+    >
+      {TABS.map((t) => (
+        <Link
+          key={t.href}
+          href={t.href}
+          aria-current={current(t.href) ? "page" : undefined}
+          className="site-tab"
+        >
+          <svg
+            viewBox="0 0 16 16"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            {t.icon}
+          </svg>
+          <span>{label(t.href)}</span>
+        </Link>
+      ))}
+    </nav>
   );
 }

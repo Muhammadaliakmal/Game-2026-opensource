@@ -3,6 +3,7 @@ import { LEVELS } from "./levels";
 import { DIRS, Tile, tileAt, type Sim } from "./sim";
 import { bevelRect, grainOverlay } from "@/arcade/host/texture";
 import { enterView, fitView } from "@/arcade/host/view";
+import { gameFont } from "@/arcade/host/type";
 
 /**
  * Gravity Shift's drawing.
@@ -181,15 +182,15 @@ export function createRenderer(rng: () => number): Renderer {
       ctx.fillStyle = INK;
       ctx.fillRect(0, 0, T.VIEW_W, T.HUD_H);
       ctx.fillStyle = "rgba(255,255,255,0.8)";
-      ctx.font = "bold 14px system-ui, sans-serif";
+      ctx.font = gameFont(14);
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.fillText(`${sim.level + 1}/${LEVELS.length}  ${level.name.toUpperCase()}`, 16, 22);
       ctx.fillStyle = "rgba(255,255,255,0.55)";
-      ctx.font = "13px system-ui, sans-serif";
+      ctx.font = gameFont(13);
       ctx.fillText(level.hint, 16, 44);
       ctx.textAlign = "right";
-      ctx.font = "bold 14px system-ui, sans-serif";
+      ctx.font = gameFont(14);
       ctx.fillStyle = sim.flips > level.par ? SPIKE : "rgba(255,255,255,0.8)";
       ctx.fillText(`FLIPS ${sim.flips} · PAR ${level.par}`, T.VIEW_W - 16, 22);
       // Lives as balls.
@@ -291,7 +292,7 @@ export function createRenderer(rng: () => number): Renderer {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "#fff";
-        ctx.font = "bold 44px system-ui, sans-serif";
+        ctx.font = gameFont(44);
         let title = "";
         let sub = "";
         if (sim.phase === "dead") {
@@ -304,7 +305,7 @@ export function createRenderer(rng: () => number): Renderer {
           title = sim.outcome === "won" ? "ALL CLEAR" : "OUT OF BALLS";
         }
         ctx.fillText(title, W / 2, H / 2 - 14);
-        ctx.font = "16px system-ui, sans-serif";
+        ctx.font = gameFont(16);
         ctx.fillStyle = "rgba(255,255,255,0.8)";
         ctx.fillText(sub, W / 2, H / 2 + 26);
       }

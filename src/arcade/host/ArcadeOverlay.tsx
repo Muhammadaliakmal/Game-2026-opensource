@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { MuteButton } from "@/components/MuteButton";
 import { ControlsHint, Hotkey } from "@/components/hud/Hotkey";
@@ -10,8 +10,17 @@ import { useMediaQuery } from "@/lib/use-media-query";
 import { usePlayCount } from "@/lib/use-play-count";
 import { isKnownSlug } from "@/content/registry";
 import { GameHost } from "./GameHost";
+import { lockZoom } from "./zoom-lock";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
+import {
+  FIGHT_PACKS,
+  FIGHT_PACK_LABEL,
+  getFightPack,
+  setFightPack,
+  subscribeFightPack,
+  type FightPack,
+} from "../sound-pack";
 
 /**
  * Everything around the game that is not the game.
@@ -40,6 +49,7 @@ export default function ArcadeOverlay() {
   const placement = useArcade((s) => s.placement);
   const capped = useArcade((s) => s.capped);
   const error = useArcade((s) => s.error);
+  const runId = useArcade((s) => s.runId);
   /* The wallet after the payout. `GameHost.settle` writes the server's own
      number into this store, so the balance shown next to "+22" is the one the
      header is showing rather than a second guess at it. */
@@ -110,8 +120,11 @@ export default function ArcadeOverlay() {
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     if (document.pointerLockElement) document.exitPointerLock();
+    // A two-thumb fight is a pinch to the browser. See zoom-lock.ts.
+    const unlockZoom = lockZoom();
     return () => {
       document.body.style.overflow = overflow;
+      unlockZoom();
     };
   }, [gameId]);
 
@@ -139,7 +152,12 @@ export default function ArcadeOverlay() {
         notch — that is the half of `viewportFit: "cover"` that is right — and
         only the things you have to read need to stay inside it.
       */
-      className="bg-base fixed inset-0 z-50 flex flex-col"
+      className="cabinet-enter bg-base fixed inset-0 z-50 flex flex-col"
+      // A cabinet is a game, and games are dark whatever the site's theme —
+      // the light tokens step aside while this is in the document (tokens.css).
+      data-dark
+      // Nothing on this screen scrolls or zooms; every touch belongs to the game.
+      style={{ touchAction: "none" }}
       role="dialog"
       aria-modal="true"
       aria-label={entry.title}
@@ -157,11 +175,16 @@ export default function ArcadeOverlay() {
           {/* `text-ink` explicitly. It inherited, and what it inherited from
               was a translucent shell over the page — so the title was the
               lowest-contrast text in the arcade, on the element naming the
-              thing you are playing. */}
+              thing you are playing.
+
+              One line. The controls used to sit under it as a second, and on
+              a phone that row held a title, a truncated sentence, a score, a
+              best, a mute and a Quit — the controls were cut off mid-word on
+              exactly the screen that needed them. They are said over the
+              game when a run starts and again on the pause screen. */}
           <h2 className="text-ink truncate text-base font-semibold">
             {entry.title}
           </h2>
-          <ControlsHint hint={entry.hint} className="hud-label truncate block" />
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {/* A board cabinet has no running total, and "0 · best 0" for four
@@ -194,19 +217,46 @@ export default function ArcadeOverlay() {
           off this box, and a min-height of auto would let it grow past the
           viewport on a short screen and never shrink back. */}
       <div className="relative min-h-0 flex-1">
-        <GameHost className="h-full w-full" />
+        {/* Hidden while the cabinet loads — the canvas has nothing on it
+            yet — and turned on like a tube when it is ready. See
+            `.cabinet-reveal`. */}
+        <div className={`h-full w-full ${status === "loading" ? "opacity-0" : "cabinet-reveal"}`}>
+          <GameHost className="h-full w-full" />
+        </div>
 
         {status === "playing" && !entry.board && <RotateHint />}
 
+        {/* Keyed on the run, so every Again says the controls once more. */}
+        {status === "playing" && <StartHint key={runId} hint={entry.hint} />}
+
+        {/* The title card: the cabinet's name, what it is, and the site's
+            loader row (`GameLoader`'s blocks, the same rhythm as every other
+            load). This is the moment the player is looking at a name they
+            just chose; it should say it like a title, not like a status. */}
         {status === "loading" && !error && (
           <Panel>
-            <p className="text-dim text-sm">Loading {entry.title}…</p>
+            <div className="cabinet-card flex flex-col items-center gap-4" role="status">
+              <p className="text-display text-ink font-semibold">{entry.title}</p>
+              <p className="text-dim max-w-xs text-sm">{entry.tagline}</p>
+              <div className="flex items-end gap-1.5" aria-hidden>
+                {Array.from({ length: 8 }, (_, i) => (
+                  <span
+                    key={i}
+                    className="loader-block"
+                    style={{ animationDelay: `${i * 0.11}s` }}
+                  />
+                ))}
+              </div>
+              <span className="sr-only">Loading {entry.title}</span>
+            </div>
           </Panel>
         )}
 
         {status === "paused" && (
           <Panel>
             <h3 className="text-lg font-semibold">Paused</h3>
+            <ControlsHint hint={entry.hint} className="text-dim max-w-xs text-sm" />
+            {entry.soundPacks && <FightPackPicker />}
             <div className="flex gap-2">
               <button
                 type="button"
@@ -293,29 +343,109 @@ function Panel({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * The fight-sound pack, on the pause screen: the one place a player is
+ * already choosing things and nothing is moving. Each press plays the next
+ * pack's hit through the cabinet on the next punch — `sound-pack.ts` is read
+ * per call, so there is nothing to restart.
+ */
+function FightPackPicker() {
+  const pack = useSyncExternalStore(subscribeFightPack, getFightPack, () => "metal" as FightPack);
+  return (
+    <div className="flex flex-col items-center gap-2" role="radiogroup" aria-label="Fight sounds">
+      <span className="hud-label">Fight sounds</span>
+      <div className="flex flex-wrap justify-center gap-1.5">
+        {FIGHT_PACKS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            role="radio"
+            aria-checked={pack === p}
+            onClick={() => setFightPack(p)}
+            className={`hud-chip hud-chip--touch ${pack === p ? "is-active" : ""}`}
+          >
+            {FIGHT_PACK_LABEL[p]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * How to play, over the first seconds of a run.
+ *
+ * Low in the room, where the thumbs are going anyway, and pointer-transparent
+ * for the reason RotateHint is: in Gravity Shift the whole screen is the
+ * compass. It fades itself out in CSS (`.arcade-start-hint`), so nothing has
+ * to count seconds or be dismissed.
+ */
+function StartHint({ hint }: { hint: { touch: string; keys: string } }) {
+  return (
+    <p className="arcade-start-hint pointer-events-none absolute inset-x-0 bottom-6 flex justify-center px-4">
+      <ControlsHint hint={hint} className="hud-chip whitespace-normal text-center" />
+    </p>
+  );
+}
+
+const ROTATE_DISMISSED_KEY = "sdg_arcade_rotate_dismissed";
+
+/**
  * "Turn your phone sideways", for a letterboxed cabinet held upright.
  *
  * Every cabinet since Chunk Runner draws a fixed 960×540 view (see
  * `view.ts`), so on a portrait phone the room is fitted to the screen's
  * width and comes out at two-fifths scale, with the in-room text under the
  * size anyone can read. The board cabinets lay themselves out for portrait
- * and are excluded. The hint sits in the empty letterbox above the room, so
- * it covers nothing, and it takes no pointer events, because in Gravity
- * Shift the whole screen is the compass and a line of text that ate a tap
- * would flip the room the wrong way. Not a lock: `screen.orientation.lock`
- * needs fullscreen on most browsers and is refused on iOS, and a page that
- * fights the phone's rotation loses.
+ * and are excluded.
+ *
+ * Where the browser allows it, opening the cabinet already turned the screen
+ * (`orientation.ts`) and this never shows. It is what is left where it does
+ * not — iPhone, which has neither element fullscreen nor an orientation lock,
+ * and a cabinet opened from a link with no press behind it.
+ *
+ * It was a line that stayed for the whole run, on every run, and a player who
+ * had decided to play upright was told otherwise forever. Now it can be put
+ * away once, for good. The line is still pointer-transparent — in Gravity
+ * Shift the whole screen is the compass — and only the close button takes a
+ * tap. It sits in the empty letterbox above the room, so it covers nothing.
+ *
+ * Storage is read once in a lazy initialiser, as `DiscordNudge` does and for
+ * its reason: a one-shot decision that must not change while it is on screen.
  */
 function RotateHint() {
   const upright = useMediaQuery("(orientation: portrait) and (pointer: coarse)");
-  if (!upright) return null;
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(ROTATE_DISMISSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  if (!upright || dismissed) return null;
+
+  const dismiss = () => {
+    try {
+      localStorage.setItem(ROTATE_DISMISSED_KEY, "1");
+    } catch {
+      /* Hidden for this session either way. */
+    }
+    setDismissed(true);
+  };
+
   return (
-    <p
-      className="hud-label pointer-events-none absolute inset-x-0 top-3 text-center"
-      aria-live="polite"
-    >
-      <span aria-hidden="true">⟳ </span>
-      Turn your phone sideways for a bigger room
-    </p>
+    <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center px-4">
+      <p className="hud-chip gap-2 whitespace-normal" aria-live="polite">
+        <span aria-hidden="true">⟳</span>
+        Turn your phone sideways for a bigger room
+        <button
+          type="button"
+          onClick={dismiss}
+          className="pointer-events-auto -my-2 -mr-2 grid min-h-12 min-w-12 place-items-center"
+          aria-label="Don't show this again"
+        >
+          <span aria-hidden="true">✕</span>
+        </button>
+      </p>
+    </div>
   );
 }
