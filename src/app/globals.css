@@ -405,6 +405,29 @@ a.card:active,
 }
 
 /*
+  A title sized to its tile rather than cut short.
+
+  The names are set on 175px phone tiles in the hub's two-column grid, and
+  at one fixed size "Snakes & Ladders" and "Chunk Runner" came out as
+  "Snakes & L…" and "Chunk Run…" — a game tile that cannot say what the
+  game is called. The art box is a size container (`.art-box`), and the
+  title divides the box's width by its own length in characters (`--len`,
+  set inline) times Lilita One's average advance, about 0.56em with the
+  letter-spacing. Short names stop at `--fit-max`; nothing goes below the
+  floor, where `truncate` remains the last resort it always was.
+*/
+.art-box {
+  container-type: inline-size;
+}
+.art-title--fit {
+  font-size: clamp(
+    0.85rem,
+    calc((100cqi - 1.75rem) / (var(--len, 10) * 0.56)),
+    var(--fit-max, 1.25rem)
+  );
+}
+
+/*
   ══ A card that is one link with one pressable thing on it ═══════════════
 
   ── The problem ─────────────────────────────────────────────────────────
@@ -1098,5 +1121,123 @@ a.card:active,
     background: var(--color-accent);
     box-shadow: var(--glow);
     transform: scaleY(1.35);
+  }
+}
+
+/*
+  ── The hero's sky ─────────────────────────────────────────────────────
+
+  The landing island used to float on a flat #14171a box, which in the light
+  theme was a black slab between a white header and a pale page. It now
+  stands in a sky: a gradient with a warm glow where the sun is, a faint
+  star field that only the night shows (--hero-stars), and clouds.
+
+  The clouds are blocks, not puffs: each is one 1×1 element and a box-shadow
+  per cell, so a cloud is drawn on the same grid as the world in front of it
+  and costs one composited layer. They drift on transform only. The island's
+  own voxel clouds (components/hero/VoxelClouds) are in the 3D scene and turn
+  with it, which is what gives the sky depth.
+
+  The canvas over this is transparent; the colours are all tokens.css, so the
+  theme switch repaints the sky without touching WebGL, and the loading
+  placeholder is the same sky rather than a flash of a dark box.
+*/
+.hero-sky {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(60% 55% at 78% 8%, var(--hero-sky-glow), transparent 70%),
+    linear-gradient(
+      to bottom,
+      var(--hero-sky-top) 0%,
+      var(--hero-sky-mid) 48%,
+      var(--hero-sky-low) 100%
+    );
+}
+/* The seam into the page: the sky's last few percent fade to the page's own
+   colour, so the hero ends in the page rather than at an edge. */
+.hero-sky::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 18%;
+  background: linear-gradient(to bottom, transparent, var(--color-base));
+  pointer-events: none;
+  /* Under the canvas, over the clouds: the sky fades, the island does not. */
+  z-index: -5;
+}
+.hero-sky__stars {
+  position: absolute;
+  inset: 0;
+  opacity: var(--hero-stars);
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 27% 42%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 41% 12%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 58% 30%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 69% 9%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 84% 36%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 92% 14%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 6% 52%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 35% 64%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 77% 58%, #fff 50%, transparent 51%);
+  pointer-events: none;
+}
+.hero-cloud {
+  --u: 14px;
+  position: absolute;
+  left: 0;
+  width: var(--u);
+  height: var(--u);
+  background: transparent;
+  box-shadow:
+    calc(var(--u) * 3) calc(var(--u) * 0) 0 0 var(--hero-cloud),
+    calc(var(--u) * 4) calc(var(--u) * 0) 0 0 var(--hero-cloud),
+    calc(var(--u) * 1) calc(var(--u) * 1) 0 0 var(--hero-cloud),
+    calc(var(--u) * 2) calc(var(--u) * 1) 0 0 var(--hero-cloud),
+    calc(var(--u) * 3) calc(var(--u) * 1) 0 0 var(--hero-cloud),
+    calc(var(--u) * 4) calc(var(--u) * 1) 0 0 var(--hero-cloud),
+    calc(var(--u) * 5) calc(var(--u) * 1) 0 0 var(--hero-cloud),
+    calc(var(--u) * 6) calc(var(--u) * 1) 0 0 var(--hero-cloud),
+    calc(var(--u) * 0) calc(var(--u) * 2) 0 0 var(--hero-cloud),
+    calc(var(--u) * 1) calc(var(--u) * 2) 0 0 var(--hero-cloud),
+    calc(var(--u) * 2) calc(var(--u) * 2) 0 0 var(--hero-cloud),
+    calc(var(--u) * 3) calc(var(--u) * 2) 0 0 var(--hero-cloud),
+    calc(var(--u) * 4) calc(var(--u) * 2) 0 0 var(--hero-cloud),
+    calc(var(--u) * 5) calc(var(--u) * 2) 0 0 var(--hero-cloud),
+    calc(var(--u) * 6) calc(var(--u) * 2) 0 0 var(--hero-cloud),
+    calc(var(--u) * 7) calc(var(--u) * 2) 0 0 var(--hero-cloud),
+    calc(var(--u) * 8) calc(var(--u) * 2) 0 0 var(--hero-cloud),
+    calc(var(--u) * 9) calc(var(--u) * 2) 0 0 var(--hero-cloud),
+    calc(var(--u) * 0) calc(var(--u) * 3) 0 0 var(--hero-cloud-shade),
+    calc(var(--u) * 1) calc(var(--u) * 3) 0 0 var(--hero-cloud-shade),
+    calc(var(--u) * 2) calc(var(--u) * 3) 0 0 var(--hero-cloud-shade),
+    calc(var(--u) * 3) calc(var(--u) * 3) 0 0 var(--hero-cloud-shade),
+    calc(var(--u) * 4) calc(var(--u) * 3) 0 0 var(--hero-cloud-shade),
+    calc(var(--u) * 5) calc(var(--u) * 3) 0 0 var(--hero-cloud-shade),
+    calc(var(--u) * 6) calc(var(--u) * 3) 0 0 var(--hero-cloud-shade),
+    calc(var(--u) * 7) calc(var(--u) * 3) 0 0 var(--hero-cloud-shade),
+    calc(var(--u) * 8) calc(var(--u) * 3) 0 0 var(--hero-cloud-shade),
+    calc(var(--u) * 9) calc(var(--u) * 3) 0 0 var(--hero-cloud-shade);
+  pointer-events: none;
+  will-change: transform;
+  animation: heroCloudDrift var(--drift, 120s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes heroCloudDrift {
+  from {
+    transform: translateX(-12rem);
+  }
+  to {
+    transform: translateX(calc(100vw + 2rem));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Parked where they are rather than all bunched at the left edge, which is
+     where a 0.01ms animation would leave them. */
+  .hero-cloud {
+    animation: none;
+    transform: translateX(var(--rest, 20vw));
   }
 }

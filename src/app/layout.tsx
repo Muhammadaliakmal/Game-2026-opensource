@@ -162,6 +162,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         async
         src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${AD_CLIENT}`}
         crossOrigin="anonymous"
+        /*
+          The same script carries H5 Games Ads (`lib/game-ads.ts`). Outside
+          production it asks for Google's test ads, so the rewarded and
+          interstitial flows can be exercised locally without serving real
+          impressions — clicking your own live ads is how an account gets
+          closed. Absent in production, which is the only place it may be.
+        */
+        data-adbreak-test={process.env.NODE_ENV === "production" ? undefined : "on"}
       />
       {/*
         `h-dvh` (not `min-h-full`) is deliberate: the R3F <Canvas> sizes itself

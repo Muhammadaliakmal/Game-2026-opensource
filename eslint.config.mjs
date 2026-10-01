@@ -38,6 +38,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Gradle output and vendored agent-skill templates: generated or someone
+    // else's code, and the only warnings a clean lint run was reporting.
+    "capacitor-android/**/build/**",
+    "android/**/build/**",
+    ".agents/**",
   ]),
 ]);
 

@@ -11,6 +11,7 @@ import type { ArcadeGame, GameServices } from "./types";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
 import { today } from "../persistence";
+import { noteRunFinished } from "@/lib/game-ads";
 
 /**
  * Turn a finished run into coins.
@@ -132,6 +133,7 @@ export function GameHost({ className }: { className?: string }) {
         // a request, and a death screen that waited for the network to draw
         // would make every death feel like a stutter.
         useArcade.getState().finish(entry.id, final);
+        noteRunFinished();
         void settle(entry.id, final);
       },
       onPlaced: (place, of) => {
@@ -139,6 +141,7 @@ export function GameHost({ className }: { className?: string }) {
         over = true;
         stopRun();
         useArcade.getState().finishPlaced(entry.id, place, of);
+        noteRunFinished();
         // No `settle`. A board cabinet pays nothing yet, and that is the right
         // way round: the rate is a flat amount per placement rather than a
         // rate per point (`plan-phase8.md` §2B), nobody has agreed the numbers,

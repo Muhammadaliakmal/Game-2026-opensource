@@ -120,6 +120,15 @@ the first paint. `theme.test.ts` executes that script string against
   leaves the modal dark rather than breaking sign-in.
 - `.hud-chip` sets `display` in unlayered CSS, which beats every Tailwind
   utility: `sm:hidden` on a chip does nothing. Hide a wrapper instead.
+- **The home hero's sky is CSS, not WebGL.** `.hero-sky` + `HeroSky` paint
+  the gradient, stars and block clouds from `--hero-*` tokens; the canvas is
+  transparent and draws only the island and `VoxelClouds`. A canvas that
+  needs the theme reads `getPageTheme()` / `subscribePageTheme()` from
+  `lib/theme.ts`, never the preference — the preference is not the answer
+  while a game marker is on the page.
+- **Voxel clouds stay out of the orbit's reach** (41+ units out, below the
+  island). Anything placed at the camera's radius and height swings past the
+  lens as a slab.
 
 ## Opening a cabinet
 
@@ -1117,6 +1126,13 @@ Two things about it are easy to break from the web side:
   from `ANDROID_CERT_FINGERPRINTS`, and there are normally **two**: the upload
   key you signed with, and the app signing key Google re-signs with. Only one
   listed means every Play install fails verification while sideloads pass.
+- **Game ads (`lib/game-ads.ts`, H5 Games Ads) follow the same rule** —
+  `eligible()` is false in the app — and are placed only at the arcade's
+  results screen: a rewarded "double it" that exists only if Google offers
+  an ad, and an interstitial on "Again" paced by `game-ads-policy.ts`.
+  `breakBeforeRun` must always call `next` (an ad blocker means no callback
+  ever fires, so it carries a deadline). The bonus is paid from the arcade's
+  daily pool, so the 1,000-a-day ceiling still covers every route.
 - **`AdSlot` renders nothing when the page was launched from the app**
   (`lib/app-mode.ts`, via the `android-app://` referrer). The Play Data safety
   form declares no ads in the app; keep that true.

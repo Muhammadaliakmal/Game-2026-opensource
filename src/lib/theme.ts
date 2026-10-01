@@ -104,3 +104,33 @@ export function subscribeThemePref(onChange: () => void): () => void {
 }
 
 export const getThemePref = readPref;
+
+/* ── The theme a page is actually showing, for canvases ──────────────── */
+
+/**
+ * The light tokens apply when the attribute says light AND no game is on
+ * screen — the selector in tokens.css. A canvas on a site page (the home
+ * hero) wants the same answer the CSS got, so this asks the document the
+ * same question rather than re-deriving it from the preference.
+ */
+const LIGHT_PAGE = ':root[data-theme="light"]:not(:has([data-immersive], [data-dark]))';
+
+export function getPageTheme(): Theme {
+  try {
+    return document.documentElement.matches(LIGHT_PAGE) ? "light" : "dark";
+  } catch {
+    // `:has()` unsupported: the tokens did not apply either, so it is dark.
+    return "dark";
+  }
+}
+
+/**
+ * Changes when `data-theme` is rewritten — by the toggle, or by the system
+ * flipping under "system". Observing the attribute rather than the
+ * preference store catches both without a second listener.
+ */
+export function subscribePageTheme(onChange: () => void): () => void {
+  const mo = new MutationObserver(onChange);
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return () => mo.disconnect();
+}

@@ -57,16 +57,20 @@ function CourseArt({ index }: { index: number }) {
     >
       <defs>
         <linearGradient id={`${id}-sky`} x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0" stopColor={NIGHT_STOPS[1].hex} />
-          <stop offset="0.55" stopColor={NIGHT_STOPS[3].hex} />
-          <stop offset="1" stopColor={NIGHT_STOPS[4].hex} />
+          {/* Through `--art-sky-*` like every other cover, so the light
+              theme draws these by day too. They were the one cover left on
+              literal night stops: a row of black banners on a pale page,
+              with the ladder numeral (ink at 25%) invisible on them. */}
+          <stop offset="0" stopColor={`var(--art-sky-0, ${NIGHT_STOPS[1].hex})`} />
+          <stop offset="0.55" stopColor={`var(--art-sky-2, ${NIGHT_STOPS[3].hex})`} />
+          <stop offset="1" stopColor={`var(--art-sky-3, ${NIGHT_STOPS[4].hex})`} />
         </linearGradient>
       </defs>
       <rect width="220" height="90" fill={`url(#${id}-sky)`} />
 
       {/* A handful of stars, placed by index rather than at random: this
           renders on the server, and a random sky would hydrate as a mismatch. */}
-      <g fill="#ffffff" opacity="0.55">
+      <g fill="#ffffff" style={{ opacity: "calc(0.55 * var(--art-stars, 1))" }}>
         {[17, 46, 83, 112, 149, 178, 201, 62, 131].map((sx, k) => (
           <circle key={sx} cx={sx} cy={8 + ((k * 13) % 26)} r={k % 3 === 0 ? 1.2 : 0.7} />
         ))}

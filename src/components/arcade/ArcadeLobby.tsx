@@ -188,9 +188,12 @@ export function ArcadeLobby() {
                   from the same numbers the game is built from — see that file
                   for why it is generated rather than captured. The name is
                   set on it, title-screen style (`.art-title`). */}
-              <div className="relative aspect-[5/2] w-full overflow-hidden bg-[var(--art-backdrop,#0b1030)]">
+              <div className="art-box relative aspect-[5/2] w-full overflow-hidden bg-[var(--art-backdrop,#0b1030)]">
                 <CabinetPreview id={entry.id} />
-                <h3 className="art-title absolute inset-x-4 bottom-2 truncate text-2xl">
+                <h3
+                  className="art-title art-title--fit absolute inset-x-4 bottom-2 truncate"
+                  style={{ "--len": entry.title.length, "--fit-max": "1.5rem" } as React.CSSProperties}
+                >
                   <button
                     type="button"
                     onClick={() => open(entry.id)}

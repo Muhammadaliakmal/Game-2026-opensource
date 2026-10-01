@@ -10,6 +10,8 @@ import { useMediaQuery } from "@/lib/use-media-query";
 import { usePlayCount } from "@/lib/use-play-count";
 import { isKnownSlug } from "@/content/registry";
 import { GameHost } from "./GameHost";
+import { RewardedDouble } from "./RewardedDouble";
+import { breakBeforeRun } from "@/lib/game-ads";
 import { lockZoom } from "./zoom-lock";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
@@ -101,7 +103,12 @@ export default function ArcadeOverlay() {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
       const s = useArcade.getState();
       if (e.code === "Escape") s.close();
-      else if (e.code === "KeyR") s.restart();
+      // At the results screen R is the same press as "Again", natural break
+      // and all; mid-run it is a plain restart and never an ad.
+      else if (e.code === "KeyR") {
+        if (s.status === "gameover") breakBeforeRun(() => useArcade.getState().restart());
+        else s.restart();
+      }
       else if (e.code === "KeyP") {
         if (s.status === "playing") s.pause();
         else if (s.status === "paused") s.resume();
@@ -133,6 +140,10 @@ export default function ArcadeOverlay() {
   const bestScore = best[entry.id] ?? 0;
   const close = () => useArcade.getState().close();
   const restart = () => useArcade.getState().restart();
+  // "Again" is the one natural break between runs, so it is where an
+  // interstitial may go — paced in lib/game-ads-policy.ts, and the next run
+  // starts whether or not one showed.
+  const again = () => breakBeforeRun(restart);
 
   return (
     <div
@@ -301,11 +312,18 @@ export default function ArcadeOverlay() {
                 capped={capped}
               />
             )}
+            {/* Only on a run that paid. `capped` is read once, when the
+                offer is made: a day already at its ceiling gets no offer (an
+                ad watched for nothing), and a bonus that fills the day does
+                not take its own receipt off the screen. */}
+            {!error && !placement && earned !== null && earned > 0 && (
+              <RewardedDouble earned={earned} capped={capped} />
+            )}
             <div className="flex gap-2">
               <button
                 type="button"
                 className="hud-chip hud-chip--primary"
-                onClick={restart}
+                onClick={again}
               >
                 Again
                 <Hotkey>R</Hotkey>

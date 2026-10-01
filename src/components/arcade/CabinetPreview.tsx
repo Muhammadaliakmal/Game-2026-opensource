@@ -660,8 +660,11 @@ function DuelArt() {
   );
   return (
     <Frame>
-      <rect width="240" height="96" fill="#2a0f08" />
-      <rect y="40" width="240" height="56" fill="#5a1d0a" opacity="0.6" />
+      {/* Through `--art-duel-*`, which only the light theme defines: by day
+          the cave glows peach over the lava instead of standing black on a
+          pale page, the one tile in the grid that still did. */}
+      <rect width="240" height="96" fill="var(--art-duel-sky, #2a0f08)" />
+      <rect y="40" width="240" height="56" fill="var(--art-duel-haze, #5a1d0a)" opacity="0.6" />
       {bank(30)}
       {bank(155)}
       {/* The bridge, between the banks and a little low. */}

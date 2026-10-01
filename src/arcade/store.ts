@@ -83,6 +83,11 @@ interface ArcadeState {
   finishPlaced(gameId: string, place: number, of: number): void;
   /** What the server actually paid, once it has said. */
   credit(coins: number): void;
+  /**
+   * Add a watched rewarded ad's coins to this run's payout (`RewardedDouble`).
+   * Adds rather than replaces, so the results panel counts the doubled total.
+   */
+  creditBonus(coins: number): void;
   /** True once today's arcade ceiling has been reached. */
   capped: boolean;
   fail(message: string): void;
@@ -181,6 +186,14 @@ export const useArcade = create<ArcadeState>((set, get) => ({
       save(next);
     }
     set({ earned: coins });
+  },
+
+  creditBonus: (coins) => {
+    if (coins <= 0) return;
+    const next = creditCoins(savedNow(), coins);
+    saved = next;
+    save(next);
+    set((s) => ({ earned: (s.earned ?? 0) + coins }));
   },
 
   fail: (message) => set({ status: "gameover", error: message }),

@@ -103,6 +103,21 @@ export function setMuted(next: boolean) {
   for (const l of listeners) l(next);
 }
 
+/**
+ * Silence everything for a while without touching the player's setting.
+ *
+ * For a full-screen ad (`lib/game-ads.ts`), which Google requires the game
+ * be quiet under. `setMuted` would do it, but it writes the preference to
+ * storage — close the tab mid-ad and the game comes back muted for good.
+ * This only moves the master gain, and lifting the hold restores whatever
+ * the player's own choice was.
+ */
+export function holdSilence(on: boolean) {
+  if (!master || !ctx) return;
+  const to = on || isMuted() ? 0 : VOLUME;
+  master.gain.setTargetAtTime(to, ctx.currentTime, 0.01);
+}
+
 /** Subscribe to mute changes (so every mute button in the UI agrees). */
 export function onMuteChange(fn: (muted: boolean) => void): () => void {
   listeners.add(fn);

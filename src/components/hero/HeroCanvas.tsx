@@ -2,9 +2,9 @@
 
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { Canvas, type ThreeEvent } from "@react-three/fiber";
+import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { InstancedWorld } from "@/components/play/InstancedWorld";
 import { BlockSurfaces } from "@/components/BlockSurfaces";
@@ -16,6 +16,9 @@ import { heroParts, heroWorldDoc } from "@/lib/hero-world";
 import { DRAFT_ID, hasDraft, saveDraft } from "@/lib/draft";
 import { sfxPlace } from "@/lib/audio";
 import { UGC } from "@/lib/features";
+import { getPageTheme, subscribePageTheme, type Theme } from "@/lib/theme";
+import { HeroSky } from "./HeroSky";
+import { VoxelClouds } from "./VoxelClouds";
 
 /**
  * The landing page hero: a real, live Spec Driven Games world you can turn and build
@@ -42,15 +45,67 @@ const CLICK_COLOURS = [8, 13, 20, 26, 16, 6];
 /** Drag further than this and it was a camera move, not a placement. */
 const CLICK_SLOP_PX = 6;
 
+/** Where the orbit looks, and how far the camera starts on a wide screen. */
+const TARGET = new THREE.Vector3(0, 3, 0);
+const WIDE_DISTANCE = 22.7;
+/**
+ * Half the island's width plus a margin, in world units. On a portrait
+ * phone it is the horizontal field of view that runs out first, so the
+ * camera has to stand back far enough for this to fit across it.
+ */
+const ISLAND_HALF_WIDTH = 10;
+const FOV = 45;
+
+/**
+ * How far back the camera stands for a viewport of this shape.
+ *
+ * The camera used to sit at one distance everywhere, which framed the
+ * island on a 16:9 monitor and cut both its edges off on a phone held
+ * upright. The horizontal half-angle is `atan(tan(vfov / 2) × aspect)`, so
+ * the distance at which a half-width fits is that width over its tangent.
+ * Never nearer than the wide framing, never past the orbit's own limit.
+ */
+export function fitDistance(aspect: number): number {
+  const halfV = THREE.MathUtils.degToRad(FOV / 2);
+  const tanH = Math.tan(halfV) * Math.max(aspect, 0.1);
+  return THREE.MathUtils.clamp(ISLAND_HALF_WIDTH / tanH, WIDE_DISTANCE, 34);
+}
+
+/** Re-fits the camera when the canvas changes shape (a phone rotating). */
+function FitCamera() {
+  const camera = useThree((s) => s.camera);
+  const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    const offset = camera.position.clone().sub(TARGET).setLength(fitDistance(aspect));
+    camera.position.copy(offset.add(TARGET));
+    invalidate();
+  }, [aspect, camera, invalidate]);
+  return null;
+}
+
+/** The theme the page around the canvas is showing — see lib/theme. */
+function usePageTheme(): Theme {
+  return useSyncExternalStore(subscribePageTheme, getPageTheme, () => "dark");
+}
+
+/** Sky and ground colours for the hemisphere light, per sky. */
+const HEMI: Record<Theme, [string, string, number]> = {
+  // A blue sky bounces blue onto the tops and a little green up from below.
+  light: ["#d6ecff", "#5b6b4a", 1.35],
+  dark: ["#c8d2dd", "#1a1d21", 1.15],
+};
+
 export default function HeroCanvas() {
   const router = useRouter();
   const [parts, setParts] = useState<PartTuple[]>(() => dressParts(heroParts(), NATURAL));
   const [placed, setPlaced] = useState(0);
+  const theme = usePageTheme();
 
   // Where the pointer went down, to tell a click from an orbit drag. In a ref
   // because it changes on every pointer event and nothing renders from it.
   const down = useRef<{ x: number; y: number } | null>(null);
-  const focus = useRef(new THREE.Vector3(0, 3, 0));
+  const focus = useRef(TARGET.clone());
 
   const onPointerDown = useCallback((e: ThreeEvent<PointerEvent>) => {
     down.current = { x: e.clientX, y: e.clientY };
@@ -100,14 +155,19 @@ export default function HeroCanvas() {
   }, [parts, placed, router]);
 
   return (
-    <div className="relative h-[55dvh] max-h-[34rem] min-h-[min(20rem,55dvh)] w-full">
+    <div className="hero-sky relative h-[55dvh] max-h-[34rem] min-h-[min(20rem,55dvh)] w-full">
+      <HeroSky />
       <Canvas
         frameloop="demand"
         shadows
-        camera={{ position: [14, 11, 14], fov: 45 }}
-        gl={{ powerPreference: "high-performance" }}
+        camera={{ position: [14, 11, 14], fov: FOV }}
+        // Transparent: the sky is CSS behind the canvas (HeroSky), so the
+        // theme can change it without a frame of WebGL, and it is already
+        // painted before three.js loads.
+        gl={{ powerPreference: "high-performance", alpha: true }}
         onCreated={({ scene, gl }) => {
-          scene.background = new THREE.Color("#14171a");
+          scene.background = null;
+          gl.setClearColor(0x000000, 0);
           const pmrem = new THREE.PMREMGenerator(gl);
           scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
           scene.environmentIntensity = 0.4;
@@ -116,7 +176,9 @@ export default function HeroCanvas() {
           gl.toneMappingExposure = 1.05;
         }}
       >
-        <hemisphereLight args={["#c8d2dd", "#1a1d21", 1.15]} />
+        <hemisphereLight args={HEMI[theme]} />
+        <FitCamera />
+        <VoxelClouds theme={theme} />
         <FollowSun getFocus={() => focus.current} extent={18} />
 
         <group onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
@@ -126,7 +188,7 @@ export default function HeroCanvas() {
 
         <OrbitControls
           makeDefault
-          target={[0, 3, 0]}
+          target={TARGET.toArray()}
           enablePan={false}
           maxPolarAngle={Math.PI / 2 - 0.05}
           minDistance={12}
@@ -143,14 +205,14 @@ export default function HeroCanvas() {
       {/* One prompt, and only until it has been acted on. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-3 flex flex-col items-center gap-2 px-3">
         {placed === 0 && (
-          <div className="hud-panel text-dim px-3 py-2 text-2xs">
+          <div className="hud-panel hud-panel--readout text-ink px-3 py-2 text-2xs font-semibold">
             {UGC
               ? "Click anywhere to place a block · drag to turn"
               : "Drag to turn"}
           </div>
         )}
         {placed === 1 && (
-          <div className="hud-panel text-dim px-3 py-2 text-2xs">
+          <div className="hud-panel hud-panel--readout text-ink px-3 py-2 text-2xs font-semibold">
             That is the whole idea. Place another.
           </div>
         )}
@@ -170,7 +232,8 @@ export default function HeroCanvas() {
         {CLICK_COLOURS.map((i) => (
           <span
             key={i}
-            className="h-2.5 w-2.5"
+            // A white rim: over a blue sky the cyan swatch was the sky.
+            className="h-2.5 w-2.5 shadow-[0_0_0_1.5px_rgb(255_255_255/0.85)]"
             style={{ background: PALETTE[i] }}
             aria-hidden
           />

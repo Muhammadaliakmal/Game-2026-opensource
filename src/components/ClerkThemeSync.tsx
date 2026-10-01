@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import { clerkAppearanceFor } from "@/lib/clerk-appearance";
-import { getThemePref, subscribeThemePref } from "@/lib/theme";
+import { getPageTheme, getThemePref, subscribeThemePref } from "@/lib/theme";
 
 /**
  * Hands Clerk the light palette when the page is light. Renders nothing.
@@ -22,12 +22,11 @@ import { getThemePref, subscribeThemePref } from "@/lib/theme";
  * assumed, so that is the whole failure.
  *
  * "Light" means what the CSS means: the light tokens and no game on screen
- * (tokens.css scopes them the same way), so a sign-in opened from inside a
+ * (tokens.css scopes them the same way, and `getPageTheme` asks the
+ * document the same question), so a sign-in opened from inside a
  * game stays dark like the game. The pathname is a dependency because that
  * is when a game's marker comes and goes.
  */
-const LIGHT_PAGE = ':root[data-theme="light"]:not(:has([data-immersive], [data-dark]))';
-
 type Updatable = { __internal_updateProps?: (p: { appearance: unknown }) => unknown };
 
 export function ClerkThemeSync() {
@@ -37,7 +36,7 @@ export function ClerkThemeSync() {
 
   useEffect(() => {
     if (typeof clerk.__internal_updateProps !== "function") return;
-    const light = document.documentElement.matches(LIGHT_PAGE);
+    const light = getPageTheme() === "light";
     void clerk.__internal_updateProps({ appearance: clerkAppearanceFor(light ? "light" : "dark") });
   }, [clerk, pref, pathname]);
 

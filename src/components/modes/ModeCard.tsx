@@ -49,13 +49,18 @@ export function ModeCard({
 
       {/* The scrim. Without it the copy sits on whatever the art happens to be
           doing behind it, which is unreadable in exactly the places the art is
-          most interesting. Weighted to the bottom so the sky stays sky. */}
+          most interesting. Weighted to the bottom so the sky stays sky.
+
+          It reaches higher than it did: on a phone the blurb wraps to three
+          lines and climbs into the band where the runner stands, and at the
+          old 12% the figure sat on top of the words ("take the me▮dal"). The
+          art is still fully clear in the top quarter. */}
       <div
         aria-hidden
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(to top, rgb(var(--art-scrim, 2 3 10) / 0.92) 0%, rgb(var(--art-scrim, 2 3 10) / 0.72) 34%, rgb(var(--art-scrim, 2 3 10) / 0.12) 66%, rgb(var(--art-scrim, 2 3 10) / 0) 100%)",
+            "linear-gradient(to top, rgb(var(--art-scrim, 2 3 10) / 0.94) 0%, rgb(var(--art-scrim, 2 3 10) / 0.84) 46%, rgb(var(--art-scrim, 2 3 10) / 0.3) 74%, rgb(var(--art-scrim, 2 3 10) / 0) 100%)",
         }}
       />
 

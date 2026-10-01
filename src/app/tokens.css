@@ -149,6 +149,19 @@
   --glass-border: color-mix(in oklab, var(--color-ink) 16%, transparent);
   --glass-blur: blur(16px) saturate(130%);
 
+  /* ── The hero's sky (globals.css, `.hero-sky`) ─────────────────────
+     The landing island stands in a sky rather than on a slab. These are the
+     night stops; the light block below swaps them for a day sky, so the
+     island is the same object under two skies. Clouds are an opacity, not a
+     switch, so the night keeps a faint drift of them. */
+  --hero-sky-top: #050816;
+  --hero-sky-mid: #0d1433;
+  --hero-sky-low: #1c2452;
+  --hero-sky-glow: rgb(110 120 255 / 0.18);
+  --hero-cloud: rgb(170 185 255 / 0.07);
+  --hero-cloud-shade: rgb(120 135 220 / 0.05);
+  --hero-stars: 0.75;
+
   /*
     Elevation is two things at once now: a real shadow that separates the
     panel from the world behind it, and an accent bloom that ties it to the
@@ -446,4 +459,16 @@
   --art-cab-dusk-1: #ddd1e9;
   --art-cab-dusk-2: #c7b8d9;
   --art-scrim: 243 245 250;
+  --art-duel-sky: #ffe3d1;
+  --art-duel-haze: #ffb48f;
+
+  /* A clear midday: deep blue at the zenith, washing to near-white at the
+     horizon so the sky's bottom edge meets --color-base without a seam. */
+  --hero-sky-top: #2f8fe6;
+  --hero-sky-mid: #6fb9f2;
+  --hero-sky-low: #c9e8fc;
+  --hero-sky-glow: rgb(255 248 220 / 0.55);
+  --hero-cloud: rgb(255 255 255 / 0.95);
+  --hero-cloud-shade: rgb(196 222 245 / 0.9);
+  --hero-stars: 0;
 }
