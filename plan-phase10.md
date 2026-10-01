@@ -145,8 +145,18 @@ editing uses ffmpeg. Both are free and local.
 - [x] E1–E3 in place, with tests for the pacing and bonus arithmetic
       (`game-ads-policy.test.ts`)
 - [x] `tsc`, `eslint` (0 warnings), `npm test` (730 pass), `next build` all clean
-- [ ] Pushed to `main`
-- [ ] Trailer and thumbnail delivered
+- [x] Pushed to `main` (`69ee5f7`)
+- [x] Trailer and thumbnail delivered: 51.5 s, 1280×720, recorded from the
+      production build on a real GPU (Playwright), cut with ffmpeg. Covers the
+      hero by day and night, Neon Run, Magma Gauntlet, SwarmRush, Gravity
+      Shift, One Bullet, Ludo, Chunk Runner, Ragdoll Rumble and the
+      characters. The music bed is synthesised in the build script, so there
+      are no licensing questions.
+- **Not in the trailer: the race.** `RACE = false` in `lib/features.ts`
+  because no room server is deployed, so a player cannot open it. Showing
+  it would advertise a mode the site does not offer. Deploy the room server
+  (CLAUDE.md, "Deploying the room server"), flip the flag, and it can join
+  the next cut.
 
 ### What could not be verified here
 
