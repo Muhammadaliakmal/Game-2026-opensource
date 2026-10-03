@@ -1,6 +1,6 @@
 import { FEEL } from "./feel";
 import { airTime, canClear } from "./jump-arc";
-import { isHazard, type PartTuple, type Vec3 } from "./worlddoc";
+import { isHazard, type PartTuple, type Vec3 } from "./worlddoc-core";
 
 /**
  * A course as a graph of places you can stand.

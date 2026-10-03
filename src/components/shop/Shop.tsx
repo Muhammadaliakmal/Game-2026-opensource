@@ -66,7 +66,7 @@ export function Shop() {
   return (
     <div data-mode="parkour" className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-7 sm:px-6 sm:py-10">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+        <div className="flex flex-col gap-2">
           <h1 className="text-display font-bold">Characters</h1>
           <p className="text-dim text-sm">
             Finish courses to earn coins. A course pays up to {MAX_PER_COURSE} the

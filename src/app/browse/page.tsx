@@ -196,7 +196,7 @@ export default async function BrowsePage() {
 
       {/* Under the gallery, never between the cards — see lib/ads. */}
       <AdSlot placement="browse" className="mt-10" />
-      <PrefetchCanvas kind="world" />
+      <PrefetchCanvas kind="world" on="intent" />
       <SiteFooter />
     </div>
   );

@@ -67,7 +67,10 @@ export default function SurfacesCanvas() {
     <div className="relative h-[80dvh] w-full">
       <Canvas
         frameloop="demand"
-        shadows
+        // "percentage" = PCF, named outright. Bare `shadows` is PCFSoft, which three
+        // r185 deprecates and swaps for PCF on the first shadow pass, after every
+        // material had already compiled for PCFSoft: each shader compiled twice.
+        shadows="percentage"
         camera={{ position: view.cam, fov: 45 }}
         onCreated={({ scene, gl }) => {
           scene.background = new THREE.Color("#14171a");

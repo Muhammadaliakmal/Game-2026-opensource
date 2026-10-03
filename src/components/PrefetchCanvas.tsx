@@ -36,6 +36,22 @@ import { connectionHint, shouldPrefetch } from "@/lib/prefetch";
  *
  * ── What it does not do ──────────────────────────────────────────────────
  *
+ * ── Idle, or on intent ───────────────────────────────────────────────────
+ *
+ * An `import()` does not just download, it *runs* the modules: three, drei,
+ * Rapier and the world canvas, top to bottom. Measured on `/` under a
+ * phone-class CPU that was a single 3.1-second task, and a tap that lands in
+ * it waits for the end of it — which is what interaction latency (INP)
+ * measures, and the home page's was 3 s at p75.
+ *
+ * On a screen that is all 3D games (`/parkour`, `/race`) that cost is going
+ * to be paid anyway, so `on="idle"` (the default) is right. On a hub that
+ * also lists the 2D arcade (`/`, `/games`, `/browse`) most visitors never
+ * open a 3D game, and they were all paying it. `on="intent"` waits for the
+ * first sign of heading into one — a pointer over, a touch on or focus on a
+ * link into Play or the parkour ladder — which still starts the download
+ * well before the navigation does.
+ *
  * It does not help somebody who opens a `/race/<code>` link directly — there
  * is no earlier page to prefetch from, and the honest answer for that path is
  * that the chunk has to be fetched then. It helps the ordinary route through
@@ -58,7 +74,16 @@ export type CanvasKind = keyof typeof LOADERS;
 /** The shape of `requestIdleCallback`, for the browsers that have one. */
 type IdleScheduler = (cb: () => void, opts?: { timeout: number }) => number;
 
-export function PrefetchCanvas({ kind }: { kind: CanvasKind }) {
+/** Links whose destination mounts the world canvas. */
+const INTO_A_WORLD = 'a[href^="/play/"], a[href="/parkour"], a[href^="/parkour?"]';
+
+export function PrefetchCanvas({
+  kind,
+  on = "idle",
+}: {
+  kind: CanvasKind;
+  on?: "idle" | "intent";
+}) {
   useEffect(() => {
     if (!shouldPrefetch(connectionHint())) return;
 
@@ -69,6 +94,23 @@ export function PrefetchCanvas({ kind }: { kind: CanvasKind }) {
       // import will surface any genuine problem when the player presses play.
       void LOADERS[kind]().catch(() => {});
     };
+
+    if (on === "intent") {
+      const events = ["pointerover", "touchstart", "focusin"] as const;
+      const opts = { capture: true, passive: true } as const;
+      const stop = () => events.forEach((t) => document.removeEventListener(t, onIntent, opts));
+      function onIntent(e: Event) {
+        const el = e.target as Element | null;
+        if (!el?.closest?.(INTO_A_WORLD)) return;
+        stop();
+        run();
+      }
+      events.forEach((t) => document.addEventListener(t, onIntent, opts));
+      return () => {
+        cancelled = true;
+        stop();
+      };
+    }
 
     // Captured as possibly-undefined on purpose: `lib.dom` declares
     // `requestIdleCallback` unconditionally, so a plain `if (window.rIC)` is a
@@ -94,7 +136,7 @@ export function PrefetchCanvas({ kind }: { kind: CanvasKind }) {
       cancelled = true;
       window.cancelIdleCallback?.(handle);
     };
-  }, [kind]);
+  }, [kind, on]);
 
   return null;
 }

@@ -1,5 +1,5 @@
 import { fastestRoute, surfaces, surfaceUnder } from "./course-graph";
-import type { WorldDoc } from "./worlddoc";
+import type { WorldDoc } from "./worlddoc-core";
 
 /**
  * Medal times, derived from the course rather than guessed at.

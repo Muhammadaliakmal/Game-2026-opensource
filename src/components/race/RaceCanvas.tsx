@@ -147,7 +147,10 @@ export default function RaceCanvas({
         // fragment-bound, and a DPR-3 screen otherwise renders every pixel
         // four times over. See lib/quality.ts.
         dpr={quality.dpr}
-        shadows
+        // "percentage" = PCF, named outright. Bare `shadows` is PCFSoft, which three
+        // r185 deprecates and swaps for PCF on the first shadow pass, after every
+        // material had already compiled for PCFSoft: each shader compiled twice.
+        shadows="percentage"
         camera={{
           position: [16, 16, 16],
           fov: 55,

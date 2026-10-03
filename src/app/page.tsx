@@ -64,12 +64,32 @@ export const metadata: Metadata = {
   alternates: { canonical: SITE_URL },
 };
 
+/**
+ * Static, refreshed every ten minutes — while the builder is hidden.
+ *
+ * With `UGC` off the signed-in half of this page has nothing a visitor's
+ * does not (its one difference, "Your worlds", is hidden with the builder),
+ * so asking Clerk who is looking bought nothing and cost the most expensive
+ * thing on the site: every request to `/` rendered on demand in iad1, and
+ * every first visit was bounced through Clerk's handshake before a byte of
+ * HTML left. Real visitors measured a p75 TTFB of four seconds. Not calling
+ * `auth()` lets the page prerender, and lets `proxy.ts` leave it alone.
+ *
+ * The only things on it that change are "Popular this week" (hourly at
+ * most) and the showcase, so ten minutes stale is invisible. Flip `UGC` back
+ * and `auth()` returns, and with it a dynamic page — and `/` must go back
+ * into `proxy.ts`'s matcher, or `auth()` throws.
+ */
+export const revalidate = 600;
+
 export default async function Home() {
-  const { userId } = await auth();
+  const { userId } = UGC ? await auth() : { userId: null };
 
   if (!userId) {
     // Real worlds with real play counts — the gallery is the proof, so it
-    // should not be a row of invented placeholders.
+    // should not be a row of invented placeholders. Prerendered at build
+    // now, so a database that is unreachable then costs the gallery, not
+    // the deploy.
     const showcase = await db
       .select({
         id: worlds.id,
@@ -82,7 +102,8 @@ export default async function Home() {
       .from(worlds)
       .where(eq(worlds.published, 1))
       .orderBy(desc(worlds.playCount), desc(worlds.updatedAt))
-      .limit(4);
+      .limit(4)
+      .catch(() => []);
 
     return (
       <div className="flex w-full flex-1 flex-col">
@@ -174,7 +195,7 @@ export default async function Home() {
 
           {/* Last thing on the page, under real content — see lib/ads. */}
           <AdSlot placement="home" />
-          <PrefetchCanvas kind="world" />
+          <PrefetchCanvas kind="world" on="intent" />
           <SiteFooter />
         </div>
       </div>
@@ -294,7 +315,7 @@ export default async function Home() {
 
       {/* Last thing on the page, under real content — see lib/ads. */}
       <AdSlot placement="home" />
-      <PrefetchCanvas kind="world" />
+      <PrefetchCanvas kind="world" on="intent" />
       <SiteFooter />
     </div>
   );

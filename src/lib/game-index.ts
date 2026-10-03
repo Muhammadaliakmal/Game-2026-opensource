@@ -1,5 +1,5 @@
 import { CABINETS } from "@/arcade/registry";
-import { LISTED_WORLDS } from "./built-in-worlds";
+import { LISTED_META as LISTED_WORLDS } from "./world-list";
 import { RACE } from "./features";
 
 /**

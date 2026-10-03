@@ -159,7 +159,7 @@ export default function GamesPage() {
         <AdSlot placement="guide" />
       </div>
 
-      <PrefetchCanvas kind="world" />
+      <PrefetchCanvas kind="world" on="intent" />
     </PageShell>
   );
 }

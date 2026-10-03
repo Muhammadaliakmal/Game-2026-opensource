@@ -28,6 +28,11 @@ import { noteRunFinished } from "@/lib/game-ads";
  * not mention coins.
  */
 async function settle(gameId: string, score: number) {
+  // A guest has no wallet, and asking anyway put a 401 in the console at the
+  // end of every run. Only skipped when Clerk has loaded and says so: before
+  // it loads the answer is unknown, and the server is still the one judge.
+  const clerk = (window as Window & { Clerk?: { loaded?: boolean; isSignedIn?: boolean } }).Clerk;
+  if (clerk?.loaded && clerk.isSignedIn === false) return;
   try {
     const res = await fetch("/api/arcade/payout", {
       method: "POST",

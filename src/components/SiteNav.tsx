@@ -31,9 +31,15 @@ import { ThemeToggle } from "./ThemeToggle";
  *
  * ── The two layouts ──────────────────────────────────────────────────────
  *
- * Below `sm` the destinations collapse behind one button, which is the
+ * Below `lg` the destinations collapse behind one button, which is the
  * convention every site on a phone uses and therefore the one nobody has to
  * learn. Above it, the row is what it always was.
+ *
+ * `lg` (1024px), not `sm`. The row is eight destinations, the theme switch
+ * and two account buttons — about 1,050px at full size — and from `sm` it
+ * ran off the right edge of every tablet and every phone held sideways: at
+ * 844px "Sign in" was cut in half. From 1024 the wordmark (which truncates)
+ * absorbs the last few pixels. The phone's tab bar follows the same switch.
  *
  * `UserButton` stays outside the menu in both. It is the only item that is a
  * *state* rather than a destination — it says who you are signed in as — and
@@ -171,9 +177,9 @@ export function SiteNav() {
   }, [open]);
 
   return (
-    <div ref={panel} className="flex min-w-0 items-center gap-2 sm:gap-3">
+    <div ref={panel} className="flex min-w-0 items-center gap-2 lg:gap-3">
       {/* ── Desktop: the row ── */}
-      <div className="hidden items-center gap-3 sm:flex">
+      <div className="hidden items-center gap-3 lg:flex">
         {/* Rendered from LINKS, like the menu below it. This row used to be
             written out by hand beside a comment claiming both came from the
             list — which is how a fourth destination would have been added to
@@ -240,7 +246,7 @@ export function SiteNav() {
           never worked: `.hud-chip` sets `display` in unlayered CSS, which
           beats every Tailwind utility, so the menu button sat beside the
           full desktop row on every page. */}
-      <div className="contents sm:hidden">
+      <div className="contents lg:hidden">
         <button
           type="button"
           onClick={() => setOpen(!open)}
@@ -283,7 +289,7 @@ export function SiteNav() {
           // flex item, so the panel spans the screen instead of the width of a
           // 28px button. The small horizontal inset keeps it clear of a
           // phone's rounded corners.
-          className="hud-panel panel-enter absolute inset-x-2 top-full z-50 mt-1 flex flex-col gap-0.5 p-1.5 sm:hidden"
+          className="hud-panel panel-enter absolute inset-x-2 top-full z-50 mt-1 flex flex-col gap-0.5 p-1.5 lg:hidden"
         >
           {links.map((l) => (
             <Link
@@ -385,7 +391,7 @@ export function SiteTabBar() {
   return (
     <nav
       aria-label="Main"
-      className="site-tabbar bg-surface flex shrink-0 border-t border-[var(--border-color)] sm:hidden"
+      className="site-tabbar bg-surface flex shrink-0 border-t border-[var(--border-color)] lg:hidden"
     >
       {TABS.map((t) => (
         <Link

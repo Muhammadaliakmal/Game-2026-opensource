@@ -1,7 +1,6 @@
 "use client";
 
 import * as THREE from "three";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Canvas, useThree, type ThreeEvent } from "@react-three/fiber";
@@ -9,6 +8,11 @@ import { OrbitControls } from "@react-three/drei";
 import { InstancedWorld } from "@/components/play/InstancedWorld";
 import { BlockSurfaces } from "@/components/BlockSurfaces";
 import { FollowSun } from "@/components/FollowSun";
+import { FrameLimiter } from "@/components/FrameLimiter";
+import { useRenderQuality } from "@/lib/quality";
+import { useReducedMotion } from "@/lib/motion";
+import { useBlockArraysSettled } from "@/lib/textures/block-arrays";
+import { roomEnvironmentAsync } from "@/lib/room-environment";
 import { cellFromHit } from "@/lib/grid";
 import { PALETTE, type PartTuple } from "@/lib/worlddoc";
 import { NATURAL, dressParts } from "@/lib/surface-dressing";
@@ -84,6 +88,78 @@ function FitCamera() {
   return null;
 }
 
+/** Hands the prepared environment to the scene — outside a hook, by design. */
+function applyEnvironment(scene: THREE.Scene, env: THREE.Texture) {
+  scene.environment = env;
+  scene.environmentIntensity = 0.4;
+}
+
+/**
+ * Prepares every shader the scene needs off the main thread, then says so.
+ *
+ * This is the hero's whole load cost. three compiles a program the first
+ * time it draws a material, and that first draw waits for the GPU to finish
+ * compiling it: measured on this page, one function held the main thread
+ * for 4,975 ms on a desktop, and far longer on a phone-class CPU.
+ *
+ * Two steps, both without waiting on the GPU. The studio probe first
+ * (lib/room-environment — its PMREM pass was the worst single offender),
+ * because whether a material has an environment changes its program. Then
+ * `compileAsync` for the scene itself, which uses
+ * `KHR_parallel_shader_compile` to poll rather than block.
+ *
+ * It waits for the block textures before either, because their arrival
+ * rebuilds every bucket's material and compiling before that would compile
+ * twice. Mounted last inside the Canvas, so every mesh is already in the
+ * scene. A failure anywhere still shows the canvas: the same failure would
+ * be visible on draw, and a spinner that never leaves is worse.
+ */
+function Warmup({ onReady }: { onReady: () => void }) {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const settled = useBlockArraysSettled();
+
+  useEffect(() => {
+    if (!settled) return;
+    let live = true;
+    // One frame for the buckets to rebuild with the textures they just got.
+    const raf = requestAnimationFrame(async () => {
+      try {
+        const env = await roomEnvironmentAsync(gl);
+        if (!live) {
+          env.dispose();
+          return;
+        }
+        applyEnvironment(scene, env);
+        await gl.compileAsync(scene, camera);
+      } catch {
+        // Fall through and show what there is.
+      }
+      if (live) onReady();
+    });
+    return () => {
+      live = false;
+      cancelAnimationFrame(raf);
+    };
+  }, [settled, gl, scene, camera, onReady]);
+
+  return null;
+}
+
+/** Whether the hero is on screen, so an idle rotation is not drawn under the fold. */
+function useOnScreen(ref: React.RefObject<HTMLElement | null>): boolean {
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => setOn(e.isIntersecting));
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref]);
+  return on;
+}
+
 /** The theme the page around the canvas is showing — see lib/theme. */
 function usePageTheme(): Theme {
   return useSyncExternalStore(subscribePageTheme, getPageTheme, () => "dark");
@@ -101,6 +177,12 @@ export default function HeroCanvas() {
   const [parts, setParts] = useState<PartTuple[]>(() => dressParts(heroParts(), NATURAL));
   const [placed, setPlaced] = useState(0);
   const theme = usePageTheme();
+  const quality = useRenderQuality();
+  const still = useReducedMotion();
+  const [ready, setReady] = useState(false);
+  const onReady = useCallback(() => setReady(true), []);
+  const box = useRef<HTMLDivElement>(null);
+  const onScreen = useOnScreen(box);
 
   // Where the pointer went down, to tell a click from an orbit drag. In a ref
   // because it changes on every pointer event and nothing renders from it.
@@ -155,11 +237,25 @@ export default function HeroCanvas() {
   }, [parts, placed, router]);
 
   return (
-    <div className="hero-sky relative h-[55dvh] max-h-[34rem] min-h-[min(20rem,55dvh)] w-full">
+    <div ref={box} className="hero-sky relative h-[55dvh] max-h-[34rem] min-h-[min(20rem,55dvh)] w-full">
       <HeroSky />
+      {!ready && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="border-accent h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" />
+        </div>
+      )}
       <Canvas
-        frameloop="demand"
-        shadows
+        // "never" plus a FrameLimiter, like every animating canvas (see
+        // CLAUDE.md, "Frame rate"). On "demand" the idle rotation redrew the
+        // scene at the panel's full rate for as long as the page was open,
+        // on screen or not. Nothing is drawn until Warmup has compiled.
+        frameloop="never"
+        dpr={quality.dpr}
+        style={{ opacity: ready ? 1 : 0, transition: "opacity 600ms ease-out" }}
+        // "percentage" = PCF, named outright. Bare `shadows` is PCFSoft, which three
+        // r185 deprecates and swaps for PCF on the first shadow pass, after every
+        // material had already compiled for PCFSoft: each shader compiled twice.
+        shadows="percentage"
         camera={{ position: [14, 11, 14], fov: FOV }}
         // Transparent: the sky is CSS behind the canvas (HeroSky), so the
         // theme can change it without a frame of WebGL, and it is already
@@ -168,10 +264,7 @@ export default function HeroCanvas() {
         onCreated={({ scene, gl }) => {
           scene.background = null;
           gl.setClearColor(0x000000, 0);
-          const pmrem = new THREE.PMREMGenerator(gl);
-          scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-          scene.environmentIntensity = 0.4;
-          pmrem.dispose();
+          // The environment is not made here any more: see Warmup.
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.05;
         }}
@@ -185,6 +278,7 @@ export default function HeroCanvas() {
           <InstancedWorld parts={parts} />
         </group>
         <BlockSurfaces />
+        {ready && onScreen && <FrameLimiter />}
 
         <OrbitControls
           makeDefault
@@ -197,9 +291,10 @@ export default function HeroCanvas() {
           dampingFactor={0.12}
           // Slow idle rotation until the visitor takes over, so the scene
           // reads as live rather than as a screenshot.
-          autoRotate={placed === 0}
+          autoRotate={placed === 0 && !still}
           autoRotateSpeed={0.35}
         />
+        <Warmup onReady={onReady} />
       </Canvas>
 
       {/* One prompt, and only until it has been acted on. */}

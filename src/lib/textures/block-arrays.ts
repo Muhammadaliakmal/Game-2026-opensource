@@ -73,7 +73,9 @@ async function pixelsOf(url: string): Promise<{ data: Uint8ClampedArray; width: 
     // The strip is data, not a picture. Every conversion the browser could
     // apply — orientation, colour profile, premultiplied alpha — would corrupt
     // a multiplier or a normal.
-    imageOrientation: "none",
+    // "from-image", not the deprecated "none" (Chrome treats them alike now and
+    // warns on the latter; the strips carry no EXIF orientation either way).
+    imageOrientation: "from-image",
     premultiplyAlpha: "none",
     colorSpaceConversion: "none",
   });
@@ -194,6 +196,19 @@ const snapshot = (): BlockArrays | null =>
  */
 export function useBlockArrays(): BlockArrays | null {
   return useSyncExternalStore(subscribe, snapshot, () => null);
+}
+
+const settledSnapshot = (): boolean =>
+  state.status === "ready" || state.status === "failed";
+
+/**
+ * True once the arrays have either arrived or failed — the moment the
+ * buckets' materials stop changing. A scene that wants to compile its
+ * shaders exactly once (the landing hero) waits for this rather than for
+ * `useBlockArrays()`, which stays null forever on a failure.
+ */
+export function useBlockArraysSettled(): boolean {
+  return useSyncExternalStore(subscribe, settledSnapshot, () => false);
 }
 
 /** Start the download early — from a loading screen, before any bucket mounts. */

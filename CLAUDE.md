@@ -766,7 +766,8 @@ of the three big ones**, so the download that matters starts last:
     html -> app js -> hydrate -> discover canvas chunk -> 1.1 MB gz -> wasm init -> join room
 
 `<PrefetchCanvas kind="...">` is the fix, and it is mounted on the pages that
-come *before* a canvas — `/`, `/browse`, `/parkour`, `/race`. On
+come *before* a canvas — `/`, `/browse`, `/parkour`, `/race` (the hubs on
+intent, see "Speed Insights" below). On
 idle it fires the same dynamic import the mount will fire later, so the bytes
 are already in the HTTP cache by the time anyone presses play. Guarded by
 `lib/prefetch.ts`: Data Saver means no, and so does anything slower than 4g.
@@ -777,6 +778,38 @@ the ones the mounts import, or the bundler emits a second copy of three.js and
 the prefetch downloads a megabyte for nothing. And it stays on an idle
 callback: a prefetch that delays the page it was mounted on has made things
 worse in exchange for making them better later.
+
+### Speed Insights, October 2026: what real visitors were waiting for
+
+Measured 3 Oct 2026 with `vercel metrics vercel.speed_insights.*` (the CLI
+reads the same data the dashboard shows; Hobby keeps 7 days) and Lighthouse
+under a phone CPU. p75 was TTFB 4 s, FCP/LCP 6 s, INP 3 s. Five causes, each
+fixed where it lives — keep them fixed:
+
+- **`proxy.ts` runs Clerk only where `auth()` is called.** Production is on a
+  Clerk *development* instance, which answers a browser's first visit to any
+  matched page with a 307 to its handshake and back. With the catch-all
+  matcher that was every page, cached ones included. Add a route to the
+  matcher when it starts calling `auth()`, never the catch-all back. Moving
+  to a Clerk production instance (owner: Clerk dashboard + DNS) removes the
+  handshake on its own and is still worth doing.
+- **`/` is static** (`revalidate = 600`) while `UGC` is off — it called
+  `auth()` for a branch that renders the same thing.
+- **Shaders compile off the main thread.** three's first draw of a program
+  waits for the GPU to compile it; the hero lost five seconds to that. The
+  hero mounts after load + idle (`HeroMount`), compiles with `compileAsync`
+  in `Warmup`, and builds its studio probe with `lib/room-environment.ts`.
+  Every canvas passes `shadows="percentage"`: bare `shadows` is PCFSoft,
+  which three r185 swaps for PCF on the first shadow pass — after every
+  material had compiled for PCFSoft, so each compiled twice.
+- **`import()` runs what it fetches.** `PrefetchCanvas` on a hub that also
+  lists the 2D arcade (`/`, `/games`, `/browse`) uses `on="intent"`; its idle
+  form evaluated three + Rapier (3 s on a phone CPU) for visitors who never
+  open a 3D game.
+- **Client components read `lib/world-list.ts`, not `built-in-worlds.ts`**,
+  and `lib/worlddoc-core.ts`, not `worlddoc.ts`, where a constant is all they
+  need. The other two import every world generator and zod — a 376 KB chunk
+  the front page was evaluating to print course names.
 
 ### What is still slow, and is not this
 

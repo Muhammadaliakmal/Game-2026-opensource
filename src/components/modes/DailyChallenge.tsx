@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
-import { PARKOUR_COURSES } from "@/lib/built-in-worlds";
+import { PARKOUR_META as PARKOUR_COURSES } from "@/lib/world-list";
 import { DAILY_BONUS, dailyPick, dayEndsAt, dayKey } from "@/lib/daily";
 import { current, doneToday, onStreakChange, readStreak } from "@/lib/streak";
 import { medalTimes, MEDAL_LABELS } from "@/lib/medals";
@@ -91,6 +91,12 @@ export function DailyChallenge() {
             alt=""
             fill
             sizes="176px"
+            // The largest thing above the fold on the home page, and it only
+            // appears after hydration (the pick is made client-side) — so it
+            // must not then also wait for the lazy loader. Measured: the
+            // page's LCP element, with 1.3 s of load delay from `lazy`.
+            loading="eager"
+            fetchPriority="high"
             placeholder="blur"
             blurDataURL={COVERS[course.slug].blur}
             className="object-contain p-1.5 transition-transform duration-300 group-hover:scale-[1.05]"
