@@ -59,9 +59,17 @@ const RAMP_GLSL = /* glsl */ `
     // than as light scattered through more atmosphere near the horizon.
     vec2 dirAz = normalize(dir.xz + vec2(1e-6));
     vec2 sunAz = normalize(uSunDir.xz + vec2(1e-6));
+    // Every pow() base here is clamped, and that is load-bearing, not tidy.
+    // GLSL's pow(x, y) is undefined for x < 0 and most GPUs return NaN; a
+    // direction exactly opposite the sun rounds the dot to -1.0000001, so
+    // unclamped this produced NaN on a hairline of pixels — every azimuth
+    // meets at the dome's bottom pole, so a steep camera always had one on
+    // screen. Bloom's mip chain then averaged two NaN pixels into the whole
+    // frame and Sky Yard rendered pure black at phone resolutions (found
+    // 3 Oct 2026). sky-shader.test.ts holds the rule.
     float facing = (dot(dirAz, sunAz) + 1.0) * 0.5;
-    float lobe = pow(facing, uBiasFalloff);
-    float lowSky = pow(1.0 - h, uBiasHeightFalloff);
+    float lobe = pow(clamp(facing, 0.0, 1.0), uBiasFalloff);
+    float lowSky = pow(clamp(1.0 - h, 0.0, 1.0), uBiasHeightFalloff);
 
     return mix(col, uBiasColor, lobe * lowSky * uBiasStrength);
   }
