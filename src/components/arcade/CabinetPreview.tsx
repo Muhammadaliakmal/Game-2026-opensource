@@ -88,7 +88,9 @@ function Frame({ children }: { children: React.ReactNode }) {
     <svg
       viewBox="0 0 240 96"
       preserveAspectRatio="xMidYMid slice"
-      className="absolute inset-0 h-full w-full"
+      // Not `absolute`: the art box stacks this and its title in one grid
+      // cell (globals.css `.art-box`), and must not become positioned.
+      className="block h-full w-full"
       aria-hidden
     >
       <defs>

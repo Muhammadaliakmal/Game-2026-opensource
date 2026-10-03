@@ -99,10 +99,10 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
                 className="group card card-linked h-full overflow-hidden"
                 style={{ "--card-hue": entry.hue, "--card-hue-ink": "#0a0a0f" } as React.CSSProperties}
               >
-                <div className="art-box relative aspect-[5/3] w-full overflow-hidden bg-[var(--art-backdrop,#0b1030)]">
+                <div className="art-box aspect-[5/3] w-full overflow-hidden bg-[var(--art-backdrop,#0b1030)]">
                   <CabinetPreview id={entry.id} />
                   <h3
-                    className="art-title art-title--fit absolute inset-x-3 bottom-2 truncate"
+                    className="art-title art-title--fit mx-3 mb-2 self-end truncate"
                     style={{ "--len": entry.title.length } as React.CSSProperties}
                   >
                     <Link href={`/arcade?play=${entry.id}`} className="stretched-link">

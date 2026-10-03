@@ -418,6 +418,21 @@ a.card:active,
 */
 .art-box {
   container-type: inline-size;
+  /*
+    The picture and the title share one grid cell instead of being
+    absolutely positioned inside a `relative` box — and that is load-bearing.
+    The title holds the card's `.stretched-link`, whose ::after resolves
+    against the nearest positioned ancestor. With a positioned art box and an
+    `absolute` title, that ancestor was the title itself, so the "whole card"
+    hit area was the title text and the Play chip under it did nothing
+    (shipped in 69ee5f7, fixed 3 Oct 2026). Nothing here may be positioned;
+    `.card-linked` must be the first positioned ancestor of the link.
+  */
+  display: grid;
+}
+.art-box > * {
+  grid-area: 1 / 1;
+  min-width: 0;
 }
 .art-title--fit {
   font-size: clamp(
