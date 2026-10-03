@@ -418,7 +418,7 @@ export function createRenderer(painter: BoardPainter): Renderer {
         // "you are being timed"; a ring says "there is still time".
         if (view.clock && view.clock.span > 0) {
           const left = view.clock.left / view.clock.span;
-          ctx.strokeStyle = left < 0.25 ? "#E8484E" : "rgba(245,247,250,0.5)";
+          ctx.strokeStyle = left < 0.25 ? "#E8484E" : "rgba(18,21,28,0.4)";
           ctx.lineWidth = 0.12;
           ctx.beginPath();
           ctx.arc(DIE_AT.x, DIE_AT.y, 0.95, -Math.PI / 2, -Math.PI / 2 + TAU * left);
@@ -428,7 +428,7 @@ export function createRenderer(painter: BoardPainter): Renderer {
         if (view.thinking) {
           const lit = Math.floor(view.tick / 12) % 3;
           for (let i = 0; i < 3; i++) {
-            ctx.fillStyle = i <= lit ? "#F5F7FA" : "rgba(245,247,250,0.3)";
+            ctx.fillStyle = i <= lit ? INK : "rgba(18,21,28,0.25)";
             ctx.beginPath();
             ctx.arc(DIE_AT.x - 0.34 + i * 0.34, DIE_AT.y - 1.1, 0.1, 0, TAU);
             ctx.fill();
@@ -458,7 +458,9 @@ export function createRenderer(painter: BoardPainter): Renderer {
           { x: x - 0.7, y: NAMES_Y - 0.05 },
           place >= 0 ? `${name} · ${place + 1}${ordinal(place + 1)}` : name,
           px * 0.95,
-          active ? "#F5F7FA" : "rgba(245,247,250,0.55)",
+          // Ink, not white: the strip sits on the board's paper since
+          // dbaa672, and white-on-cream names were all but invisible.
+          active ? INK : "rgba(18,21,28,0.55)",
           "left"
         );
         painter.label(
@@ -466,7 +468,7 @@ export function createRenderer(painter: BoardPainter): Renderer {
           { x: x - 0.7, y: NAMES_Y + 0.5 },
           `${state.at[s]}`,
           px * 0.85,
-          active ? colour : "rgba(245,247,250,0.4)",
+          active ? colour : "rgba(18,21,28,0.45)",
           "left"
         );
 
@@ -512,7 +514,7 @@ function drawCard(
   const y = at.y - CARD_H / 2;
 
   if (!kind) {
-    ctx.strokeStyle = "rgba(245,247,250,0.18)";
+    ctx.strokeStyle = "rgba(18,21,28,0.25)";
     ctx.lineWidth = 0.04;
     roundRect(ctx, x, y, CARD_W, CARD_H, 0.16);
     ctx.stroke();
