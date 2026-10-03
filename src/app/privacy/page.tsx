@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 };
 
 /** Kept in one place so the prose and the <time> below cannot drift apart. */
-const UPDATED = "22 September 2026";
+const UPDATED = "3 October 2026";
 
 function Section({
   title,
@@ -80,15 +80,26 @@ export default function PrivacyPage() {
             <strong className="text-ink">Without an account:</strong> nothing
             that identifies you is kept on our servers. Some settings, such as
             whether sound is muted, are saved in your own browser and never
-            leave it.
+            leave it. If you like a game without signing in, a random id your
+            browser made up is stored with the like so that it counts once; it
+            is not linked to you or to an account.
           </p>
           <p>
             <strong className="text-ink">With an account:</strong> your sign-in
             is handled by Clerk, which holds your email address and, if you
             used one, the identity of the provider you signed in with (for
             example Google). Our own database stores your user id together with
-            your course times, medals, coin balance, characters owned, and any
-            worlds you have made.
+            your course times, the replay of your best run on each course
+            (its &ldquo;ghost&rdquo;), medals, coin balance, characters owned,
+            and any worlds you have made. The display name shown next to your
+            times on a leaderboard comes from your account&rsquo;s first name
+            or username.
+          </p>
+          <p>
+            <strong className="text-ink">Either way:</strong> to stop one
+            caller flooding the game with requests, a one-way hash of your IP
+            address, the page and the hour is kept for about three hours and
+            then deleted. Your IP address itself is never written down.
           </p>
         </Section>
 

@@ -101,3 +101,10 @@ next-env.d.ts
 # window layout and caches in here belong to whoever opened the project, not
 # to the project.
 /.idea/
+
+# Any signing key or its passwords, wherever it ends up — not only the two
+# known paths above. A key in git can sign an update that installs over the
+# real app.
+*.jks
+*.keystore
+keystore.properties

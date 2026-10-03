@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- allowBackup is false on purpose. What the WebView keeps on disk is
+         its cookie jar (the Clerk session) and site storage; restoring a
+         session cookie onto another phone from a cloud backup is not
+         something a sign-in should survive. A signed-in player's coins,
+         times and characters live on the server and come back on sign-in;
+         a guest's local bests are the only thing this gives up. -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"

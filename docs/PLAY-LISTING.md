@@ -5,6 +5,14 @@ answered from it. Written 22 September 2026 for the Capacitor app
 (`com.specdrivengames.app`); the TWA (`com.specdrivengames.twa`) gets the same
 answers on its own listing, with the one difference marked under Ads.
 
+**Build 5 (1.0.4), 3 October 2026, is the first bundle meant for upload** —
+`capacitor-android/app/build/outputs/bundle/release/app-release.aab`, signed
+with the upload key whose SHA-256 is
+`53:69:B7:C4:A0:27:1F:28:D8:80:95:6C:A3:54:EC:E3:D7:EB:7F:2C:5F:A2:0C:72:81:B1:89:93:23:84:BA:59`.
+targetSdk 36, `allowBackup=false`, not debuggable, INTERNET and
+ACCESS_NETWORK_STATE only. A ready-to-upload copy with the screenshots and
+this text lives outside the repo in `Desktop/game/play-store/`.
+
 Every number and claim here came from the code. If one stops being true, fix
 it here in the same commit — a Data safety form that disagrees with the app is
 a policy violation, not a typo.
@@ -16,7 +24,7 @@ a policy violation, not a typo.
 | Field | Limit | Value |
 |---|---|---|
 | App name | 30 | `Spec Driven Games` |
-| Short description | 80 | `Voxel parkour with ghosts and medals, plus nine quick arcade games. No ads.` |
+| Short description | 80 | `Voxel parkour with ghosts and medals, plus ten quick arcade games. No ads.` |
 | App icon | 512×512 PNG | `capacitor-android/store_icon.png` (generated, `npm run cap:assets`) |
 | Feature graphic | 1024×500 | `capacitor-android/feature_graphic.png` (generated, same command) |
 | Phone screenshots | 2–8 | **Not generated.** Must be real gameplay — see below |
@@ -36,8 +44,9 @@ finishable by a route solver before it ships, and every time you set is
 raced by your own ghost the next time you run it. Medals are measured
 against the course's own fastest possible route.
 
-ARCADE — nine short cabinets: Chunk Runner, Tower Stack, Ludo, Snakes &
-Ladders, ECHO, Gravity Shift, One Bullet, SwarmRush and Reflex.
+ARCADE — ten short cabinets: Chunk Runner, Tower Stack, Ludo, Snakes &
+Ladders, ECHO, Gravity Shift, One Bullet, SwarmRush, Reflex and Ragdoll
+Rumble, a two-robot brawl over a lava sea.
 
 You can play without an account. Sign in to keep your times, coins and
 medals. There are no ads in the app and nothing to buy with real money.
@@ -50,8 +59,9 @@ live against other players. Share a code and whoever has it joins the same
 grid." When `UGC` is on, add "BUILD — place blocks, paint them, mark a finish
 and checkpoints, and your world becomes a course with its own leaderboard."
 
-Check before pasting: `COURSE_COUNT` in `src/content/registry.ts`,
-`RACE_TRACKS` in `src/lib/race-track.ts`, `CABINETS` in `src/arcade/registry.ts`.
+Check before pasting: `COURSE_COUNT` in `src/content/registry.ts`
+(23 on 3 Oct 2026), `CABINETS` (10, excluding the dev-only Test Pattern),
+`RACE_TRACKS` in `src/lib/race-track.ts`.
 
 ### Screenshots
 
@@ -86,18 +96,20 @@ does not happen. Ours deletes both.
 `MainActivity.java` (`NoAdsWebViewClient`), and `AdSlot` renders nothing in
 either app.
 
-**For the TWA listing only:** the TWA is Chrome, so the native block does not
-apply there. `AdSlot` still renders nothing, but `adsbygoogle.js` loads on
-every page, and **if Auto ads is switched on in the AdSense console it will
-place ads inside the TWA.** Keep Auto ads off, or answer Yes on the TWA's
-listing.
+**The TWA listing gets the same answer** since 3 October 2026. The TWA is
+Chrome, so the native block does not apply there, and `adsbygoogle.js` used
+to load on every page regardless — enough for Auto ads to place units inside
+the TWA the moment it was switched on in the AdSense console. The script is
+now injected by `lib/ad-loader.ts`, which checks the same three app signals
+`app-mode.ts` reads and does not load it at all inside either app.
+`ad-loader.test.ts` executes the loader against both.
 
 ### Content rating (IARC questionnaire)
 
 | Question | Answer | Why |
 |---|---|---|
 | Category | Game | |
-| Violence | No | Falls and lava respawn the player; no combat, no blood. The arena duel was removed in September 2026 |
+| Violence | **Yes — fantasy violence, non-human characters** | Ragdoll Rumble (cabinet `duel`) is two cartoon robots knocking each other into lava. No humans, no blood, no gore, no weapons beyond fists. Falls and lava elsewhere just respawn the player. Expect a low age rating (IARC "fantasy violence"); answering No here is the kind of mismatch that gets a listing pulled |
 | Sexuality, language, drugs | No | |
 | Gambling / simulated gambling | No | The "lucky run" is a random bonus of *earned* coins; coins cannot be bought and are not real money |
 | Users can interact | **Yes** | Leaderboards show players' names, and ghosts race you against other players' runs. Live races return with `RACE`. No text or voice chat |

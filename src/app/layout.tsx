@@ -12,6 +12,7 @@ import { AppUpdateNotice } from "@/components/AppUpdateNotice";
 import { StatsProvider } from "@/components/stats/StatsProvider";
 import { clerkAppearance } from "@/lib/clerk-appearance";
 import { AD_CLIENT } from "@/lib/ads";
+import { adLoaderScript } from "@/lib/ad-loader";
 import { SITE_URL } from "@/lib/site";
 // Counted from the registry rather than typed into the sentence: every one of
 // these numbers had gone stale. See `content/registry.ts`.
@@ -143,34 +144,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             element with that one and reports the difference. This script has
             already run by then; nothing about it needs reconciling. */}
         <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/*
+          AdSense — loaded by an inline script that first checks it is not
+          inside one of the Android apps (lib/ad-loader.ts). Still in the
+          served <head>, so it starts as early as the bare tag it replaced.
+          Outside production it asks for Google's test ads, so the rewarded
+          and interstitial flows (lib/game-ads.ts) can be exercised locally
+          without serving real impressions.
+        */}
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: adLoaderScript(process.env.NODE_ENV !== "production") }}
+        />
       </head>
-      {/*
-        AdSense, and why it is a bare <script> rather than next/script.
 
-        React 19 hoists an `async` script into <head> and dedupes it by `src`,
-        so this lands in the server-rendered HTML head — which is what AdSense
-        actually wants: Auto Ads and the site-verification crawler both read
-        the document they are served, and `next/script`'s afterInteractive
-        strategy injects from the client after hydration, where a crawler
-        fetching raw HTML will not see it.
-
-        `crossOrigin="anonymous"` is Google's own snippet, not a guess: without
-        it the script is opaque to the page and ad errors surface as unhelpful
-        script errors.
-      */}
-      <script
-        async
-        src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${AD_CLIENT}`}
-        crossOrigin="anonymous"
-        /*
-          The same script carries H5 Games Ads (`lib/game-ads.ts`). Outside
-          production it asks for Google's test ads, so the rewarded and
-          interstitial flows can be exercised locally without serving real
-          impressions — clicking your own live ads is how an account gets
-          closed. Absent in production, which is the only place it may be.
-        */
-        data-adbreak-test={process.env.NODE_ENV === "production" ? undefined : "on"}
-      />
       {/*
         `h-dvh` (not `min-h-full`) is deliberate: the R3F <Canvas> sizes itself
         to height:100% of its parent, which only resolves if every ancestor has
