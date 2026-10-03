@@ -155,13 +155,23 @@ async function main() {
   // eyeballed against a terminal.
   await writeFile(DIGEST, `${sha}  blockworld.apk\n`, "utf8");
 
+  // The build day, from the built file's mtime — the only place it is true.
+  // A deployed copy's mtime is whatever the host stamps (see APK_BUILT).
+  const day = (await stat(src)).mtime.toISOString().slice(0, 10);
+  const libPath = path.join(ROOT, "src", "lib", "apk.ts");
+  const lib = await readFile(libPath, "utf8");
+  const BUILT_RE = /APK_BUILT\s*=\s*"[^"]*"/;
+  if (!BUILT_RE.test(lib)) throw new Error("Could not find APK_BUILT in src/lib/apk.ts.");
+  await writeFile(libPath, lib.replace(BUILT_RE, `APK_BUILT = "${day}"`), "utf8");
+
   const mb = (bytes.byteLength / (1024 * 1024)).toFixed(2);
   console.log(`from    ${path.relative(ROOT, src)}`);
   console.log(`version ${version}`);
   console.log(`size    ${mb} MB`);
   console.log(`sha256  ${sha}`);
-  console.log(`\nWrote public/blockworld.apk and public/blockworld.apk.sha256.`);
-  console.log(`Commit both and deploy; /download reads the file itself.`);
+  console.log(`built   ${day} (written to APK_BUILT)`);
+  console.log(`\nWrote public/blockworld.apk, its .sha256, and APK_BUILT in src/lib/apk.ts.`);
+  console.log(`Commit all three and deploy.`);
 }
 
 main().catch((err: unknown) => {

@@ -29,11 +29,23 @@ export const APK_PATH = `/${APK_FILE}`;
  */
 export const APK_VERSION = "1.0.4";
 
+/**
+ * The day the published APK was built (UTC), stamped by
+ * `npm run android:release` / `cap:release` from the file's own mtime.
+ *
+ * A constant rather than a `stat()` at render, because the deployed file has
+ * no honest mtime: Vercel normalises every file in a deployment to one fixed
+ * timestamp, so /download said "Built 2018-10-20" over a build made in
+ * October 2026. The mtime is only true on the machine that built it, which
+ * is where the release script reads it.
+ */
+export const APK_BUILT = "2026-10-03";
+
 export interface ApkInfo {
   available: boolean;
   /** Bytes, or 0 when absent. */
   size: number;
-  /** ISO date the file was last written, or null when absent. */
+  /** `APK_BUILT` (YYYY-MM-DD) when the file is present, else null. */
   built: string | null;
   version: string;
   /**
@@ -63,7 +75,7 @@ export async function apkInfo(): Promise<ApkInfo> {
     return {
       available: s.isFile() && s.size > 0,
       size: s.size,
-      built: s.mtime.toISOString(),
+      built: APK_BUILT,
       version: APK_VERSION,
       sha256: await readDigest(`${file}.sha256`),
     };
