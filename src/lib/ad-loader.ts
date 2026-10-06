@@ -1,9 +1,12 @@
 import { AD_CLIENT } from "./ads";
-import { ANDROID_PACKAGE_ID } from "./android";
 import { ANDROID_APP_UA_TOKEN } from "./capacitor-identity";
 
 /**
- * The AdSense script, loaded only outside the Android apps.
+ * The AdSense script, loaded everywhere except the Capacitor WebView build.
+ *
+ * Updated 6 Oct 2026: the TWA now gets ads. It is Chrome rendering the site,
+ * so AdSense sees the website, and the Play listing declares "Contains ads".
+ * The WebView build stays excluded for the reason below. The history:
  *
  * It used to be a plain `<script async src=adsbygoogle.js>` in the root
  * layout, so it loaded inside the Capacitor WebView and the TWA as well.
@@ -25,16 +28,10 @@ import { ANDROID_APP_UA_TOKEN } from "./capacitor-identity";
  */
 export const AD_SCRIPT_SRC = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${AD_CLIENT}`;
 
-/** Must match `KEY` in lib/app-mode.ts. */
-const APP_SESSION_KEY = "sdg-android-app";
-
 export function adLoaderScript(testAds: boolean): string {
   const j = JSON.stringify;
   return `(function(){try{
-var inApp=(navigator.userAgent||"").indexOf(${j(ANDROID_APP_UA_TOKEN)})>=0;
-if(!inApp&&(document.referrer||"").indexOf(${j(`android-app://${ANDROID_PACKAGE_ID}`)})===0)inApp=true;
-if(!inApp){try{inApp=sessionStorage.getItem(${j(APP_SESSION_KEY)})==="1"}catch(e){}}
-if(inApp)return;
+if((navigator.userAgent||"").indexOf(${j(ANDROID_APP_UA_TOKEN)})>=0)return;
 var s=document.createElement("script");
 s.async=true;s.src=${j(AD_SCRIPT_SRC)};s.crossOrigin="anonymous";
 ${testAds ? 's.setAttribute("data-adbreak-test","on");' : ""}

@@ -1,7 +1,7 @@
 "use client";
 
 import { holdSilence } from "@/lib/audio";
-import { isAndroidApp } from "@/lib/app-mode";
+import { isWebViewApp } from "@/lib/app-mode";
 import { interstitialAllowed, type AdPacing } from "@/lib/game-ads-policy";
 
 /**
@@ -68,7 +68,7 @@ let configured = false;
 
 /** Whether this page may show game ads at all. */
 function eligible(): boolean {
-  return typeof window !== "undefined" && !isAndroidApp();
+  return typeof window !== "undefined" && !isWebViewApp();
 }
 
 /**

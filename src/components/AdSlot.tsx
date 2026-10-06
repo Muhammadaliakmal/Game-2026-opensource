@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { AD_CLIENT, AD_SLOTS, type AdPlacement } from "@/lib/ads";
-import { isAndroidApp } from "@/lib/app-mode";
+import { isWebViewApp } from "@/lib/app-mode";
 
 /**
  * One AdSense display unit.
@@ -64,7 +64,7 @@ export function AdSlot({
   className?: string;
 }) {
   const slot = AD_SLOTS[placement];
-  const inApp = useSyncExternalStore(subscribeNever, isAndroidApp, notAppOnServer);
+  const inApp = useSyncExternalStore(subscribeNever, isWebViewApp, notAppOnServer);
   const pushed = useRef(false);
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export function AdSlot({
     }
   }, [slot, inApp]);
 
-  // No slot id yet (see lib/ads), or this is the Android app. Render nothing at
+  // No slot id yet (see lib/ads), or this is the WebView build. Render nothing at
   // all rather than an empty bordered box: a placeholder that never fills is
   // worse than no placeholder.
   if (!slot || inApp) return null;

@@ -43,7 +43,7 @@ test("the Capacitor app never loads it", () => {
   assert.equal(run({ ua: `Mozilla/5.0 Chrome/140 ${ANDROID_APP_UA_TOKEN}` }).length, 0);
 });
 
-test("the TWA never loads it, on launch or after a reload", () => {
-  assert.equal(run({ referrer: `android-app://${ANDROID_PACKAGE_ID}/` }).length, 0);
-  assert.equal(run({ session: "1" }).length, 0);
+test("the TWA loads it, on launch and after a reload — it is Chrome, not a WebView", () => {
+  assert.equal(run({ referrer: `android-app://${ANDROID_PACKAGE_ID}/` }).length, 1);
+  assert.equal(run({ session: "1" }).length, 1);
 });

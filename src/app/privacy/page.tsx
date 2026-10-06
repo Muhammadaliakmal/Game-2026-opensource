@@ -108,7 +108,9 @@ export default function PrivacyPage() {
             This site shows ads served by Google AdSense. Google and its
             partners use cookies to serve ads based on your prior visits to
             this and other websites, and to measure whether an ad was seen.
-            The Android app shows no ads.
+            The Android app on Google Play shows the same ads: it opens this
+            site in Chrome, so the same cookies and the same choices below
+            apply there too.
           </p>
           <p>
             You can turn off personalised advertising in{" "}

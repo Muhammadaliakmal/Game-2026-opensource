@@ -75,6 +75,18 @@ export function capacitorBuild(userAgent: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
+/**
+ * True only inside the Capacitor WebView build — the one place ads must not
+ * load. AdSense in a bare WebView is the "Valuable Inventory: Framed Sites"
+ * violation (docs/CAPACITOR.md §5). The TWA is NOT this: it is Chrome itself
+ * rendering the site, AdSense treats it as the website, and the Play listing
+ * declares "Contains ads" for it (6 Oct 2026). Ads gate on this, not on
+ * `isAndroidApp()`.
+ */
+export function isWebViewApp(): boolean {
+  return isCapacitorApp();
+}
+
 export function isAndroidApp(): boolean {
   if (typeof document === "undefined") return false;
 

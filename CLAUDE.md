@@ -1160,15 +1160,18 @@ Two things about it are easy to break from the web side:
   key you signed with, and the app signing key Google re-signs with. Only one
   listed means every Play install fails verification while sideloads pass.
 - **Game ads (`lib/game-ads.ts`, H5 Games Ads) follow the same rule** —
-  `eligible()` is false in the app — and are placed only at the arcade's
+  `eligible()` is false in the WebView build — and are placed only at the arcade's
   results screen: a rewarded "double it" that exists only if Google offers
   an ad, and an interstitial on "Again" paced by `game-ads-policy.ts`.
   `breakBeforeRun` must always call `next` (an ad blocker means no callback
   ever fires, so it carries a deadline). The bonus is paid from the arcade's
   daily pool, so the 1,000-a-day ceiling still covers every route.
-- **`AdSlot` renders nothing when the page was launched from the app**
-  (`lib/app-mode.ts`, via the `android-app://` referrer). The Play Data safety
-  form declares no ads in the app; keep that true.
+- **Ads show in the TWA and nowhere in the Capacitor WebView build.** Since
+  6 Oct 2026 the Play listing declares "Contains ads": the TWA is Chrome, so
+  AdSense treats it as the website. Every ad gate (`ad-loader.ts`, `AdSlot`,
+  `game-ads.ts`) asks `isWebViewApp()`, NOT `isAndroidApp()` — AdSense in a
+  bare WebView is a policy violation (docs/CAPACITOR.md §5). The Play Data
+  safety form must declare advertising data while this is so.
 
 ## Env
 
