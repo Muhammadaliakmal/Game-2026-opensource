@@ -1119,11 +1119,10 @@ html[data-app] [data-web-only] {
 /*
   A cabinet on a phone held sideways. The header was a full row — title,
   score, mute, Quit — and at ~360px of height it cost the board a fifth of
-  its size. Here it stops being a row: the title goes (the game draws its
-  own), and the score, mute and Quit stack in the top-right corner over the
-  game. On a 20:9 phone that corner is the pillarbox gutter beside the 16:9
-  board, so nothing in the game is covered; on 16:9 it overlaps the board's
-  corner, which every cabinet keeps clear for exactly this.
+  its size. Here it stops being a row across the screen: the title goes (the
+  game draws its own), and the score, mute and Quit float as one small row
+  in the top-right corner, over the picture. Stacked down the side gutter
+  instead, they read as a misaligned sidebar.
 
   The header's own box passes touches through, so the empty space around
   the buttons is still the game's. `!important` on the padding because the
@@ -1142,10 +1141,22 @@ html[data-app] [data-web-only] {
     display: none;
   }
   .cabinet-chrome .cabinet-actions {
-    flex-direction: column;
-    align-items: flex-end;
     gap: 6px;
     pointer-events: auto;
+  }
+  .cabinet-chrome .cabinet-actions > .hud-label {
+    display: none;
+  }
+  /* The score is bare text on the header's surface; over a picture it
+     needs a backing of its own to stay readable. */
+  .cabinet-chrome .cabinet-actions > .hud-readout {
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: rgb(0 0 0 / 0.5);
+  }
+  .cabinet-chrome .cabinet-actions > .hud-chip {
+    background: rgb(0 0 0 / 0.5);
+    color: var(--color-ink);
   }
 }
 

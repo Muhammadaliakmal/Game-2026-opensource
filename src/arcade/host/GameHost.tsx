@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { createLoop } from "./loop";
 import { resizeCanvas } from "./canvas";
+import { fillLetterbox } from "./view";
 import { attachInput, type InputHost } from "./input";
 import { mulberry32 } from "./rng";
 import { sfx } from "./audio";
@@ -166,6 +167,8 @@ export function GameHost({ className }: { className?: string }) {
       (alpha) => {
         if (!game) return;
         game.render(alpha, services);
+        // The bands beside a 16:9 board on a wider screen — see view.ts.
+        fillLetterbox(ctx);
         const now = performance.now();
         if (now - pushedAt >= SCORE_PUSH_MS && score !== pushed) {
           pushedAt = now;
