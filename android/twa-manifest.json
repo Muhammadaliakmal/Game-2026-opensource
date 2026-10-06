@@ -4,7 +4,7 @@
   "name": "Spec Driven Games",
   "launcherName": "Spec Driven",
   "display": "fullscreen",
-  "orientation": "landscape",
+  "orientation": "default",
   "themeColor": "#1a1d21",
   "themeColorDark": "#1a1d21",
   "navigationColor": "#1a1d21",
@@ -21,8 +21,8 @@
     "path": "./release.keystore",
     "alias": "specdrivengames"
   },
-  "appVersionName": "1.0.2",
-  "appVersionCode": 3,
+  "appVersionName": "1.0.3",
+  "appVersionCode": 4,
   "shortcuts": [
     {
       "name": "Race",
@@ -51,5 +51,5 @@
   "minSdkVersion": 24,
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
-  "appVersion": "1.0.2"
+  "appVersion": "1.0.3"
 }

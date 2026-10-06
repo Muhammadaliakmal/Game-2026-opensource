@@ -1035,10 +1035,11 @@ a.card:active,
   the crawler never sees this attribute — and /privacy and /terms are still
   one press away in the menu for anyone who wants them.
 
-  The phone is held sideways in the app (twa-manifest `orientation`), which
-  leaves ~360px of height; the header and the tab bar between them took a
-  third of it. On a short screen both slim down: the tabs lay icon and label
-  side by side at the 48px floor rather than stacking them at 56px.
+  The app opens in portrait and follows the phone (twa-manifest
+  `orientation: default`), so a game played sideways leaves ~360px of
+  height; the header and the tab bar between them took a third of it. On a
+  short screen both slim down: the tabs lay icon and label side by side at
+  the 48px floor rather than stacking them at 56px.
 */
 html[data-app] {
   -webkit-tap-highlight-color: transparent;
