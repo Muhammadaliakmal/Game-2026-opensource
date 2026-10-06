@@ -99,7 +99,7 @@ export default function GamesPage() {
       />
 
       <PageHeader title="Games" back={null}>
-        <p className="text-dim max-w-xl text-sm">
+        <p className="text-dim max-w-xl text-sm" data-web-only>
           {COURSE_COUNT} parkour courses on a difficulty ladder, a lap racer,
           and {CABINET_COUNT} arcade cabinets. Everything here is one press
           from playing, and every one of them has a written guide. No account
@@ -109,7 +109,7 @@ export default function GamesPage() {
 
       <GamesHub heading="Modes" />
 
-      <div className="mt-12 flex max-w-2xl flex-col gap-8">
+      <div className="mt-12 flex max-w-2xl flex-col gap-8" data-web-only>
         <section className="flex flex-col gap-3">
           <h2 className="text-ink text-xl font-bold">Every game, in writing</h2>
           <p className="text-dim text-sm leading-relaxed">

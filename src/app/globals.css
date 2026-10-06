@@ -1023,6 +1023,53 @@ a.card:active,
   color: var(--color-accent);
 }
 
+/*
+  The app shell — `<html data-app>`, set before the first paint inside the
+  Android app or an installed PWA. See lib/app-shell.ts for the signal.
+
+  The app is a game, not a document, so inside it the page stops behaving
+  like one: no text selection or long-press callout outside a field, no
+  grey tap flash, no overscroll glow or pull-to-refresh, and the parts that
+  exist for a search engine or a lawyer (`[data-web-only]`: breadcrumbs,
+  the footer, the long-form prose) are not drawn. They stay in the HTML —
+  the crawler never sees this attribute — and /privacy and /terms are still
+  one press away in the menu for anyone who wants them.
+
+  The phone is held sideways in the app (twa-manifest `orientation`), which
+  leaves ~360px of height; the header and the tab bar between them took a
+  third of it. On a short screen both slim down: the tabs lay icon and label
+  side by side at the 48px floor rather than stacking them at 56px.
+*/
+html[data-app] {
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-app] body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
+}
+html[data-app] main {
+  overscroll-behavior: contain;
+}
+html[data-app] :is(input, textarea, select, [contenteditable="true"]) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+html[data-app] [data-web-only] {
+  display: none;
+}
+@media (max-height: 500px) {
+  html[data-app] .site-header {
+    padding-block: 2px;
+  }
+  html[data-app] .site-tab {
+    min-height: 48px;
+    flex-direction: row;
+    gap: 6px;
+  }
+}
+
 /* Horizontally scrollable clusters: keep the scrollbar out of the chrome. */
 .hud-scroll {
   scrollbar-width: none;

@@ -24,6 +24,8 @@
  * `theme.test.ts` executes it and holds the two together.
  */
 
+import { appShellDark } from "./app-shell";
+
 export type ThemePref = "system" | "light" | "dark";
 export type Theme = "light" | "dark";
 
@@ -70,7 +72,8 @@ function systemDark(): boolean {
 }
 
 function apply(pref: ThemePref) {
-  const t = resolveTheme(pref, systemDark());
+  // Inside the app, "Auto" is dark whatever the device says — see app-shell.
+  const t = resolveTheme(pref, systemDark() || appShellDark());
   document.documentElement.setAttribute("data-theme", t);
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLOR[t]);
 }

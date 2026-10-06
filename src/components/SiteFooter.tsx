@@ -37,7 +37,7 @@ import { SiteTotals } from "@/components/stats/SiteTotals";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-12 flex flex-col gap-2 border-t border-[var(--border-color)] pt-6">
+    <footer className="mt-12 flex flex-col gap-2 border-t border-[var(--border-color)] pt-6" data-web-only>
       {/*
         The Discord block, above the link row.
 

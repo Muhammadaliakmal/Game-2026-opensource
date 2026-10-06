@@ -44,8 +44,7 @@
 
 import { ANDROID_PACKAGE_ID } from "./android";
 import { ANDROID_APP_UA_TOKEN, APP_BUILD_UA_PREFIX } from "./capacitor-identity";
-
-const KEY = "sdg-android-app";
+import { APP_SESSION_KEY as KEY } from "./app-shell";
 const REFERRER = `android-app://${ANDROID_PACKAGE_ID}`;
 
 /**

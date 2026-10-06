@@ -26,7 +26,7 @@ export interface Crumb {
  */
 export function Breadcrumbs({ trail }: { trail: readonly Crumb[] }) {
   return (
-    <nav aria-label="Breadcrumb" className="mb-4">
+    <nav aria-label="Breadcrumb" className="mb-4" data-web-only>
       <ol className="text-dim flex flex-wrap items-center gap-1.5 text-xs">
         {trail.map((crumb, i) => {
           const last = i === trail.length - 1;

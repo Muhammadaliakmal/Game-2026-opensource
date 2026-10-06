@@ -18,7 +18,10 @@ import { SITE_URL } from "@/lib/site";
 // these numbers had gone stale. See `content/registry.ts`.
 import { COURSE_COUNT } from "@/content/registry";
 import "./globals.css";
-import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import { THEME_COLOR, THEME_INIT_SCRIPT, THEME_KEY } from "@/lib/theme";
+import { appShellInitScript } from "@/lib/app-shell";
+
+const APP_SHELL_INIT_SCRIPT = appShellInitScript(THEME_KEY, THEME_COLOR.dark);
 import { ClerkThemeSync } from "@/components/ClerkThemeSync";
 
 /**
@@ -144,6 +147,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             element with that one and reports the difference. This script has
             already run by then; nothing about it needs reconciling. */}
         <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* After the theme, which it may override: inside the Android app
+            (or an installed PWA) it sets <html data-app> and makes "Auto"
+            dark. Everything else the app shell changes is CSS. See
+            lib/app-shell.ts. */}
+        <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: APP_SHELL_INIT_SCRIPT }} />
         {/*
           AdSense — loaded by an inline script that first checks it is not
           inside one of the Android apps (lib/ad-loader.ts). Still in the
