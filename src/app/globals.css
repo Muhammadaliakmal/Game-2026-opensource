@@ -1116,6 +1116,39 @@ html[data-app] [data-web-only] {
   animation: arcadeHintOut 0.5s var(--ease-ui) 4s forwards;
 }
 
+/*
+  A cabinet on a phone held sideways. The header was a full row — title,
+  score, mute, Quit — and at ~360px of height it cost the board a fifth of
+  its size. Here it stops being a row: the title goes (the game draws its
+  own), and the score, mute and Quit stack in the top-right corner over the
+  game. On a 20:9 phone that corner is the pillarbox gutter beside the 16:9
+  board, so nothing in the game is covered; on 16:9 it overlaps the board's
+  corner, which every cabinet keeps clear for exactly this.
+
+  The header's own box passes touches through, so the empty space around
+  the buttons is still the game's. `!important` on the padding because the
+  safe-area padding is an inline style on the element.
+*/
+@media (orientation: landscape) and (max-height: 500px) {
+  .cabinet-chrome {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 10;
+    padding: max(6px, env(safe-area-inset-top, 0px)) max(6px, env(safe-area-inset-right, 0px)) 0 0 !important;
+    pointer-events: none;
+  }
+  .cabinet-chrome .cabinet-title {
+    display: none;
+  }
+  .cabinet-chrome .cabinet-actions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    pointer-events: auto;
+  }
+}
+
 @keyframes arcadeHintOut {
   to { opacity: 0; visibility: hidden; }
 }

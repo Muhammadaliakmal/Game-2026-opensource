@@ -175,14 +175,14 @@ export default function ArcadeOverlay() {
     >
       {/* ── Chrome ── */}
       <header
-        className="flex items-center justify-between gap-3 px-4 py-3"
+        className="cabinet-chrome flex items-center justify-between gap-3 px-4 py-3"
         style={{
           paddingTop: "max(12px, env(safe-area-inset-top, 0px))",
           paddingLeft: "max(16px, env(safe-area-inset-left, 0px))",
           paddingRight: "max(16px, env(safe-area-inset-right, 0px))",
         }}
       >
-        <div className="min-w-0">
+        <div className="cabinet-title min-w-0">
           {/* `text-ink` explicitly. It inherited, and what it inherited from
               was a translucent shell over the page — so the title was the
               lowest-contrast text in the arcade, on the element naming the
@@ -197,7 +197,7 @@ export default function ArcadeOverlay() {
             {entry.title}
           </h2>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="cabinet-actions flex shrink-0 items-center gap-2">
           {/* A board cabinet has no running total, and "0 · best 0" for four
               minutes is a readout that is wrong rather than merely useless.
               What is worth reading during a match — whose turn it is, what the
