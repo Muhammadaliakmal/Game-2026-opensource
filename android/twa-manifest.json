@@ -18,8 +18,8 @@
   "maskableIconUrl": "https://specdrivengames.com/icons/icon-maskable-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
-    "path": "./upload-2026.keystore",
-    "alias": "upload"
+    "path": "./app/release-key.jks",
+    "alias": "my-key-alias"
   },
   "appVersionName": "1.0.3",
   "appVersionCode": 4,
