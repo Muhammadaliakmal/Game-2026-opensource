@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Spec Driven Games</string>
     <string name="title_activity_main">Spec Driven Games</string>
-    <string name="package_name">com.specdrivengames.app</string>
-    <string name="custom_url_scheme">com.specdrivengames.app</string>
+    <string name="package_name">com.specdrivengames.webview</string>
+    <string name="custom_url_scheme">com.specdrivengames.webview</string>
 </resources>

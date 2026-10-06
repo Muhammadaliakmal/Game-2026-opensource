@@ -34,7 +34,7 @@ import { ANDROID_APP_UA_TOKEN } from "./src/lib/capacitor-identity";
  * of its own.
  */
 const config: CapacitorConfig = {
-  appId: "com.specdrivengames.app",
+  appId: "com.specdrivengames.webview",
   appName: "Spec Driven Games",
   webDir: "capacitor/www",
 

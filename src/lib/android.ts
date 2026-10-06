@@ -23,11 +23,17 @@
  * Changing this after anything has shipped installs a *second* app beside the
  * first rather than updating it, and on the Play Store the id cannot be
  * reused or renamed at all — a package id is spent the moment it is published.
- * `com.specdrivengames.twa` rather than `app.blockworld.twa`: the domain the
- * asset-link is verified against is specdrivengames.com, and a reviewer
- * comparing the two should not have to be told they are the same project.
+ *
+ * `com.specdrivengames.app`, because that is the id the TWA was actually
+ * published to Play under (`applicationId` in `android/app/build.gradle`).
+ * It was planned as `com.specdrivengames.twa`, and the site kept serving that
+ * after the build moved: the asset-link vouched for a package nobody had
+ * installed, so every Play install opened with an address bar, and the
+ * `android-app://` referrer check in `app-mode.ts` never matched, so the app
+ * showed web ads. The Java namespace is still `com.specdrivengames.twa`;
+ * only the application id matters to either check.
  */
-export const ANDROID_PACKAGE_ID = "com.specdrivengames.twa";
+export const ANDROID_PACKAGE_ID = "com.specdrivengames.app";
 
 /**
  * SHA-256 fingerprints of every certificate allowed to claim this domain.

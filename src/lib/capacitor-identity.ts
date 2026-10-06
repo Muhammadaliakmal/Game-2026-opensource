@@ -21,14 +21,16 @@
 /**
  * The Capacitor app's package id — deliberately NOT the TWA's.
  *
- * `com.specdrivengames.twa` is spent: it is the id in `twa-manifest.json` and
- * in the asset-link file, and a package id cannot be renamed or reused once
- * published. Giving the WebView build its own id means the two can be
+ * `com.specdrivengames.app` is spent: the TWA was published to Play under it
+ * (see `ANDROID_PACKAGE_ID`), and a package id cannot be renamed or reused once
+ * published. This used to be `.app` and the TWA `.twa`; the TWA's build moved
+ * onto `.app`, so this moved off it. Only the application id changed — the
+ * Java namespace is still `com.specdrivengames.app`. Giving the WebView build its own id means the two can be
  * installed side by side, compared on the same device, and listed separately
  * — and that an install of one can never be upgraded into the other by
  * accident, which would silently swap the renderer under a player.
  */
-export const CAPACITOR_PACKAGE_ID = "com.specdrivengames.app";
+export const CAPACITOR_PACKAGE_ID = "com.specdrivengames.webview";
 
 /**
  * Appended to the WebView's user agent, and the only way the site can tell it

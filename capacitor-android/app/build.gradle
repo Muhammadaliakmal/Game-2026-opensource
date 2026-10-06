@@ -23,7 +23,7 @@ android {
     namespace = "com.specdrivengames.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.specdrivengames.app"
+        applicationId "com.specdrivengames.webview"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 5
