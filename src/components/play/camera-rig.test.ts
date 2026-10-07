@@ -1,6 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BASE_SENSITIVITY, applyLook, approachYaw, look, yawTowards } from "./camera-rig";
+import {
+  BASE_SENSITIVITY,
+  DEFAULT_PITCH,
+  THIRD_PERSON_DISTANCE,
+  VERTICAL_RATIO,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  applyLook,
+  applyZoom,
+  approachYaw,
+  look,
+  recenterPitch,
+  yawTowards,
+} from "./camera-rig";
 import { usePlayerSettings } from "@/lib/player-settings";
 
 /**
@@ -98,4 +111,38 @@ test("applyLook turns further at a higher sensitivity, per source", () => {
 
   settings.setMouseLook(1);
   look.yaw = Math.PI / 4;
+});
+
+test("zoom is multiplicative, clamped, and recentre brings it home", () => {
+  look.zoom = THIRD_PERSON_DISTANCE;
+  applyZoom(0.5);
+  assert.equal(look.zoom, THIRD_PERSON_DISTANCE * 0.5);
+  applyZoom(0.01);
+  assert.equal(look.zoom, ZOOM_MIN, "zooming in past the floor clamps");
+  applyZoom(1000);
+  assert.equal(look.zoom, ZOOM_MAX, "zooming out past the ceiling clamps");
+  applyZoom(Number.NaN);
+  assert.equal(look.zoom, ZOOM_MAX, "a nonsense factor changes nothing");
+  look.pitch = 0.1;
+  recenterPitch();
+  assert.equal(look.zoom, THIRD_PERSON_DISTANCE);
+  assert.equal(look.pitch, DEFAULT_PITCH);
+});
+
+test("invert Y flips pitch and only pitch, at the vertical ratio", () => {
+  const before = usePlayerSettings.getState().invertY;
+  try {
+    for (const invert of [false, true]) {
+      usePlayerSettings.setState({ invertY: invert, touchLook: 1 });
+      look.yaw = 0;
+      look.pitch = 0;
+      applyLook(10, 10, "touch");
+      const k = BASE_SENSITIVITY;
+      assert.ok(Math.abs(look.yaw - -10 * k) < 1e-12, "yaw is never inverted");
+      const want = 10 * k * VERTICAL_RATIO * (invert ? -1 : 1);
+      assert.ok(Math.abs(look.pitch - want) < 1e-12, `pitch with invert=${invert}`);
+    }
+  } finally {
+    usePlayerSettings.setState({ invertY: before });
+  }
 });

@@ -54,6 +54,24 @@ export const RACE_SCHEMES: Record<
  * to. `1` is the rate the game shipped with, so nobody's camera changes
  * unless they change it.
  */
+/**
+ * Whether the phone camera steers itself toward where you are running.
+ *
+ * `free` is the default, and it used to be the other way round. The follow
+ * camera was built so a thumbstick with no second stick could still see
+ * ahead — and it does — but it also swings the view back the moment a thumb
+ * lifts, which to somebody who just dragged the camera where they wanted it
+ * reads as the game taking it away. Every big third-person game on a phone
+ * leaves the camera where the player put it unless asked otherwise; this
+ * now does the same, and the follow camera is one tap away in Settings.
+ */
+export type CameraFollow = "free" | "follow";
+
+export const CAMERA_FOLLOW: Record<CameraFollow, { name: string; blurb: string }> = {
+  free: { name: "Free", blurb: "The camera stays where you drag it." },
+  follow: { name: "Follow", blurb: "Swings behind you while you run." },
+};
+
 export const LOOK_MIN = 0.25;
 export const LOOK_MAX = 3;
 export const LOOK_STEP = 0.05;
@@ -72,6 +90,10 @@ interface PlayerSettings {
   mouseLook: number;
   /** Camera turn per pixel of finger drag, relative to the default. */
   touchLook: number;
+  /** Drag up to look down, flight-sim style. Both inputs. */
+  invertY: boolean;
+  /** Touch only — a mouse always owns its camera. */
+  cameraFollow: CameraFollow;
   hydrated: boolean;
 
   setHudInset(px: number): void;
@@ -79,6 +101,8 @@ interface PlayerSettings {
   setHaptics(on: boolean): void;
   setMouseLook(k: number): void;
   setTouchLook(k: number): void;
+  setInvertY(on: boolean): void;
+  setCameraFollow(f: CameraFollow): void;
 }
 
 const STORAGE_KEY = "blockworld:settings:v1";
@@ -101,6 +125,8 @@ interface Stored {
   haptics?: boolean;
   mouseLook?: number;
   touchLook?: number;
+  invertY?: boolean;
+  cameraFollow?: CameraFollow;
 }
 
 const DEFAULTS = {
@@ -109,6 +135,8 @@ const DEFAULTS = {
   haptics: true,
   mouseLook: 1,
   touchLook: 1,
+  invertY: false,
+  cameraFollow: "free" as CameraFollow,
 };
 
 /** A stored multiplier, or the default when it is missing or nonsense. */
@@ -144,6 +172,13 @@ function sanitise(raw: Stored | null) {
     haptics: typeof raw?.haptics === "boolean" ? raw.haptics : DEFAULTS.haptics,
     mouseLook: clampLook(raw?.mouseLook, DEFAULTS.mouseLook),
     touchLook: clampLook(raw?.touchLook, DEFAULTS.touchLook),
+    invertY: typeof raw?.invertY === "boolean" ? raw.invertY : DEFAULTS.invertY,
+    // Absent in every file written before the choice existed, which is
+    // everyone — so they all land on the new default, which is the point.
+    cameraFollow:
+      raw?.cameraFollow && raw.cameraFollow in CAMERA_FOLLOW
+        ? raw.cameraFollow
+        : DEFAULTS.cameraFollow,
   };
 }
 
@@ -166,8 +201,17 @@ function save(s: Stored) {
 
 export const usePlayerSettings = create<PlayerSettings>((set, get) => {
   const persist = () => {
-    const { hudInset, raceScheme, haptics, mouseLook, touchLook } = get();
-    save({ v: STORAGE_VERSION, hudInset, raceScheme, haptics, mouseLook, touchLook });
+    const { hudInset, raceScheme, haptics, mouseLook, touchLook, invertY, cameraFollow } = get();
+    save({
+      v: STORAGE_VERSION,
+      hudInset,
+      raceScheme,
+      haptics,
+      mouseLook,
+      touchLook,
+      invertY,
+      cameraFollow,
+    });
   };
 
   return {
@@ -196,6 +240,14 @@ export const usePlayerSettings = create<PlayerSettings>((set, get) => {
       set({ touchLook: clampLook(k, DEFAULTS.touchLook) });
       persist();
     },
+    setInvertY: (invertY) => {
+      set({ invertY });
+      persist();
+    },
+    setCameraFollow: (cameraFollow) => {
+      set({ cameraFollow });
+      persist();
+    },
   };
 });
 
@@ -210,6 +262,11 @@ export const usePlayerSettings = create<PlayerSettings>((set, get) => {
 export function lookSensitivity(source: "mouse" | "touch"): number {
   const s = usePlayerSettings.getState();
   return source === "mouse" ? s.mouseLook : s.touchLook;
+}
+
+/** Whether vertical look is flipped. A getter for the same reason as above. */
+export function lookInvertY(): boolean {
+  return usePlayerSettings.getState().invertY;
 }
 
 /**

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { create } from "zustand";
-import { lookSensitivity } from "@/lib/player-settings";
+import { lookInvertY, lookSensitivity } from "@/lib/player-settings";
 
 /**
  * Camera look state.
@@ -21,6 +21,14 @@ export const look = {
   pitch: 0.49,
   /** Written by the rig each frame; read by the avatar to hide itself up close. */
   distance: 9,
+  /**
+   * How far back the player WANTS the eye, before the world has its say.
+   *
+   * Scroll on a mouse, pinch on a phone. `distance` above is what the rig
+   * actually managed after pulling in for walls; this is the request, and it
+   * survives the pull-in so the camera glides back out to it afterwards.
+   */
+  zoom: 9,
   /**
    * `performance.now()` of the last deliberate look input.
    *
@@ -60,10 +68,26 @@ export const cameraHandoff = {
 export const DEFAULT_PITCH = 0.49;
 export const THIRD_PERSON_DISTANCE = 9;
 
+/**
+ * The zoom range. Close enough to read a ledge under your feet, far enough to
+ * see the next three jumps — the band every third-person platformer offers.
+ * The minimum stays well clear of `CAMERA_MIN_DISTANCE`, where the avatar
+ * starts hiding itself; zooming in further is what first person is for.
+ */
+export const ZOOM_MIN = 3.5;
+export const ZOOM_MAX = 16;
+
 const MIN_PITCH = -1.2; // ~-69°, looking up
 const MAX_PITCH = 1.35; // ~77°, looking down — short of straight down to avoid gimbal flip
 /** Radians per CSS pixel of drag, at a sensitivity of 1. */
 export const BASE_SENSITIVITY = 0.0032;
+/**
+ * Vertical look runs slower than horizontal. Roblox's camera module uses
+ * about three quarters for a mouse and two thirds for a thumb: a drag is
+ * rarely perfectly level, and at equal rates every sideways turn tilts the
+ * horizon too, which is most of what "the camera feels twitchy" means.
+ */
+export const VERTICAL_RATIO = 0.75;
 
 /**
  * Feed a drag delta in CSS pixels.
@@ -82,17 +106,35 @@ export const BASE_SENSITIVITY = 0.0032;
 export function applyLook(dx: number, dy: number, source: "mouse" | "touch") {
   if (dx !== 0 || dy !== 0) look.manualAt = performance.now();
   const k = BASE_SENSITIVITY * lookSensitivity(source);
+  const sy = lookInvertY() ? -1 : 1;
   look.yaw -= dx * k;
   look.pitch = THREE.MathUtils.clamp(
-    look.pitch + dy * k,
+    look.pitch + dy * k * sy * VERTICAL_RATIO,
     MIN_PITCH,
     MAX_PITCH
   );
 }
 
-/** Level the view out again without disturbing which way you're facing. */
+/**
+ * Zoom by a factor: below 1 moves the eye in, above 1 moves it out.
+ *
+ * Multiplicative rather than additive so one notch of the wheel, or one
+ * pinch of the same proportion, feels the same at 4 units as at 14 — an
+ * additive step is a lurch up close and a crawl far out.
+ */
+export function applyZoom(factor: number) {
+  if (!Number.isFinite(factor) || factor <= 0) return;
+  look.zoom = THREE.MathUtils.clamp(look.zoom * factor, ZOOM_MIN, ZOOM_MAX);
+}
+
+/**
+ * Level the view out and bring the zoom home, without disturbing which way
+ * you're facing. One button undoes everything a hand can do to the camera
+ * except turn it — and turning it is the one thing nobody wants undone.
+ */
 export function recenterPitch() {
   look.pitch = DEFAULT_PITCH;
+  look.zoom = THIRD_PERSON_DISTANCE;
 }
 
 /**
@@ -126,12 +168,22 @@ export function approachYaw(current: number, target: number, t: number): number 
  * steering itself, and how hard it pulls once it does.
  *
  * The delay is what stops it snatching the view back the instant a thumb
- * lifts. The rate is a per-second decay constant fed through
+ * lifts. It was 450 ms, and that was the snatch: a player who dragged the
+ * view to check a ledge had it swung away before they had read it. Roblox's
+ * follow mode waits two seconds; a second and a half keeps most of that
+ * patience without the camera feeling asleep. The rate is a per-second decay constant fed through
  * `1 - pow(rate, dt)`, so it is frame-rate independent; 0.08 is a time
  * constant of roughly four tenths of a second, slow enough to read as the
  * camera trailing the character rather than being bolted to it.
  */
-export const AUTO_FOLLOW_DELAY = 450;
+export const AUTO_FOLLOW_DELAY = 1500;
+/**
+ * How long a look counts as "the player is turning right now" for the
+ * thumbstick's frame hold (`stick.ts`). Deliberately its own number: it was
+ * the follow delay's until that grew, and the stick should keep the short
+ * window it was tuned against.
+ */
+export const MANUAL_LOOK_WINDOW = 450;
 export const AUTO_FOLLOW_RATE = 0.08;
 /** Below this ground speed there is no meaningful direction to follow. */
 export const AUTO_FOLLOW_MIN_SPEED = 0.8;

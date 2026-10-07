@@ -1017,6 +1017,42 @@ same tile in every screenshot. Three rules:
 Still no `shadowBlur`, still no gradient per row, still no allocation in
 `draw`: the one gradient a sky needs is made once per context in a WeakMap.
 
+## Untwine (the arrow cabinet) and the UI art
+
+`src/arcade/games/untwine/` — tap a bent line and it slides out the way its
+arrow points if the run from its head to the grid edge is empty; otherwise it
+bumps the blocker and costs a heart. Three things hold it together:
+
+- **Solvable by construction, proven by test.** `generate.ts` keeps an
+  explicit removal order and only places a line where it can slot in
+  (`lo < hi` — see the header). `solve` is an independent Kahn pass;
+  `generate.test.ts` runs it over hundreds of seeds. Removing a line only
+  frees cells, so any order of free pulls clears a board — there is no
+  runtime "stuck" check because there cannot be a stuck state.
+- **`step` clears the sim's events, so `index.ts` steps first and reads
+  input second.** Swap them and every tap's sound and particles vanish.
+- **The hint is the first present line in `board.order`** — always free,
+  because everything that could block it comes earlier in the order.
+
+`public/ui/*.webp` is cut from the generated icons in `assets/raw-ui/`
+(gitignored, 3-4 MB each on a chroma ground with a watermark) by
+`npm run ui:art`: chroma-dominance key, despill, watermark dropped by
+connected component, crop, resize. Only art something draws is exported —
+add a row to `EXPORTS` when a new page needs one. The service worker caches
+`/ui/`.
+
+## The parkour camera
+
+ecctrl v2 ships no follow camera; `camera-rig.ts` + `useCameraRig` in
+`Player.tsx` are ours. Look is drag (or pointer lock on a left click, or
+Roblox-style right-drag that keeps the cursor), zoom is wheel or a two-finger
+pinch into `look.zoom` (`ZOOM_MIN`..`ZOOM_MAX`), and C recentres pitch AND
+zoom. Vertical look runs at `VERTICAL_RATIO` of horizontal. The touch
+follow camera is a setting (`cameraFollow`), **Free by default** — it used
+to swing the view back 450 ms after a thumb lifted, which players read as
+the game taking the camera away. `MANUAL_LOOK_WINDOW` (stick frame hold) and
+`AUTO_FOLLOW_DELAY` (follow mode) are separate numbers on purpose.
+
 ## Ragdoll Rumble (the duel cabinet)
 
 `src/arcade/games/duel/`. The build plan and what it decided against the

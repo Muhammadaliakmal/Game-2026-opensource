@@ -65,13 +65,32 @@ export const FOOT_CONTROLS: readonly ControlRow[] = [
       "two should not be one finger apart on a key you press while falling.",
   },
   { action: "First person", keys: ["V"] },
-  { action: "Recentre camera", keys: ["C"] },
+  {
+    action: "Recentre camera",
+    keys: ["C"],
+    note: "Levels the view and puts the zoom back. Never turns you round.",
+  },
+  {
+    action: "Look",
+    keys: ["Mouse"],
+    note:
+      "Click once and the mouse aims the camera; Esc gives the cursor back. " +
+      "Or hold the right button and drag, and the cursor stays yours.",
+  },
+  { action: "Zoom", keys: ["Scroll wheel"] },
 ];
 
 /** The same, with a thumb. Not a translation of the list above — see the note. */
 export const TOUCH_CONTROLS: readonly ControlRow[] = [
   { action: "Move", keys: ["Left stick"] },
-  { action: "Look", keys: ["Drag anywhere"] },
+  {
+    action: "Look",
+    keys: ["Drag anywhere"],
+    note:
+      "The camera stays where you put it. Settings → Touch → Camera has a " +
+      "Follow mode that swings it behind you while you run.",
+  },
+  { action: "Zoom", keys: ["Pinch"] },
   { action: "Jump", keys: ["Jump button"] },
   {
     action: "Sprint",

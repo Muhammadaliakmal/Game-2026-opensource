@@ -32,13 +32,16 @@ import {
   type RespawnCause,
 } from "./play-actions";
 import { bound } from "@/lib/keybinds";
+import { usePlayerSettings } from "@/lib/player-settings";
 import { reducedMotion } from "@/lib/motion";
 import { requestHitStop } from "@/lib/hit-stop";
 import { sendMove } from "@/lib/net/presence";
 import {
   applyLook,
+  applyZoom,
   approachYaw,
   AUTO_FOLLOW_DELAY,
+  MANUAL_LOOK_WINDOW,
   AUTO_FOLLOW_MIN_SPEED,
   AUTO_FOLLOW_RATE,
   cameraHandoff,
@@ -71,9 +74,10 @@ import {
  * standard mobile layout for free: left thumb drives, right thumb looks,
  * anywhere that isn't a control is look area.
  *
- * Only the pointer that began the drag is tracked, so a second finger on the
- * stick can't yank the camera. Deltas come from clientX/Y rather than
- * movementX/Y because movement* is always 0 for touch pointers.
+ * One pointer on the canvas looks and two pinch to zoom; the wheel zooms
+ * too, and the right mouse button orbits without taking the cursor. Deltas
+ * come from clientX/Y rather than movementX/Y because movement* is always 0
+ * for touch pointers.
  *
  * `touch-action: none` on the canvas is set in globals.css — without it the
  * browser claims the gesture for scroll/zoom before we ever see a pointermove.
@@ -90,26 +94,39 @@ function useLookControls() {
   useEffect(() => {
     const el = gl.domElement;
 
-    let activeId: number | null = null;
-    let lastX = 0;
-    let lastY = 0;
+    /**
+     * Every pointer down on the canvas, by id, at its last position.
+     *
+     * One pointer looks. Two pointers pinch — the zoom every phone game has —
+     * and while two are down neither looks, because a pinch whose fingers
+     * also turned the camera is a pinch that spins the world. The thumb on
+     * the stick never lands here: the overlays win any pointer that starts
+     * on them, which is what keeps "stick + look finger" a one-pointer case.
+     */
+    const pointers = new Map<number, { x: number; y: number }>();
+    let pinchFrom = 0;
 
     const locked = () => document.pointerLockElement === el;
+    const spread = () => {
+      const [a, b] = [...pointers.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
 
     const onDown = (e: PointerEvent) => {
-      // Only a mouse gets captured. Requesting a lock for a finger would take
-      // the cursor away on a hybrid laptop the moment someone taps the screen.
-      if (e.pointerType === "mouse" && !overlaysMounted && !locked()) {
+      // Only a left click asks for the mouse. The right button is the
+      // Roblox-style orbit — hold and drag, let go and the cursor is still
+      // yours — and a finger never asks, or a hybrid laptop would lose its
+      // cursor the moment somebody tapped the screen.
+      if (e.pointerType === "mouse" && e.button === 0 && !overlaysMounted && !locked()) {
         // Returns a promise in current Chrome and undefined elsewhere; a
         // refused lock is expected, not exceptional, so it is swallowed and
         // the drag path below just keeps working.
         void Promise.resolve(el.requestPointerLock?.()).catch(() => {});
       }
 
-      if (activeId !== null) return;
-      activeId = e.pointerId;
-      lastX = e.clientX;
-      lastY = e.clientY;
+      if (pointers.size >= 2) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) pinchFrom = spread();
       // Capture throws if the pointer is already gone (or locked away).
       try {
         el.setPointerCapture(e.pointerId);
@@ -118,17 +135,30 @@ function useLookControls() {
       }
     };
     const onMove = (e: PointerEvent) => {
-      if (e.pointerId !== activeId) return;
+      const p = pointers.get(e.pointerId);
+      if (!p) return;
+      const dx = e.clientX - p.x;
+      const dy = e.clientY - p.y;
+      p.x = e.clientX;
+      p.y = e.clientY;
+
+      if (pointers.size === 2) {
+        const now = spread();
+        // Fingers apart = closer, the way a photo zooms.
+        if (pinchFrom > 8 && now > 8) applyZoom(pinchFrom / now);
+        pinchFrom = now;
+        return;
+      }
       // A mouse dragging without the lock is still a mouse and gets the mouse
       // sensitivity; a finger or a pen gets the touch one.
-      applyLook(e.clientX - lastX, e.clientY - lastY, e.pointerType === "mouse" ? "mouse" : "touch");
-      lastX = e.clientX;
-      lastY = e.clientY;
+      applyLook(dx, dy, e.pointerType === "mouse" ? "mouse" : "touch");
     };
     const onUp = (e: PointerEvent) => {
-      if (e.pointerId !== activeId) return;
-      activeId = null;
+      if (!pointers.delete(e.pointerId)) return;
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+      // The finger left behind after a pinch carries on looking from where
+      // it is, not from where it was when the pinch began.
+      pinchFrom = 0;
     };
 
     // Free look. `mousemove` rather than `pointermove`: movementX/Y is the
@@ -138,17 +168,30 @@ function useLookControls() {
       applyLook(e.movementX, e.movementY, "mouse");
     };
 
+    // The wheel zooms. Lines and pages are turned into pixels first — Firefox
+    // reports lines — so a notch is a notch on every browser.
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+      applyZoom(Math.exp(THREE.MathUtils.clamp(px, -200, 200) * 0.0012));
+    };
+
+    // Right-drag is a camera control here, so the menu it would open is not.
+    const onContext = (e: Event) => e.preventDefault();
+
     const onLockChange = () => {
       setPointerLocked(locked());
       // A drag that was in flight when the lock engaged would otherwise sit
       // there holding a stale pointer id.
-      if (locked()) activeId = null;
+      if (locked()) pointers.clear();
     };
 
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerup", onUp);
     el.addEventListener("pointercancel", onUp);
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("contextmenu", onContext);
     document.addEventListener("mousemove", onRawMove);
     document.addEventListener("pointerlockchange", onLockChange);
     return () => {
@@ -156,6 +199,8 @@ function useLookControls() {
       el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("pointercancel", onUp);
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("contextmenu", onContext);
       document.removeEventListener("mousemove", onRawMove);
       document.removeEventListener("pointerlockchange", onLockChange);
       // Leaving Play with the cursor still captured strands the player in a
@@ -364,7 +409,7 @@ function useCameraRig(
     // Ease the radius so toggling views glides instead of cutting.
     dist.current = THREE.MathUtils.lerp(
       dist.current,
-      firstPerson ? 0 : THIRD_PERSON_DISTANCE,
+      firstPerson ? 0 : look.zoom,
       1 - Math.pow(0.0001, dt)
     );
 
@@ -627,7 +672,7 @@ export function Player({
     const stick = shapeStick(
       { x: raw?.x ?? 0, y: raw?.y ?? 0 },
       look.yaw,
-      performance.now() - look.manualAt < AUTO_FOLLOW_DELAY,
+      performance.now() - look.manualAt < MANUAL_LOOK_WINDOW,
       dt,
       stickState.current
     );
@@ -645,7 +690,10 @@ export function Player({
   });
 
   useJumpFeel(ref, jumpHeld, jumpPressedEdge);
-  useCameraRig(ref, coarsePointer);
+  // The follow camera is a choice now, and only ever a touch one — see
+  // `CameraFollow` in lib/player-settings.ts for why Free is the default.
+  const cameraFollow = usePlayerSettings((s) => s.cameraFollow);
+  useCameraRig(ref, coarsePointer && cameraFollow === "follow");
   useLookControls();
   usePlayHotkeys();
   useFootstepAudio(ref);

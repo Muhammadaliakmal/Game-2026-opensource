@@ -22,6 +22,8 @@ import {
   LOOK_MIN,
   LOOK_STEP,
   RACE_SCHEMES,
+  CAMERA_FOLLOW,
+  type CameraFollow,
   haptic,
   usePlayerSettings,
   type RaceScheme,
@@ -208,6 +210,7 @@ export function SettingsDialog({
           {tab === "keyboard" && (
             <div className="flex flex-col gap-4">
               <LookSensitivity source="mouse" />
+              <CameraSettings source="mouse" />
               <div className="flex flex-wrap items-center gap-2">
                 <span className="hud-label">Layout</span>
                 {(Object.keys(PRESETS) as PresetId[]).map((id) => (
@@ -506,6 +509,63 @@ function LookSensitivity({ source }: { source: "mouse" | "touch" }) {
   );
 }
 
+/**
+ * The camera, beyond how fast it turns: which way up is, and — on a phone —
+ * whether it is allowed to steer itself.
+ *
+ * Invert Y is on both tabs because it is one setting for both inputs; a
+ * player who flies with a mouse flies with a thumb too. The follow choice is
+ * on the touch tab only, because a mouse always owns its camera.
+ */
+function CameraSettings({ source }: { source: "mouse" | "touch" }) {
+  const invertY = usePlayerSettings((s) => s.invertY);
+  const setInvertY = usePlayerSettings((s) => s.setInvertY);
+  const follow = usePlayerSettings((s) => s.cameraFollow);
+  const setFollow = usePlayerSettings((s) => s.setCameraFollow);
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="hud-label">Camera</h3>
+      <p className="text-dim text-2xs">
+        {source === "mouse"
+          ? "Click to aim with the mouse, or hold the right button and drag. Scroll to zoom. C puts the view back."
+          : "Drag anywhere that isn't a button to look. Pinch with two fingers to zoom."}
+      </p>
+      {source === "touch" && (
+        <div className="flex flex-col gap-1.5">
+          {(Object.keys(CAMERA_FOLLOW) as CameraFollow[]).map((id) => (
+            <button
+              key={id}
+              onClick={() => {
+                setFollow(id);
+                haptic();
+              }}
+              aria-pressed={follow === id}
+              className={`hud-menu-item ${follow === id ? "is-active" : ""}`}
+            >
+              <span className="flex flex-col items-start">
+                <span>{CAMERA_FOLLOW[id].name}</span>
+                <span className="text-dim text-2xs opacity-70">
+                  {CAMERA_FOLLOW[id].blurb}
+                </span>
+              </span>
+              {follow === id && <span className="hud-menu-state">On</span>}
+            </button>
+          ))}
+        </div>
+      )}
+      <button
+        onClick={() => setInvertY(!invertY)}
+        aria-pressed={invertY}
+        className={`hud-menu-item ${invertY ? "is-active" : ""}`}
+      >
+        Invert look up / down
+        <span className="hud-menu-state">{invertY ? "On" : "Off"}</span>
+      </button>
+    </section>
+  );
+}
+
 function TouchSettings({ onArrange }: { onArrange: () => void }) {
   const scheme = usePlayerSettings((s) => s.raceScheme);
   const setScheme = usePlayerSettings((s) => s.setRaceScheme);
@@ -516,6 +576,7 @@ function TouchSettings({ onArrange }: { onArrange: () => void }) {
     <div className="flex flex-col gap-4">
       <ControlLayoutSettings onArrange={onArrange} />
       <LookSensitivity source="touch" />
+      <CameraSettings source="touch" />
       <section className="flex flex-col gap-2">
         <h3 className="hud-label">Steering</h3>
         <div className="flex flex-col gap-1.5">
