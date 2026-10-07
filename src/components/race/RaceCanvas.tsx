@@ -38,6 +38,7 @@ import { MAP_V2 } from "@/lib/map-v2";
 import { useCoarsePointer } from "@/lib/use-media-query";
 import { Bike } from "./Bike";
 import { RaceSounds } from "./RaceSounds";
+import { ModeMusic } from "@/components/play/ModeMusic";
 import { Ambient } from "@/components/play/Ambient";
 import { RaceRiders } from "./RaceRiders";
 import { RaceHud } from "./RaceHud";
@@ -284,6 +285,8 @@ export default function RaceCanvas({
       <PerfPanel />
       {/* Every track is neon. Intensity follows the lights: up when racing. */}
       <Ambient mood="neon" intensity={phase === "racing" ? 1 : 0} />
+      {/* Synthwave: four on the floor under a neon sky. */}
+      <ModeMusic owner="race" style="synthwave" />
       {snapshot && painted && touch && <RaceTouchControls />}
 
       {(!painted || !snapshot) && (

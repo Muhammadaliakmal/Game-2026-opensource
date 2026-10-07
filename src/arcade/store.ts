@@ -90,6 +90,17 @@ interface ArcadeState {
   creditBonus(coins: number): void;
   /** True once today's arcade ceiling has been reached. */
   capped: boolean;
+  /**
+   * Whether the run on the death screen can be continued — the cabinet has
+   * `revive` and this run has not used its one continue. Set by the host.
+   */
+  canRevive: boolean;
+  setCanRevive(can: boolean): void;
+  /** Bumped to ask the host to revive the current run (`RewardedContinue`). */
+  reviveTick: number;
+  /** Coins already paid to this run before its continue, so the panel counts both. */
+  paidBefore: number;
+  revive(): void;
   fail(message: string): void;
 }
 
@@ -128,6 +139,8 @@ export const useArcade = create<ArcadeState>((set, get) => ({
       error: null,
       seed: seed ?? (Math.random() * 0xffffffff) >>> 0,
       runId: get().runId + 1,
+      canRevive: false,
+      paidBefore: 0,
       best: s.best,
       // Carried in from the save so the first run of a session already knows
       // whether the day is spent, rather than learning it on the death screen.
@@ -161,6 +174,8 @@ export const useArcade = create<ArcadeState>((set, get) => ({
       error: null,
       seed: (Math.random() * 0xffffffff) >>> 0,
       runId: s.runId + 1,
+      canRevive: false,
+      paidBefore: 0,
     })),
 
   pause: () => set((s) => (s.status === "playing" ? { status: "paused" } : {})),
@@ -185,8 +200,25 @@ export const useArcade = create<ArcadeState>((set, get) => ({
       saved = next;
       save(next);
     }
-    set({ earned: coins });
+    set((s) => ({ earned: coins + s.paidBefore }));
   },
+
+  canRevive: false,
+  setCanRevive: (canRevive) => set({ canRevive }),
+  reviveTick: 0,
+  paidBefore: 0,
+  revive: () =>
+    set((s) =>
+      s.status === "gameover" && s.canRevive
+        ? {
+            status: "playing",
+            canRevive: false,
+            reviveTick: s.reviveTick + 1,
+            paidBefore: s.earned ?? 0,
+            earned: null,
+          }
+        : {}
+    ),
 
   creditBonus: (coins) => {
     if (coins <= 0) return;

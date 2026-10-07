@@ -31,6 +31,7 @@ import {
   requestRestart,
   type RespawnCause,
 } from "./play-actions";
+import { consumeTeleport, SafeTrail, useReviveOffer, type Spot } from "./revive";
 import { bound } from "@/lib/keybinds";
 import { usePlayerSettings } from "@/lib/player-settings";
 import { reducedMotion } from "@/lib/motion";
@@ -703,9 +704,30 @@ export function Player({
   // trying instead of quitting. `cause` is what the timer was started for.
   const respawnTimer = useRef(0);
   const cause = useRef<RespawnCause>("manual");
+  // Safe footing for the "back to where you fell" offer (see revive.ts), and
+  // the spot chosen at the moment of the death that the offer would restore.
+  const trail = useRef(new SafeTrail());
+  const deathSpot = useRef<Spot | null>(null);
   useFrame((_, dt) => {
     const h = ref.current;
     if (!h) return;
+
+    // A watched ad's continue: back onto the ground stood on before the fall.
+    const tp = consumeTeleport();
+    if (tp) {
+      h.body.setTranslation({ x: tp.pos[0], y: tp.pos[1], z: tp.pos[2] }, true);
+      h.body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      look.yaw = tp.yaw;
+      trail.current.clear();
+      return;
+    }
+
+    if (respawnTimer.current <= 0 && h.isOnGround && !useMoveMode.getState().flying) {
+      const parts = useEditorStore.getState().parts;
+      if (!touchingHazard(parts, h.currPos.x, h.currPos.y, h.currPos.z)) {
+        trail.current.record(dt, h.currPos.x, h.currPos.y, h.currPos.z, look.yaw);
+      }
+    }
 
     // Presence. Throttled inside sendMove to ~12 Hz, and a no-op entirely when
     // no room is connected — which is every session until someone sets
@@ -747,6 +769,20 @@ export function Player({
         look.yaw = yaw;
         if (cause.current !== "manual") useCourse.getState().died();
         notifyRespawned(cause.current);
+
+        // Offer the way back only when it is worth something: a death during
+        // a run, from somewhere well clear of where the checkpoint put them.
+        const spot = deathSpot.current;
+        deathSpot.current = null;
+        trail.current.clear();
+        if (
+          spot &&
+          cause.current !== "manual" &&
+          useCourse.getState().finishedMs === null &&
+          Math.hypot(spot.pos[0] - pos[0], spot.pos[1] - pos[1], spot.pos[2] - pos[2]) > 4
+        ) {
+          useReviveOffer.getState().offer(spot);
+        }
       }
       return;
     }
@@ -778,6 +814,7 @@ export function Player({
       // the spawn point and no way to explain it.
       useMoveMode.getState().setFlying(false);
       cause.current = "fall";
+      deathSpot.current = trail.current.pick();
       respawnTimer.current = FEEL.respawnDelay;
       return;
     }
@@ -791,6 +828,7 @@ export function Player({
       touchingHazard(useEditorStore.getState().parts, h.currPos.x, h.currPos.y, h.currPos.z)
     ) {
       cause.current = "hazard";
+      deathSpot.current = trail.current.pick();
       respawnTimer.current = FEEL.respawnDelay;
       sfxHazard();
     }

@@ -1053,6 +1053,48 @@ to swing the view back 450 ms after a thumb lifted, which players read as
 the game taking the camera away. `MANUAL_LOOK_WINDOW` (stick frame hold) and
 `AUTO_FOLLOW_DELAY` (follow mode) are separate numbers on purpose.
 
+## Music: one band, a style per mode
+
+`lib/music/engine.ts` is the only sequencer; `lib/music/styles.ts` is every
+track as data (phonk, lo-fi, tabletop, synthwave, night run, inferno,
+ambient). A cabinet names its style in `registry.ts` (`music`, absent =
+phonk at its `bpm`); the 3D modes mount `<ModeMusic>` — `styleForWorld` for
+Play, `ambient` in the builder, `synthwave` in the race.
+
+- **Requests are a stack keyed by owner.** The top plays; a cabinet opened
+  over a world pushes over it and closing pops back. Never stop "the music"
+  — withdraw your own owner's request (`stopMusicFor`).
+- `styles.test.ts` holds every pattern to sixteen steps and every degree to
+  a finite pitch, for the reason `music.test.ts` gives: a NaN frequency
+  kills the scheduler, it does not sound wrong.
+
+## Rewarded continues and ad coins
+
+Three rewarded placements beside the double: `RewardedContinue` (arcade
+death screen, once per run, only for a cabinet with `ArcadeGame.revive`),
+`ReviveOffer` (parkour, "back to where you fell", from `SafeTrail` in
+`play/revive.ts`) and `ShopAdReward` (+`SHOP_AD_COINS` through the arcade
+bonus route and its daily pool). Same rule as the double: no ad, no button.
+
+- **A continued run is paid only what it adds.** `GameHost` keeps `settled`
+  and posts `final - settled`; paying the whole score again would pay twice.
+- A run that can continue is offered the continue *instead of* the double —
+  two rewarded asks at once is one Google declines.
+
+## The cabinet chrome column
+
+Sideways on a phone (`orientation: landscape and max-height: 500px`) the
+overlay's score, mute and Quit stand as a column down the right edge, and the
+host fits the view clear of it (`setSideReserve` in `arcade/host/view.ts`).
+`CHROME_COLUMN_PX` in GameHost and `.cabinet-chrome`'s width in globals.css
+must match, and GameHost's media query must match the CSS one. The letterbox
+smear samples below the top 14% of the board, so a cabinet's HUD is never
+blurred into the bands.
+
+`.hud-panel` / `.hud-chip` / `.hud-readout` get a game material on game
+screens only (`:where(body:has([data-immersive]), .cabinet-enter)` at the end
+of globals.css). Read pages keep the calm chrome; change the game look there.
+
 ## Ragdoll Rumble (the duel cabinet)
 
 `src/arcade/games/duel/`. The build plan and what it decided against the

@@ -100,6 +100,15 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
       }
     },
 
+    revive() {
+      if (!ended) return false;
+      sim.revive();
+      ended = false;
+      deathFreeze = 0;
+      shake = 0;
+      return true;
+    },
+
     render(alpha) {
       // Frozen on the death frame: interpolating past the moment of impact
       // would slide the runner into the thing that killed it while the screen

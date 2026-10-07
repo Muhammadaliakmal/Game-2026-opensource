@@ -11,6 +11,7 @@ import { usePlayCount } from "@/lib/use-play-count";
 import { isKnownSlug } from "@/content/registry";
 import { GameHost } from "./GameHost";
 import { RewardedDouble } from "./RewardedDouble";
+import { RewardedContinue } from "./RewardedContinue";
 import { breakBeforeRun } from "@/lib/game-ads";
 import { lockZoom } from "./zoom-lock";
 import { useArcade } from "../store";
@@ -50,8 +51,10 @@ export default function ArcadeOverlay() {
   const earned = useArcade((s) => s.earned);
   const placement = useArcade((s) => s.placement);
   const capped = useArcade((s) => s.capped);
-  const error = useArcade((s) => s.error);
+  const canRevive = useArcade((s) => s.canRevive);
   const runId = useArcade((s) => s.runId);
+  const reviveTick = useArcade((s) => s.reviveTick);
+  const error = useArcade((s) => s.error);
   /* The wallet after the payout. `GameHost.settle` writes the server's own
      number into this store, so the balance shown next to "+22" is the one the
      header is showing rather than a second guess at it. */
@@ -316,8 +319,18 @@ export default function ArcadeOverlay() {
                 offer is made: a day already at its ceiling gets no offer (an
                 ad watched for nothing), and a bonus that fills the day does
                 not take its own receipt off the screen. */}
-            {!error && !placement && earned !== null && earned > 0 && (
-              <RewardedDouble earned={earned} capped={capped} />
+            {/* A run that can still continue is offered that, and nothing
+                else: two rewarded placements at once is one Google declines,
+                and a second chance beats a few coins. Its own death screen
+                after the continue offers the double. Keyed on the run so a
+                fresh death asks Google afresh. */}
+            {!error && !placement && canRevive ? (
+              <RewardedContinue key={`${runId}-${reviveTick}`} />
+            ) : (
+              !error &&
+              !placement &&
+              earned !== null &&
+              earned > 0 && <RewardedDouble earned={earned} capped={capped} />
             )}
             <div className="flex gap-2">
               <button
@@ -354,7 +367,7 @@ function ordinal(n: number): string {
 /** The one panel shape every non-playing state uses. */
 function Panel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-center backdrop-blur-[2px]">
+    <div className="cabinet-results absolute inset-0 flex flex-col items-center justify-center gap-3 text-center">
       {children}
     </div>
   );

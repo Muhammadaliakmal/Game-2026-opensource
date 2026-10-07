@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useShop } from "@/lib/shop";
+import { CoinIcon } from "@/components/hud/CoinIcon";
 
 /**
  * Who you are and what you have, on every screen that is not a world.
@@ -64,17 +65,7 @@ export function CurrencyRail() {
       className="hud-chip hud-chip--touch chamfer-sm hidden items-center gap-2 sm:inline-flex"
       aria-label={`${coins.toLocaleString()} coins. Open characters.`}
     >
-      {/* The coin, from the UI art set (`npm run ui:art`), and the only
-          icon here. There used to be a rotated square in the equipped
-          character's accent beside it; next to the coin and the cyan logo
-          diamond it read as a second currency, so it went. A background
-          rather than an <img>: it is decoration, the number beside it is the
-          content, and the label above already says coins. */}
-      <span
-        aria-hidden
-        className="block h-[18px] w-[18px] shrink-0 bg-contain bg-center bg-no-repeat"
-        style={{ backgroundImage: "url(/ui/coin.webp)" }}
-      />
+      <CoinIcon />
       <span className="num text-ink font-semibold">
         {coins.toLocaleString()}
       </span>

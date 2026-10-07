@@ -7,6 +7,8 @@ import dynamic from "next/dynamic";
 import { CHARACTERS, characterFor } from "@/lib/characters";
 import { isUnlocked, useShop } from "@/lib/shop";
 import { MAX_PER_COURSE } from "@/lib/coins";
+import { CoinIcon } from "@/components/hud/CoinIcon";
+import { ShopAdReward } from "./ShopAdReward";
 
 /**
  * The shop.
@@ -76,11 +78,13 @@ export function Shop() {
           </p>
         </div>
         <div className="hud-panel hud-panel--readout flex items-center gap-2 px-4 py-2">
-          <span className="text-accent text-lg leading-none">⬤</span>
-          <span className="num text-lg font-semibold">{loaded ? coins : "—"}</span>
+          <CoinIcon size={22} />
+          <span className="num text-lg font-semibold">{loaded ? coins.toLocaleString() : "—"}</span>
           <span className="hud-label">coins</span>
         </div>
       </header>
+
+      {signedIn && loaded && <ShopAdReward />}
 
       {!signedIn && loaded && (
         <p className="hud-panel text-dim px-4 py-3 text-sm">
@@ -94,7 +98,10 @@ export function Shop() {
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         {/* ── The one canvas ── */}
-        <div className="hud-panel relative aspect-square w-full overflow-hidden">
+        {/* Capped by the screen's height as well as its width: on a phone held
+            sideways a full-width square is taller than the screen, and its
+            top — the character's head — slid under the sticky header. */}
+        <div className="hud-panel relative mx-auto aspect-square w-full max-w-[calc(100svh-7rem)] overflow-hidden">
           <CharacterPreview characterId={selected.id} />
           {worn && (
             <span className="hud-label bg-base/80 absolute top-3 left-3 rounded px-2 py-1">
@@ -131,7 +138,13 @@ export function Shop() {
                 disabled={busy !== null || !affordable || !signedIn}
                 onClick={() => void buy(selected.id)}
               >
-                {busy === selected.id ? "Buying…" : `Buy · ⬤ ${selected.price}`}
+                {busy === selected.id ? (
+                  "Buying…"
+                ) : (
+                  <span className="inline-flex items-center gap-1.5">
+                    Buy · <CoinIcon size={20} /> {selected.price.toLocaleString()}
+                  </span>
+                )}
               </button>
             )}
 
@@ -175,7 +188,11 @@ export function Shop() {
                   ? "Equipped"
                   : have
                     ? "Owned"
-                    : `⬤ ${c.price}`}
+                    : (
+                      <span className="inline-flex items-center gap-1">
+                        <CoinIcon size={14} /> {c.price.toLocaleString()}
+                      </span>
+                    )}
               </span>
             </button>
           );

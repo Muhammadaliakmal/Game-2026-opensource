@@ -1,4 +1,5 @@
 import type { GameModule } from "./host/types";
+import type { StyleId } from "@/lib/music/styles";
 
 /**
  * Payout rates are NOT here. They live in `lib/arcade-payout.ts` so a server
@@ -42,6 +43,13 @@ export interface ArcadeEntry {
    * across the registry.
    */
   bpm?: number;
+  /**
+   * Which of the game's tracks this cabinet plays (`lib/music/styles.ts`).
+   * Absent is phonk, the action cabinets' track, at `bpm`. The puzzle
+   * cabinets play the lo-fi and the board games the tabletop, each at its
+   * style's own tempo — `bpm` was written for the phonk and applies only to it.
+   */
+  music?: StyleId;
   /** Hidden from the cabinet list. For the host's own test game. */
   dev?: boolean;
   /**
@@ -82,6 +90,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "tower-stack",
+    music: "lofi",
     hue: "#a654f4",
     title: "Tower Stack",
     tagline: "Perfect or nothing.",
@@ -93,6 +102,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "ludo",
+    music: "tabletop",
     hue: "#e8484e",
     title: "Ludo",
     tagline: "Four seats. One of them is yours.",
@@ -109,6 +119,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "snakes",
+    music: "tabletop",
     hue: "#3fbf7f",
     title: "Snakes & Ladders",
     tagline: "The board decides. The cards are yours.",
@@ -125,6 +136,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "echo",
+    music: "lofi",
     hue: "#8fb8ff",
     title: "ECHO",
     tagline: "Your last run is still in the room.",
@@ -139,6 +151,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "gravity",
+    music: "lofi",
     hue: "#ffd166",
     title: "Gravity Shift",
     tagline: "Down is whichever way you say.",
@@ -195,6 +208,7 @@ export const ARCADE: ArcadeEntry[] = [
   },
   {
     id: "untwine",
+    music: "lofi",
     hue: "#ff8a3d",
     title: "Untwine",
     tagline: "Pull every line free. Read before you tap.",

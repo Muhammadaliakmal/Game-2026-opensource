@@ -88,6 +88,12 @@ export interface Sim {
   camX: number;
 
   step(dt: number, input: SimInput): void;
+  /**
+   * A watched ad's second chance: the runner is set down on the nearest
+   * platform at or ahead of where it died, with the spikes there cleared, and
+   * the run carries on at the same distance, score and speed.
+   */
+  revive(): void;
 }
 
 /** Canvas y of a platform surface `h` above the baseline. */
@@ -137,6 +143,7 @@ export function createSim(rng: () => number, width: number, height: number): Sim
     landed: false,
     camX: 0,
     step,
+    revive,
   };
 
   function decorate(c: Chunk) {
@@ -214,6 +221,37 @@ export function createSim(rng: () => number, width: number, height: number): Sim
   let coyote = T.COYOTE;
   let buffered = 0;
   let jumping = false;
+
+  function revive() {
+    if (!s.dead) return;
+    // The nearest platform still under or ahead of the runner with a real
+    // runway left on it — about half a second of running at the current speed —
+    // so the continue does not set them down on the lip of the gap that
+    // killed them. Behind is no good: the camera has already left it.
+    const runway = Math.max(160, s.speed * 0.45);
+    let best: Chunk | null = null;
+    for (const c of chunks) {
+      if (c.w <= 0 || c.x + c.w < s.px + T.PLAYER_W + runway) continue;
+      if (!best || c.x < best.x) best = c;
+    }
+    if (best) {
+      if (best.x > s.px) s.px = best.x + 12;
+      s.py = surfaceY(height, best.h) - T.PLAYER_H - 40;
+    }
+    for (const sp of spikePool) {
+      if (sp.live && sp.x > s.px - 60 && sp.x < s.px + 420) sp.live = false;
+    }
+    s.vy = 0;
+    s.onGround = false;
+    s.dead = null;
+    s.streak = 0;
+    s.prevX = s.px;
+    s.prevY = s.py;
+    s.camX = s.px - width * T.PLAYER_ANCHOR;
+    coyote = 0;
+    buffered = 0;
+    jumping = false;
+  }
 
   function step(dt: number, input: SimInput) {
     if (s.dead) return;

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { createLoop } from "./loop";
 import { resizeCanvas } from "./canvas";
-import { fillLetterbox } from "./view";
+import { fillLetterbox, setSideReserve } from "./view";
 import { attachInput, type InputHost } from "./input";
 import { mulberry32 } from "./rng";
 import { sfx } from "./audio";
@@ -91,6 +91,10 @@ async function settle(gameId: string, score: number) {
 /** How often the score reaches React, in milliseconds. */
 const SCORE_PUSH_MS = 100;
 
+/** Width of the sideways chrome column, CSS px. `.cabinet-chrome` in
+ *  globals.css is sized to fit inside it. */
+const CHROME_COLUMN_PX = 60;
+
 export function GameHost({ className }: { className?: string }) {
   const gameId = useArcade((s) => s.activeGame);
   const runId = useArcade((s) => s.runId);
@@ -115,6 +119,10 @@ export function GameHost({ className }: { className?: string }) {
     let score = 0;
     let pushedAt = 0;
     let pushed = -1;
+    // What this run has already been paid for, so a continued run is paid
+    // only for the points it adds — not for its whole score a second time.
+    let settled = 0;
+    let revived = false;
 
     resizeCanvas(canvas, ctx);
 
@@ -139,8 +147,12 @@ export function GameHost({ className }: { className?: string }) {
         // a request, and a death screen that waited for the network to draw
         // would make every death feel like a stutter.
         useArcade.getState().finish(entry.id, final);
+        // One continue per run, and only for a cabinet that can resume.
+        useArcade.getState().setCanRevive(!revived && typeof game?.revive === "function");
         noteRunFinished();
-        void settle(entry.id, final);
+        const owed = final - settled;
+        settled = final;
+        if (owed > 0) void settle(entry.id, owed);
       },
       onPlaced: (place, of) => {
         if (over) return;
@@ -190,7 +202,7 @@ export function GameHost({ className }: { className?: string }) {
      */
     const startRun = () => {
       loop.start();
-      startMusic(seed, entry.bpm);
+      startMusic(seed, entry.music ? undefined : entry.bpm, entry.music ?? "phonk");
     };
     const stopRun = () => {
       loop.stop();
@@ -207,6 +219,18 @@ export function GameHost({ className }: { className?: string }) {
       game?.resize?.(services.width, services.height);
     });
     observer.observe(canvas);
+
+    // ── The chrome column ─────────────────────────────────────────────────
+    // Sideways on a phone the overlay's controls stand down the right edge
+    // (`.cabinet-chrome` in globals.css — this query is its twin, keep them
+    // identical), and the view is fitted clear of them. See `setSideReserve`.
+    const chromeColumn = window.matchMedia("(orientation: landscape) and (max-height: 500px)");
+    const applyReserve = () => {
+      setSideReserve(chromeColumn.matches ? CHROME_COLUMN_PX : 0);
+      game?.resize?.(services.width, services.height);
+    };
+    applyReserve();
+    chromeColumn.addEventListener("change", applyReserve);
 
     // ── Tab visibility ────────────────────────────────────────────────────
     // A hidden tab throttles rAF to about once a second, so the accumulator
@@ -227,6 +251,12 @@ export function GameHost({ className }: { className?: string }) {
     // down and rebuild it, which is what putting `status` in the effect's deps
     // would do.
     const unsubscribe = useArcade.subscribe((s, prev) => {
+      // A watched ad's continue: wake the run before the status change below
+      // sees `over` and refuses to start it.
+      if (s.reviveTick !== prev.reviveTick && over && game?.revive?.()) {
+        over = false;
+        revived = true;
+      }
       if (s.status === prev.status) return;
       if (s.status === "playing" && !over && !document.hidden) startRun();
       else stopRun();
@@ -273,6 +303,8 @@ export function GameHost({ className }: { className?: string }) {
       unsubscribe();
       document.removeEventListener("visibilitychange", onVisibility);
       observer.disconnect();
+      chromeColumn.removeEventListener("change", applyReserve);
+      setSideReserve(0);
       stopRun();
       input?.detach();
       game?.destroy();

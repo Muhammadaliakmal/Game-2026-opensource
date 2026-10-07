@@ -9,6 +9,7 @@ import { current, doneToday, onStreakChange, readStreak } from "@/lib/streak";
 import { medalTimes, MEDAL_LABELS } from "@/lib/medals";
 import { formatTime } from "@/components/play/course";
 import covers from "@/lib/world-covers.json";
+import { CoinIcon } from "@/components/hud/CoinIcon";
 
 const COVERS: Record<string, { key: string; blur: string }> = covers;
 
@@ -113,7 +114,14 @@ export function DailyChallenge() {
         <p className="hud-label num text-dim mt-1">
           {course.tier}
           {gold && ` · ${MEDAL_LABELS.gold} ${formatTime(gold.ms)}`}
-          {done ? " · bonus collected" : ` · finish for + ⬤ ${DAILY_BONUS}`}
+          {done ? (
+            " · bonus collected"
+          ) : (
+            <>
+              {" · finish for + "}
+              <CoinIcon size={14} /> {DAILY_BONUS}
+            </>
+          )}
         </p>
       </div>
     </Link>

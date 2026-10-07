@@ -1119,10 +1119,15 @@ html[data-app] [data-web-only] {
 /*
   A cabinet on a phone held sideways. The header was a full row — title,
   score, mute, Quit — and at ~360px of height it cost the board a fifth of
-  its size. Here it stops being a row across the screen: the title goes (the
-  game draws its own), and the score, mute and Quit float as one small row
-  in the top-right corner, over the picture. Stacked down the side gutter
-  instead, they read as a misaligned sidebar.
+  its size. Here it stops being a row: the title goes (the game draws its
+  own), and the score, mute and Quit stand as one column down the right edge.
+
+  It used to float as a row over the picture's top-right corner, which is
+  exactly where every cabinet draws its own HUD — Untwine's HINT pill sat
+  half under the score. Now the host fits the view clear of this column
+  (`setSideReserve` in arcade/host/view.ts, `CHROME_COLUMN_PX` in GameHost
+  — that number and the width here must match), so the column lives in the
+  letterbox and never covers the game.
 
   The header's own box passes touches through, so the empty space around
   the buttons is still the game's. `!important` on the padding because the
@@ -1134,27 +1139,35 @@ html[data-app] [data-web-only] {
     top: 0;
     right: 0;
     z-index: 10;
-    padding: max(6px, env(safe-area-inset-top, 0px)) max(6px, env(safe-area-inset-right, 0px)) 0 0 !important;
+    width: 60px;
+    flex-direction: column;
+    align-items: center;
+    padding: max(8px, env(safe-area-inset-top, 0px)) 0 0 0 !important;
     pointer-events: none;
   }
   .cabinet-chrome .cabinet-title {
     display: none;
   }
   .cabinet-chrome .cabinet-actions {
-    gap: 6px;
+    flex-direction: column;
+    gap: 8px;
     pointer-events: auto;
   }
   .cabinet-chrome .cabinet-actions > .hud-label {
     display: none;
   }
-  /* The score is bare text on the header's surface; over a picture it
-     needs a backing of its own to stay readable. */
   .cabinet-chrome .cabinet-actions > .hud-readout {
-    padding: 8px 10px;
-    border-radius: 8px;
+    min-width: 48px;
+    padding: 6px 4px;
+    border-radius: 10px;
+    text-align: center;
     background: rgb(0 0 0 / 0.5);
   }
   .cabinet-chrome .cabinet-actions > .hud-chip {
+    width: 48px;
+    min-width: 48px;
+    justify-content: center;
+    padding-inline: 0;
     background: rgb(0 0 0 / 0.5);
     color: var(--color-ink);
   }
@@ -1347,4 +1360,119 @@ html[data-app] [data-web-only] {
     animation: none;
     transform: translateX(var(--rest, 20vw));
   }
+}
+
+/*
+  ── The game layer ─────────────────────────────────────────────────────
+
+  The chrome's material is a website's: 3px corners, flat 5% fills, hairline
+  edges. That is right on a page you read and wrong on a screen you play,
+  where a button is something you hit with a thumb mid-jump. So on game
+  screens only — a 3D world (`[data-immersive]` anywhere on the page) or a
+  cabinet (`.cabinet-enter`) — the same classes get a game's material:
+  rounder, chunkier, a lit top edge and a ledge underneath, the accent
+  bleeding into the rim. Every mode's HUD is built from these classes, so
+  this is the whole refresh in one place, and pages that are read keep the
+  calmer look.
+
+  `:where()` keeps the specificity of the scope at zero, so a component's
+  own modifier (`--primary`, `--readout`, `.is-active`) still wins exactly
+  as it does off a game screen. Games are always dark (see "Light theme"),
+  so nothing here needs a light variant.
+*/
+:where(body:has([data-immersive]), .cabinet-enter) .hud-panel {
+  border-radius: 16px;
+  border-color: color-mix(in oklab, var(--color-accent) 22%, var(--glass-border));
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--color-ink) 8%, transparent), transparent 55%),
+    var(--glass-bg);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--color-ink) 16%, transparent),
+    var(--lift),
+    var(--glow);
+}
+
+:where(body:has([data-immersive]), .cabinet-enter) .hud-chip:not(.hud-chip--primary) {
+  border-radius: 12px;
+  border-color: color-mix(in oklab, var(--color-ink) 14%, transparent);
+  color: var(--color-ink);
+  font-weight: 600;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--color-ink) 14%, transparent), color-mix(in oklab, var(--color-ink) 4%, transparent)),
+    color-mix(in oklab, var(--color-base) 62%, transparent);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--color-ink) 20%, transparent),
+    0 3px 0 rgb(0 0 0 / 0.38);
+}
+:where(body:has([data-immersive]), .cabinet-enter) .hud-chip:not(.hud-chip--primary):hover:not(:disabled) {
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--color-ink) 20%, transparent), color-mix(in oklab, var(--color-ink) 8%, transparent)),
+    color-mix(in oklab, var(--color-base) 62%, transparent);
+}
+:where(body:has([data-immersive]), .cabinet-enter) .hud-chip:not(.hud-chip--primary):active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--color-ink) 12%, transparent),
+    0 1px 0 rgb(0 0 0 / 0.38);
+}
+:where(body:has([data-immersive]), .cabinet-enter) .hud-chip.is-active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--color-accent) 26%, transparent), color-mix(in oklab, var(--color-accent) 10%, transparent)),
+    color-mix(in oklab, var(--color-base) 62%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--color-accent) 40%, transparent),
+    0 3px 0 rgb(0 0 0 / 0.38),
+    var(--glow);
+}
+
+/* The primary button keeps its ledge and gains the gloss a game button has:
+   a lit band across the top, and a label that sits in the plastic. */
+:where(body:has([data-immersive]), .cabinet-enter) .hud-chip--primary {
+  border-radius: 14px;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.18);
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.38),
+    0 4px 0 color-mix(in oklab, var(--btn) 45%, black),
+    var(--glow);
+}
+:where(body:has([data-immersive]), .cabinet-enter) .hud-chip--primary:hover:not(:disabled) {
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.45),
+    0 4px 0 color-mix(in oklab, var(--btn) 45%, black),
+    var(--glow-strong);
+}
+
+:where(body:has([data-immersive]), .cabinet-enter) .hud-readout {
+  font-weight: 700;
+  text-shadow:
+    0 0 14px color-mix(in oklab, var(--color-accent) 60%, transparent),
+    0 2px 0 rgb(0 0 0 / 0.45);
+}
+
+/*
+  A cabinet's pause and results screen. It was a flat 80% black sheet; now
+  the light comes from the middle, tinted by the cabinet, and what is on it
+  arrives one beat after another rather than all at once — the result, then
+  the coins, then the buttons. Reduced motion flattens the beats to nothing.
+*/
+.cabinet-results {
+  background:
+    radial-gradient(ellipse at 50% 42%, color-mix(in oklab, var(--color-accent) 20%, transparent), transparent 60%),
+    rgb(4 6 14 / 0.84);
+  backdrop-filter: blur(6px) saturate(140%);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+}
+.cabinet-results > * {
+  animation: resultsBeat 380ms var(--ease-ui) both;
+}
+.cabinet-results > :nth-child(2) { animation-delay: 90ms; }
+.cabinet-results > :nth-child(3) { animation-delay: 180ms; }
+.cabinet-results > :nth-child(4) { animation-delay: 270ms; }
+@keyframes resultsBeat {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: none; }
 }

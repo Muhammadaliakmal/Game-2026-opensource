@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { reducedMotion } from "@/lib/motion";
+import { CoinIcon } from "@/components/hud/CoinIcon";
 
 /**
  * The payoff beat at the end of a run.
@@ -123,7 +124,7 @@ export function RewardBurst({
           {/* `aria-live` off and a plain sr-only sentence instead: announcing
               every frame of a count-up is forty announcements of a number
               that has not finished changing. */}
-          <span aria-hidden>⬤ {coins}</span>
+          <span aria-hidden className="inline-flex items-center gap-1"><CoinIcon /> {coins}</span>
           <span className="sr-only">Earned {earned} coins</span>
         </p>
       )}

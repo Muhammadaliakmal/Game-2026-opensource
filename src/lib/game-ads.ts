@@ -9,8 +9,12 @@ import { interstitialAllowed, type AdPacing } from "@/lib/game-ads-policy";
  * `adConfig()`, carried by the same adsbygoogle.js the root layout already
  * loads. See https://developers.google.com/ad-placement/apis.
  *
- * Two placements, and only two:
+ * The placements:
  *
+ *  - **Rewarded continue** (`RewardedContinue`, arcade results; `useReviveOffer`
+ *    in parkour): watch an ad, carry on from where the run ended.
+ *  - **Rewarded coins** (`ShopAdReward`): watch an ad in the shop for a fixed
+ *    handful of coins toward a character, out of the arcade's daily pool.
  *  - **Rewarded** (`offerReward`): opt-in, on the arcade results screen. The
  *    player is offered "double it" for watching an ad, and only if Google has
  *    one to offer — `beforeReward` is what hands us the button, so with no
@@ -160,11 +164,13 @@ export function offerReward(handlers: {
   onOffer: (offer: RewardOffer) => void;
   onReward: () => void;
   onDone: () => void;
+  /** The placement's name in AdSense reports. */
+  name?: string;
 }): void {
   if (!eligible()) return;
   api().adBreak!({
     type: "reward",
-    name: "arcade-double-coins",
+    name: handlers.name ?? "arcade-double-coins",
     beforeReward: (showAdFn) => handlers.onOffer({ show: showAdFn }),
     beforeAd: () => {
       pacing.lastAdAt = Date.now();

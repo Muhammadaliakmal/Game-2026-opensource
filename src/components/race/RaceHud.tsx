@@ -10,6 +10,7 @@ import { HudZone, HudZones } from "@/components/hud/HudZones";
 import { SettingsButton } from "@/components/hud/SettingsButton";
 import { ControlArranger } from "@/components/hud/ControlArranger";
 import { BoostMeter, Speedometer } from "./Gauges";
+import { CoinIcon } from "@/components/hud/CoinIcon";
 
 /**
  * The race HUD.
@@ -406,6 +407,6 @@ function RaceEarned() {
   const earned = useRaceStore((s) => s.earned);
   if (earned === null || earned <= 0) return null;
   return (
-    <span className="hud-readout text-accent num text-sm font-semibold">+ ⬤ {earned}</span>
+    <span className="hud-readout text-accent num text-sm font-semibold"><span className="inline-flex items-center gap-1">+ <CoinIcon size={16} /> {earned}</span></span>
   );
 }

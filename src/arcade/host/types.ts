@@ -94,6 +94,13 @@ export interface ArcadeGame {
   render(alpha: number, s: GameServices): void;
   /** Canvas size changed. Optional. */
   resize?(w: number, h: number): void;
+  /**
+   * Bring a finished run back to life, after a watched rewarded ad. Optional:
+   * a cabinet without it is never offered a continue. Called only after
+   * `onGameOver`; returns false if the run cannot be resumed after all. The
+   * run keeps its score, so the host pays only what it adds (see GameHost).
+   */
+  revive?(): boolean;
   /** Release everything: images, audio nodes, physics engines, workers. */
   destroy(): void;
 }

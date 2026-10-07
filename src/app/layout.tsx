@@ -177,7 +177,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             for why it is a restatement of tokens.css rather than a reference
             to it, and for the two seeds whose absence made the primary button
             and the Google button unreadable. */}
-        <ClerkProvider appearance={clerkAppearance}>
+        <ClerkProvider
+          appearance={clerkAppearance}
+          // The Clerk instance is still named "My Application" in its
+          // dashboard, and the modal printed it: "Sign in to My Application".
+          // Named here so the sign-in box says whose it is whatever the
+          // dashboard calls it.
+          localization={{
+            signIn: { start: { title: "Sign in to Spec Driven Games", subtitle: "Welcome back! Your coins and characters are waiting." } },
+            signUp: { start: { title: "Join Spec Driven Games", subtitle: "Save your coins, times and characters." } },
+          }}
+        >
           {/* Renders nothing; it is how a room join gets a Clerk token. */}
           <RoomAuth />
           {/* Renders nothing: gives Clerk's modal the light palette on a

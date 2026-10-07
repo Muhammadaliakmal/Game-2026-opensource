@@ -143,6 +143,14 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
       renderer.draw(s.ctx, sim, off, s.width, s.height, best);
     },
 
+    revive() {
+      if (!ended) return false;
+      sim.revive();
+      ended = false;
+      renderer.heartChanged();
+      return true;
+    },
+
     destroy() {},
   };
 };

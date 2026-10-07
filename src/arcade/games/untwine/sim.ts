@@ -77,6 +77,8 @@ export interface Sim {
   readonly events: readonly SimEvent[];
   tapCell(cx: number, cy: number): void;
   hint(): void;
+  /** A watched ad's second chance: full hearts on the same board, same level and score. */
+  revive(): void;
   step(dt: number): void;
 }
 
@@ -278,6 +280,15 @@ export function createSim(runSeed: number, startLevel = 1): Sim {
           return;
         }
       }
+    },
+
+    revive() {
+      if (phase !== "lost" && phase !== "done") return;
+      hearts = T.HEARTS;
+      phase = "play";
+      phaseT = 0;
+      chain = 0;
+      events.push({ type: "heal" });
     },
 
     step(dt) {

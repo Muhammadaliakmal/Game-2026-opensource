@@ -47,3 +47,10 @@ export function bonusFor(earned: number | null): number {
   if (earned === null || !Number.isFinite(earned) || earned <= 0) return 0;
   return Math.min(Math.floor(earned), MAX_BONUS);
 }
+
+/**
+ * What one watched ad in the shop pays (`ShopAdReward`). Under `MAX_BONUS`,
+ * which the bonus route clamps to, and out of the same daily pool — so ten
+ * ads is a day's ceiling, and a 1,250-coin character is about thirteen ads.
+ */
+export const SHOP_AD_COINS = 100;

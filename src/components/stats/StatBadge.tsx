@@ -186,7 +186,7 @@ export function StatBadge({
         }}
         aria-pressed={isLiked}
         aria-label={likesLabel(likeCount, isLiked)}
-        className={`hud-label num inline-flex items-center gap-1 transition-colors ${
+        className={`hud-chip--touch hud-label num inline-flex items-center gap-1 transition-colors ${
           isLiked ? "text-accent" : "text-dim hover:text-ink"
         }`}
       >

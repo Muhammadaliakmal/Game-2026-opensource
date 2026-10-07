@@ -16,8 +16,28 @@ export interface View {
   oy: number;
 }
 
+/**
+ * Width each side of the canvas the view must stay out of, in CSS pixels.
+ *
+ * On a phone held sideways the overlay's score, mute and Quit stop being a
+ * header row and stand as a column down the right edge (`.cabinet-chrome` in
+ * globals.css). Floated over the picture, they sat on top of whatever the
+ * cabinet draws in its own top-right corner — Untwine's HINT button was half
+ * under the score. Every cabinet puts something there, so the fix is here
+ * rather than in eleven HUDs: the view is fitted inside the column on both
+ * sides, which keeps it centred. On a 20:9 phone the letterbox is already
+ * wider than the column and nothing shrinks; on 16:9 the board gives up the
+ * width of two columns. The host sets it; 0 everywhere else.
+ */
+let sideReserve = 0;
+
+export function setSideReserve(px: number): void {
+  sideReserve = Math.max(0, px);
+}
+
 export function fitView(canvasW: number, canvasH: number, viewW: number, viewH: number): View {
-  const k = Math.min(canvasW / viewW, canvasH / viewH);
+  const usableW = Math.max(canvasW / 2, canvasW - 2 * sideReserve);
+  const k = Math.min(usableW / viewW, canvasH / viewH);
   return {
     k,
     ox: Math.round((canvasW - viewW * k) / 2),
@@ -124,14 +144,23 @@ export function fillLetterbox(ctx: CanvasRenderingContext2D): void {
 
   if (bx >= 2) {
     const band = Math.min(bx, Math.round(bw / 3));
-    smear(bx, by, band, bh, 0, by, bx, bh, 4, 24);
-    smear(bx + bw - band, by, band, bh, bx + bw, by, W - bx - bw, bh, 4, 24);
+    // The side bands sample the board BELOW its top strip. Every cabinet
+    // draws its HUD up there — a level flag, a gold HINT pill — and blurred
+    // into the letterbox those read as two coloured smudges in the corners
+    // rather than as more of the picture. The skipped strip is stretched
+    // over by its neighbours, which at 24 rows of blur is invisible.
+    const skip = Math.round(bh * 0.14);
+    smear(bx, by + skip, band, bh - skip, 0, by, bx, bh, 4, 24);
+    smear(bx + bw - band, by + skip, band, bh - skip, bx + bw, by, W - bx - bw, bh, 4, 24);
     ctx.fillRect(0, by, bx, bh);
     ctx.fillRect(bx + bw, by, W - bx - bw, bh);
   }
   if (by >= 2) {
     const band = Math.min(by, Math.round(bh / 3));
-    smear(bx, by, bw, band, bx, 0, bw, by, 24, 4);
+    // Same reason as the side bands: the top strip is the HUD, so the band
+    // above the board borrows from just under it.
+    const skip = Math.round(bh * 0.14);
+    smear(bx, by + skip, bw, band, bx, 0, bw, by, 24, 4);
     smear(bx, by + bh - band, bw, band, bx, by + bh, bw, H - by - bh, 24, 4);
     ctx.fillRect(bx, 0, bw, by);
     ctx.fillRect(bx, by + bh, bw, H - by - bh);

@@ -27,6 +27,8 @@ import { SettingsButton } from "@/components/hud/SettingsButton";
 import { ControlArranger } from "@/components/hud/ControlArranger";
 import { useHudOverlay } from "@/lib/hud-overlay";
 import { UGC } from "@/lib/features";
+import { CoinIcon } from "@/components/hud/CoinIcon";
+import { ReviveOffer } from "@/components/play/ReviveOffer";
 
 /**
  * The Play HUD.
@@ -147,6 +149,8 @@ export function PlayHud({
           </HudZone>
         )}
       </HudZones>
+      {/* After a fall: one rewarded ad puts the runner back where they were. */}
+      <ReviveOffer />
     </>
   );
 }
@@ -497,12 +501,12 @@ function CourseComplete({
           the doubling, and a doubling needs the number to read as one. */}
       {earned !== null && (
         <span className="hud-readout text-accent num text-sm font-semibold">
-          + ⬤ {earned}
+          <span className="inline-flex items-center gap-1">+ <CoinIcon size={16} /> {earned}</span>
           {lucky && <span className="ml-2 tracking-widest">LUCKY RUN ×2</span>}
         </span>
       )}
       {daily !== null && (
-        <span className="hud-label num">Daily challenge + ⬤ {daily}</span>
+        <span className="hud-label num"><span className="inline-flex items-center gap-1">Daily challenge + <CoinIcon size={14} /> {daily}</span></span>
       )}
 
       <Leaderboard />

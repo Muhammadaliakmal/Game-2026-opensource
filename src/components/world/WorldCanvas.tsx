@@ -62,6 +62,8 @@ import { cameraHandoff, playerFocus } from "@/components/play/camera-rig";
 import { PlayHud } from "./PlayHud";
 import { CourseAmbient } from "@/components/play/Ambient";
 import { moodFor } from "@/lib/ambient";
+import { styleForWorld } from "@/lib/music/styles";
+import { ModeMusic } from "@/components/play/ModeMusic";
 import { FollowSun } from "@/components/FollowSun";
 import { FrameLimiter } from "@/components/FrameLimiter";
 import { FirstFrame, useFirstPaint } from "@/components/FirstFrame";
@@ -790,6 +792,11 @@ export default function WorldCanvas({
       {/* The world's bed. Play only: the editor is a workbench and a
           workbench does not have weather. */}
       {playing && <CourseAmbient mood={moodFor(worldId)} />}
+
+      {/* The world's music: the course's track while playing, the builder's
+          ambient while building. One owner, so the swap is a crossfade from
+          one style to the other rather than a stop and a start. */}
+      <ModeMusic owner="world" style={playing ? styleForWorld(worldId) : "ambient"} />
 
       {/* Chrome. The incoming set fades in; the outgoing one unmounts, because
           a Toolbar left mounted during Play would still be listening for B, E
