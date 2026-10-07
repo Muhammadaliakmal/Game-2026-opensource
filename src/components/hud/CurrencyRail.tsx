@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useShop } from "@/lib/shop";
-import { characterFor } from "@/lib/characters";
 
 /**
  * Who you are and what you have, on every screen that is not a world.
@@ -45,7 +44,6 @@ export function CurrencyRail() {
   const coins = useShop((s) => s.coins);
   const signedIn = useShop((s) => s.signedIn);
   const loaded = useShop((s) => s.loaded);
-  const characterId = useShop((s) => s.character);
   const ensureLoaded = useShop((s) => s.ensureLoaded);
 
   useEffect(() => {
@@ -57,8 +55,6 @@ export function CurrencyRail() {
   // rather than as a value arriving.
   if (!loaded || !signedIn) return null;
 
-  const character = characterFor(characterId);
-
   return (
     <Link
       href="/shop"
@@ -68,22 +64,12 @@ export function CurrencyRail() {
       className="hud-chip hud-chip--touch chamfer-sm hidden items-center gap-2 sm:inline-flex"
       aria-label={`${coins.toLocaleString()} coins. Open characters.`}
     >
-      {/* The equipped character as a colour rather than a portrait. A 20px
-          render of a GLB would be a mud-coloured smudge and would cost a
-          canvas in the site header on every page; the accent is the one thing
-          about a character that is legible at this size, and it changes when
-          you equip a different one, which is the whole job. */}
-      <span
-        aria-hidden
-        className="block h-3 w-3 shrink-0 rotate-45"
-        style={{
-          background: character.accent,
-          boxShadow: `0 0 10px -1px ${character.accent}`,
-        }}
-      />
-      {/* The coin itself, from the UI art set (`npm run ui:art`). A
-          background rather than an <img>: it is decoration, the number
-          beside it is the content, and the label above already says coins. */}
+      {/* The coin, from the UI art set (`npm run ui:art`), and the only
+          icon here. There used to be a rotated square in the equipped
+          character's accent beside it; next to the coin and the cyan logo
+          diamond it read as a second currency, so it went. A background
+          rather than an <img>: it is decoration, the number beside it is the
+          content, and the label above already says coins. */}
       <span
         aria-hidden
         className="block h-[18px] w-[18px] shrink-0 bg-contain bg-center bg-no-repeat"
