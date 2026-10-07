@@ -35,6 +35,10 @@ const VOICES: Record<string, Voice> = {
   place: { freq: 300, to: 300, dur: 0.05, type: "square", gain: 0.15 },
   perfect: { freq: 990, to: 1480, dur: 0.12, type: "square", gain: 0.18 },
   die: { freq: 220, to: 60, dur: 0.35, type: "sawtooth", gain: 0.21 },
+  /** Something leaving fast — Untwine's pull. Pitched up by the chain. */
+  swish: { freq: 320, to: 960, dur: 0.11, type: "triangle", gain: 0.16 },
+  /** Something hitting something it cannot move — Untwine's bump. */
+  thunk: { freq: 150, to: 70, dur: 0.14, type: "square", gain: 0.15 },
   /** The near miss: a tense wobble that does not resolve. */
   close: { freq: 330, to: 311, dur: 0.28, type: "sawtooth", gain: 0.1 },
 };

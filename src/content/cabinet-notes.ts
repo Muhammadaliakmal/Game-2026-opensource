@@ -161,6 +161,27 @@ export const CABINET_NOTES: Record<string, CabinetNotes> = {
       "times the hit itself at full stretch, so a target you are not sure of " +
       "is worth taking slowly rather than missing fast.",
   },
+  untwine: {
+    what:
+      "A board packed with bent lines, each with an arrowhead at one end. Tap " +
+      "a line and it slides out the way its arrow points, the body following " +
+      "the head round every bend — but only if nothing stands between the " +
+      "head and the edge of the board. If something does, the line runs into " +
+      "it, springs back and costs one of your three hearts. Clear the board " +
+      "and a bigger, more tangled one is dealt; every fifth board is a " +
+      "smaller breather, some of them in a shape.",
+    scoring:
+      "Ten points a line, plus five for every step of a chain — pulls less " +
+      "than a second and a half apart — up to ten steps. A cleared board " +
+      "pays 100 plus 50 for each heart still held, and a board cleared " +
+      "without a mistake gives a lost heart back. It pays a twentieth of a " +
+      "coin a point, the rate of the other endless cabinets.",
+    approach:
+      "Read the head, not the tangle. Only the straight run from the arrow " +
+      "to the edge matters, so trace that and ignore the body. Every board " +
+      "can be cleared in any order of free lines — there is no wrong free " +
+      "pull — so the only way to lose is to guess.",
+  },
   duel: {
     what:
       "A best-of-three duel between two robots on the Magma Gauntlet: two " +

@@ -194,6 +194,21 @@ export const ARCADE: ArcadeEntry[] = [
     load: () => import("./games/reflex"),
   },
   {
+    id: "untwine",
+    hue: "#ff8a3d",
+    title: "Untwine",
+    tagline: "Pull every line free. Read before you tap.",
+    hint: {
+      touch: "Tap a line to pull it out the way its arrow points",
+      keys: "Click a line to pull it out the way its arrow points · H for a hint",
+    },
+    // A reading game played in quick bursts once the board makes sense: the
+    // pulse sits with the puzzle cabinets rather than the runners, a shade
+    // brisker so a chain of pulls has something to land on.
+    bpm: 120,
+    load: () => import("./games/untwine"),
+  },
+  {
     id: "duel",
     hue: "#f29d0c",
     title: "Ragdoll Rumble",

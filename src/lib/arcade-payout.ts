@@ -80,6 +80,13 @@ export const RATES: Record<string, number> = {
    */
   reflex: 0.05,
   /*
+   * Untwine is endless — boards keep coming until the hearts run out — so it
+   * is priced as a runner. A board pays 10–60 a line plus 100–250 for the
+   * clear; reaching level 15 is a couple of thousand points, which a
+   * twentieth of a coin a point puts near a hundred coins.
+   */
+  untwine: 0.05,
+  /*
    * Ragdoll Rumble pays only against the CPU (two players on one screen
    * never reports a score — see the cabinet's index). A match is 100 a round
    * won, the damage dealt and 300 for the match, times 1 / 2 / 3 for Easy /

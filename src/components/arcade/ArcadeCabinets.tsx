@@ -71,7 +71,8 @@ const SCREEN_GEOMETRY = new THREE.PlaneGeometry(BODY.w * 0.72, BODY.h * 0.34);
  * The ninth extends the front row rather than starting a third, because a
  * third row two units further back is a cabinet nobody walks to: the prompt
  * only appears within `REACH`, and by then the front two rows are between you
- * and the spawn.
+ * and the spawn. The tenth, Untwine, closes the front row on the left for the
+ * same reason. Ragdoll Rumble, after it in the registry, has no stand here.
  */
 const OFFSETS: Array<[number, number]> = [
   [-2.4, -4],
@@ -83,6 +84,8 @@ const OFFSETS: Array<[number, number]> = [
   [1.6, -6],
   [4.0, -6],
   [4.0, -4],
+  // Untwine, mirroring Reflex at the front row's left end.
+  [-4.0, -4],
 ];
 
 export function ArcadeCabinets({ spawn }: { spawn: [number, number, number] }) {

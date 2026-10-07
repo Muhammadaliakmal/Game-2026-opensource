@@ -224,6 +224,15 @@ const ARCADE: readonly GameEntry[] = [
     addedAt: "2026-09-18",
   },
   {
+    slug: "untwine",
+    kind: "arcade",
+    title: "Untwine",
+    tagline: "Pull every line free. Read before you tap.",
+    href: "/arcade?play=untwine",
+    tags: ["Solo", "Puzzle", "Casual"],
+    addedAt: "2026-10-07",
+  },
+  {
     slug: "duel",
     kind: "arcade",
     title: "Ragdoll Rumble",

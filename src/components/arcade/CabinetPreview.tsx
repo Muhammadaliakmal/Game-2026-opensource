@@ -71,6 +71,7 @@ export function CabinetPreview({ id }: { id: string }) {
   if (id === "swarm") return <SwarmArt />;
   if (id === "reflex") return <ReflexArt />;
   if (id === "duel") return <DuelArt />;
+  if (id === "untwine") return <UntwineArt />;
   return <GridArt />;
 }
 
@@ -632,6 +633,56 @@ function ReflexArt() {
       <circle cx="22" cy="16" r="3.5" fill="var(--color-accent, #22d3ee)" />
       <circle cx="34" cy="16" r="3.5" fill="var(--color-accent, #22d3ee)" />
       <circle cx="46" cy="16" r="3.5" fill="none" stroke="#eef1ff" strokeOpacity="0.25" strokeWidth="1.5" />
+    </Frame>
+  );
+}
+
+/**
+ * Untwine: a corner of a board as the game draws it — thick bent lines in
+ * the cabinet palette with their heads, and one mid-pull, sliding off the
+ * right edge with a ring where it leaves.
+ */
+function UntwineArt() {
+  const c = 12;
+  const ox = 54;
+  const oy = 12;
+  const pt = (x: number, y: number) => `${ox + (x + 0.5) * c},${oy + (y + 0.5) * c}`;
+  const lines: Array<{ cells: Array<[number, number]>; color: string; dir: [number, number] }> = [
+    { cells: [[2, 0], [1, 0], [1, 1], [0, 1], [0, 2], [0, 3]], color: "#ff5d73", dir: [1, 0] },
+    { cells: [[3, 3], [3, 2], [2, 2], [2, 1], [3, 1]], color: "#3fc8ff", dir: [0, 1] },
+    { cells: [[1, 5], [1, 4], [1, 3], [1, 2]], color: "#ffe14d", dir: [0, 1] },
+    { cells: [[5, 5], [4, 5], [3, 5], [2, 5], [2, 4]], color: "#4be08a", dir: [1, 0] },
+    { cells: [[4, 2], [4, 3], [4, 4], [5, 4], [5, 3], [6, 3]], color: "#a98bff", dir: [0, -1] },
+    { cells: [[7, 5], [7, 4], [7, 3], [7, 2]], color: "#ff7ad9", dir: [0, 1] },
+    // Mid-pull: already past the board's right edge.
+    { cells: [[12, 1], [11, 1], [10, 1], [9, 1]], color: "#ffb02e", dir: [1, 0] },
+  ];
+  return (
+    <Frame>
+      <rect width="240" height="96" fill="var(--art-backdrop, #0b1030)" />
+      <rect x={ox - 4} y={oy - 4} width={c * 9 + 8} height={c * 6 + 8} rx="6" fill="var(--art-cab-panel, #141b33)" />
+      {lines.map(({ cells, color, dir }, i) => {
+        const [hx, hy] = cells[0];
+        const cx = ox + (hx + 0.5) * c;
+        const cy = oy + (hy + 0.5) * c;
+        const tip = [cx + dir[0] * 5.5, cy + dir[1] * 5.5];
+        const l = [cx - dir[1] * 3.8, cy + dir[0] * 3.8];
+        const r = [cx + dir[1] * 3.8, cy - dir[0] * 3.8];
+        return (
+          <g key={i}>
+            <polyline
+              points={cells.map(([x, y]) => pt(x, y)).join(" ")}
+              fill="none"
+              stroke={color}
+              strokeWidth="3.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <polygon points={`${tip.join(",")} ${l.join(",")} ${r.join(",")}`} fill={color} />
+          </g>
+        );
+      })}
+      <circle cx={ox + 9 * c + 2} cy={oy + 1.5 * c} r="9" fill="none" stroke="#ffb02e" strokeOpacity="0.6" strokeWidth="1.5" />
     </Frame>
   );
 }
