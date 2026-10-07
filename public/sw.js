@@ -45,7 +45,7 @@ const OFFLINE = `blockworld-offline-${VERSION}`;
 const OFFLINE_URL = "/offline.html";
 
 /** Same-origin path prefixes whose contents never change under a given URL. */
-const IMMUTABLE_PREFIXES = ["/_next/static/", "/icons/", "/props/", "/characters/"];
+const IMMUTABLE_PREFIXES = ["/_next/static/", "/icons/", "/props/", "/characters/", "/ui/"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

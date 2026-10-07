@@ -81,6 +81,14 @@ export function CurrencyRail() {
           boxShadow: `0 0 10px -1px ${character.accent}`,
         }}
       />
+      {/* The coin itself, from the UI art set (`npm run ui:art`). A
+          background rather than an <img>: it is decoration, the number
+          beside it is the content, and the label above already says coins. */}
+      <span
+        aria-hidden
+        className="block h-[18px] w-[18px] shrink-0 bg-contain bg-center bg-no-repeat"
+        style={{ backgroundImage: "url(/ui/coin.webp)" }}
+      />
       <span className="num text-ink font-semibold">
         {coins.toLocaleString()}
       </span>
