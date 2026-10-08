@@ -76,10 +76,17 @@ export const HEIGHT_MAX = 210;
 
 /** How many platforms exist at once. Fixed: the ring buffer never grows. */
 export const CHUNKS = 14;
-/** How many gold blocks exist at once. Also fixed, also recycled. */
-export const COINS = 24;
-/** How many spikes exist at once. */
-export const SPIKES = 10;
+/**
+ * How many gold blocks exist at once. Also fixed, also recycled.
+ *
+ * Must cover every platform's worth at once: CHUNKS x the most a platform
+ * carries (4). Any fewer and a recycled platform's coins take the slot of the
+ * oldest live coin, which is the one on the platform just ahead of the runner
+ * — they vanish in the first seconds of the run.
+ */
+export const COINS = CHUNKS * 4;
+/** How many spikes exist at once: at most one per platform, for the same reason. */
+export const SPIKES = CHUNKS;
 
 export const COIN_R = 9;
 export const SPIKE_W = 22;

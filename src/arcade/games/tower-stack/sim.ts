@@ -15,8 +15,9 @@ import * as T from "./tuning";
  *
  * Without it every drop shaves the block, every tower is a losing race
  * against its own width, and the run ends the same way however well it was
- * played. With it, a good player's tower gets *wider*, and the game becomes
- * about holding a rhythm rather than about how long the shaving takes.
+ * played. With it, a good player's tower stops shrinking, and the game
+ * becomes about holding a rhythm rather than about how long the shaving takes.
+ * A block is never wider than the one under it, perfect or not.
  */
 
 export interface Row {
@@ -215,10 +216,10 @@ export function createSim(): Sim {
     const offset = s.curX - prev.x;
 
     if (Math.abs(offset) < T.PERFECT_WINDOW) {
-      // Snapped, and paid. The bonus is smaller than the window, so a perfect
-      // run widens slowly instead of becoming a plank.
+      // Snapped, and paid in score and combo. The width is kept, never grown:
+      // a slab wider than the one it stands on reads as a bug.
       s.curX = prev.x;
-      s.curW = Math.min(T.START_W, prev.w + T.WIDTH_BONUS);
+      s.curW = prev.w;
       s.combo++;
       if (s.combo > s.bestCombo) s.bestCombo = s.combo;
       s.drop = "perfect";

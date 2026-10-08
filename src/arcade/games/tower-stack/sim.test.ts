@@ -32,9 +32,9 @@ test("the run starts with a base course under the first drop", () => {
   assert.equal(s.dead, false);
 });
 
-test("a perfect drop gives width back rather than taking it", () => {
-  // The rule the whole game is built on. Without it every tower is a losing
-  // race against its own width and skill changes nothing but the length.
+test("a perfect drop keeps the width rather than taking it", () => {
+  // Without it every tower is a losing race against its own width and skill
+  // changes nothing but the length.
   const s = createSim();
   const before = topRow(s);
   const w0 = before.w;
@@ -44,15 +44,22 @@ test("a perfect drop gives width back rather than taking it", () => {
   assert.equal(s.combo, 1);
   const placed = topRow(s);
   assert.equal(placed.x, before.x, "a perfect did not snap into line");
-  assert.equal(placed.w, Math.min(T.START_W, w0 + T.WIDTH_BONUS));
+  assert.equal(placed.w, w0);
 });
 
-test("a perfect never grows the tower past the block it started with", () => {
-  // Otherwise a good player ends up with a plank and the game stops asking
-  // anything of them.
+test("no row is ever wider than the row under it", () => {
   const s = createSim();
-  for (let i = 0; i < 40; i++) dropAt(s, topRow(s).x);
-  assert.ok(topRow(s).w <= T.START_W, `tower grew to ${topRow(s).w}`);
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 300 && !s.dead; i++) {
+    const t = topRow(s);
+    const w = t.w;
+    // Mix perfects, near-misses and sloppy drops.
+    const r = rnd();
+    dropAt(s, r < 0.5 ? t.x : t.x + (rnd() - 0.5) * 40);
+    if (s.dead) break;
+    assert.ok(topRow(s).w <= w + 1e-9, `row grew from ${w} to ${topRow(s).w}`);
+  }
 });
 
 test("an imperfect drop is sliced down to the overlap", () => {

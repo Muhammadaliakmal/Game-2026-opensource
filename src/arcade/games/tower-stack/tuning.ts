@@ -34,14 +34,6 @@ export const SLIDE_CAP = 520;
  */
 export const PERFECT_WINDOW = 4;
 
-/**
- * Width handed back for a perfect, in pixels.
- *
- * Less than the window, deliberately: a perfect must be worth chasing without
- * making a perfect run infinitely wide.
- */
-export const WIDTH_BONUS = 3;
-
 /** ── Scoring ───────────────────────────────────────────────────────────── */
 
 /** Points for placing a row at all. */

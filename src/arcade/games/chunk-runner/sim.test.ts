@@ -252,3 +252,32 @@ test("a dead run stops simulating", () => {
   assert.equal(s.score, score);
   assert.equal(s.dist, dist);
 });
+
+test("coins ahead of the runner are never recycled out from under them", () => {
+  // The pool once held fewer coins than the platforms could carry, so each
+  // recycled platform overwrote the nearest live coin and the gold ahead
+  // disappeared in the first seconds of a run. A coin ahead may only go dead
+  // by being picked up.
+  const ceiling = surfaceY(H, T.HEIGHT_MAX) - T.PLAYER_H - 5;
+  for (const seed of [1, 7, 42, 99]) {
+    const s = fresh(seed);
+    for (let i = 0; i < 60 * 40; i++) {
+      s.py = ceiling;
+      s.vy = 0;
+      s.onGround = true;
+      s.dead = null;
+      // A recycled slot is repositioned and stays live, so "vanished" means
+      // moved or killed, not just dead.
+      const ahead = s.coinPool
+        .filter((c) => c.live && c.x > s.px + T.PLAYER_W + 60)
+        .map((c) => ({ c, x: c.x }));
+      const taken = s.coins;
+      s.step(DT, IDLE);
+      const lost = ahead.filter(({ c, x }) => !c.live || c.x !== x).length;
+      assert.ok(
+        lost <= s.coins - taken,
+        `seed ${seed}, step ${i}: ${lost} coin(s) ahead vanished unpicked`
+      );
+    }
+  }
+});
