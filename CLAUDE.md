@@ -1095,6 +1095,40 @@ blurred into the bands.
 screens only (`:where(body:has([data-immersive]), .cabinet-enter)` at the end
 of globals.css). Read pages keep the calm chrome; change the game look there.
 
+## Party (play together on one Wi-Fi)
+
+`/party` and `/party/<code>`, behind `PARTY` in `lib/features.ts`. **No server
+of ours is involved** — the room server is not used, and parties work while
+it is down. Plan and later phases (Ludo/Snakes seats, the duel, the 3D modes)
+in `plan-phase11.md`.
+
+- **Browsers connect directly.** `lib/net/party.ts` uses Trystero (pinned,
+  lazily imported): WebRTC with the introduction carried over public Nostr
+  relays, encrypted with the code. Every member connects to every other.
+- **The host's browser is the party.** `PartySession` (pure, tested over an
+  in-memory bus) holds the one `Party` in the host's tab and sends snapshots.
+  When the host leaves, every guest runs the same rule on the same snapshot
+  (longest-standing member still connected) and only the heir takes over. Two
+  hosts on one code keep the OLDER party (`born`), never the bigger one — in a
+  mesh each host has already counted every peer, so counts converge.
+- **"Nearby" is a lobby named after the public address.** `nearby.ts` asks a
+  public STUN server what the internet sees this device as, cuts it to what one
+  LAN shares (v4 whole, v6 /64), hashes it, and joins that room; hosts announce
+  there. STUN blocked → no lobby, codes only.
+- **Trystero hands back the room it already holds for an id.** Leaving and
+  rejoining the same id at once gets a room that is about to be dead. Hence
+  the lobby's `LOBBY_LINGER_MS` and `joinParty` awaiting the last `leave()`.
+  Headless Chromium cannot resolve `.local` candidates: test with
+  `--disable-features=WebRtcHideLocalIpsWithMdns`.
+- **A versus round is a seed.** `PartyBridge` opens the cabinet with
+  `useArcade.open(game, seed, { versus: true })`. While `versus` is set,
+  `restart` is a no-op, R is ignored and the rewarded continue is not offered.
+  Payout is untouched.
+- **Names come from a word list** (`guestName`, handed out by the host in join
+  order), never typed: nearby can include strangers on a shared address.
+- `PARTY_GAMES` (`lib/party-games.ts`) mirrors the arcade registry;
+  `party-games.test.ts` holds them together.
+
 ## Ragdoll Rumble (the duel cabinet)
 
 `src/arcade/games/duel/`. The build plan and what it decided against the

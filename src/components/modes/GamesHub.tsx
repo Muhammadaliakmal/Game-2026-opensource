@@ -9,7 +9,7 @@ import { CABINETS } from "@/arcade/registry";
 import { PARKOUR_COURSES, SANDBOX_WORLDS } from "@/lib/built-in-worlds";
 import { MAX_RIDERS, RACE_LAPS } from "@/lib/race-track";
 import { StatBadge } from "@/components/stats/StatBadge";
-import { RACE } from "@/lib/features";
+import { PARTY, RACE } from "@/lib/features";
 
 /**
  * Every game, on one screen, one press from playing.
@@ -82,9 +82,18 @@ export function GamesHub({ heading = "Play" }: { heading?: string }) {
       <section className="rise-in flex flex-col gap-4" style={{ "--rise-i": 1 } as React.CSSProperties}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-xl font-bold">Arcade</h2>
-          <Link href="/arcade" className="hud-label hover:text-accent">
-            All cabinets →
-          </Link>
+          <div className="flex items-baseline gap-4">
+            {/* Party mode plays these cabinets together on one Wi-Fi
+                (plan-phase11.md), browser to browser. */}
+            {PARTY && (
+              <Link href="/party" className="hud-label text-accent hover:underline">
+                Play together →
+              </Link>
+            )}
+            <Link href="/arcade" className="hud-label hover:text-accent">
+              All cabinets →
+            </Link>
+          </div>
         </div>
         <ul className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           {CABINETS.map((entry) => (

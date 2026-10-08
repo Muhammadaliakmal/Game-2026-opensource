@@ -52,3 +52,10 @@ export const UGC = false;
  * point `NEXT_PUBLIC_MULTIPLAYER_URL` at a live room server and flip this.
  */
 export const RACE = false;
+
+/**
+ * Party mode: people on the same Wi-Fi playing the arcade together
+ * (`plan-phase11.md`). Needs no server of ours — browsers connect to each
+ * other directly (`lib/net/party.ts`) — so unlike `RACE` it can be on.
+ */
+export const PARTY = true;

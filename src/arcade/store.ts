@@ -55,11 +55,19 @@ interface ArcadeState {
   placement: { place: number; of: number } | null;
   /** The seed the current run was created with, so it can be replayed. */
   seed: number;
+  /**
+   * A party round: the seed came from the room and everyone else has it too.
+   *
+   * Restart (which rerolls the seed) and the rewarded continue are both off
+   * while it is set, because either would make this run a different contest
+   * from everybody else's. See `plan-phase11.md`.
+   */
+  versus: boolean;
   /** Bumped to ask the host for a fresh game with the same entry. */
   runId: number;
   error: string | null;
 
-  open(id: string, seed?: number): void;
+  open(id: string, seed?: number, opts?: { versus?: boolean }): void;
   close(): void;
   restart(): void;
   pause(): void;
@@ -120,10 +128,11 @@ export const useArcade = create<ArcadeState>((set, get) => ({
   placement: null,
   capped: false,
   seed: 0,
+  versus: false,
   runId: 0,
   error: null,
 
-  open: (id, seed) => {
+  open: (id, seed, opts) => {
     const entry = entryFor(id);
     if (!entry) return;
     // Inside the opening gesture, which is the only place it can work. A
@@ -138,6 +147,7 @@ export const useArcade = create<ArcadeState>((set, get) => ({
       placement: null,
       error: null,
       seed: seed ?? (Math.random() * 0xffffffff) >>> 0,
+      versus: opts?.versus === true,
       runId: get().runId + 1,
       canRevive: false,
       paidBefore: 0,
@@ -159,24 +169,32 @@ export const useArcade = create<ArcadeState>((set, get) => ({
       score: 0,
       placement: null,
       error: null,
+      versus: false,
     });
   },
 
   // A new run of the same game: the host watches `runId` and rebuilds. The
   // seed is rerolled, because replaying an identical course after dying on it
   // is a different game (a puzzle) from the one these are.
+  //
+  // Not in a party round: its seed is everyone's, and a reroll would leave the
+  // contest. The room starts the next round instead (a rematch).
   restart: () =>
-    set((s) => ({
-      status: "loading",
-      score: 0,
-      earned: null,
-      placement: null,
-      error: null,
-      seed: (Math.random() * 0xffffffff) >>> 0,
-      runId: s.runId + 1,
-      canRevive: false,
-      paidBefore: 0,
-    })),
+    set((s) =>
+      s.versus
+        ? {}
+        : {
+            status: "loading",
+            score: 0,
+            earned: null,
+            placement: null,
+            error: null,
+            seed: (Math.random() * 0xffffffff) >>> 0,
+            runId: s.runId + 1,
+            canRevive: false,
+            paidBefore: 0,
+          }
+    ),
 
   pause: () => set((s) => (s.status === "playing" ? { status: "paused" } : {})),
   resume: () => set((s) => (s.status === "paused" ? { status: "playing" } : {})),

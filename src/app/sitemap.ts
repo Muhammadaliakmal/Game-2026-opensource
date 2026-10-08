@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { publishedPosts } from "@/lib/blog";
 import { REGISTRY } from "@/content/registry";
 import { SITE_URL } from "@/lib/site";
-import { RACE } from "@/lib/features";
+import { PARTY, RACE } from "@/lib/features";
 
 /**
  * The sitemap.
@@ -61,6 +61,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/parkour`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
     ...(RACE
       ? [{ url: `${SITE_URL}/race`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.7 }]
+      : []),
+    ...(PARTY
+      ? [{ url: `${SITE_URL}/party`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.6 }]
       : []),
     { url: `${SITE_URL}/arcade`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE_URL}/how-courses-are-made`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },

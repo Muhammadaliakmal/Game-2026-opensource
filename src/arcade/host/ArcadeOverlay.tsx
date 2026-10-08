@@ -16,6 +16,7 @@ import { breakBeforeRun } from "@/lib/game-ads";
 import { lockZoom } from "./zoom-lock";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
+import { VersusResults, VersusStrip } from "@/components/party/Versus";
 import {
   FIGHT_PACKS,
   FIGHT_PACK_LABEL,
@@ -55,6 +56,9 @@ export default function ArcadeOverlay() {
   const runId = useArcade((s) => s.runId);
   const reviveTick = useArcade((s) => s.reviveTick);
   const error = useArcade((s) => s.error);
+  /* A party round (`plan-phase11.md`): the seed is everyone's, so there is no
+     restart and no continue, and the standings stand where Again would. */
+  const versus = useArcade((s) => s.versus);
   /* The wallet after the payout. `GameHost.settle` writes the server's own
      number into this store, so the balance shown next to "+22" is the one the
      header is showing rather than a second guess at it. */
@@ -109,6 +113,7 @@ export default function ArcadeOverlay() {
       // At the results screen R is the same press as "Again", natural break
       // and all; mid-run it is a plain restart and never an ad.
       else if (e.code === "KeyR") {
+        if (s.versus) return;
         if (s.status === "gameover") breakBeforeRun(() => useArcade.getState().restart());
         else s.restart();
       }
@@ -240,6 +245,8 @@ export default function ArcadeOverlay() {
 
         {status === "playing" && !entry.board && <RotateHint />}
 
+        {versus && status !== "loading" && status !== "gameover" && <VersusStrip />}
+
         {/* Keyed on the run, so every Again says the controls once more. */}
         {status === "playing" && <StartHint key={runId} hint={entry.hint} />}
 
@@ -324,7 +331,7 @@ export default function ArcadeOverlay() {
                 and a second chance beats a few coins. Its own death screen
                 after the continue offers the double. Keyed on the run so a
                 fresh death asks Google afresh. */}
-            {!error && !placement && canRevive ? (
+            {!error && !placement && canRevive && !versus ? (
               <RewardedContinue key={`${runId}-${reviveTick}`} />
             ) : (
               !error &&
@@ -332,20 +339,24 @@ export default function ArcadeOverlay() {
               earned !== null &&
               earned > 0 && <RewardedDouble earned={earned} capped={capped} />
             )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="hud-chip hud-chip--primary"
-                onClick={again}
-              >
-                Again
-                <Hotkey>R</Hotkey>
-              </button>
-              <button type="button" className="hud-chip" onClick={close}>
-                Quit
-                <Hotkey>Esc</Hotkey>
-              </button>
-            </div>
+            {versus ? (
+              <VersusResults />
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="hud-chip hud-chip--primary"
+                  onClick={again}
+                >
+                  Again
+                  <Hotkey>R</Hotkey>
+                </button>
+                <button type="button" className="hud-chip" onClick={close}>
+                  Quit
+                  <Hotkey>Esc</Hotkey>
+                </button>
+              </div>
+            )}
           </Panel>
         )}
       </div>
