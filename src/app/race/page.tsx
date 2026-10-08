@@ -5,13 +5,19 @@ import Link from "next/link";
 import { PageShell } from "@/components/PageShell";
 import { useRouter } from "next/navigation";
 import { isMatchCode, makeMatchCode, normalizeMatchCode } from "@/lib/match-code";
-import { multiplayerEnabled } from "@/lib/net/room";
+import { markRaceHost } from "@/lib/race-host";
+import { CPU_DIFFICULTIES, type CpuDifficulty } from "@/lib/race-cpu";
 import { MAX_RIDERS, RACE_LAPS, RACE_TRACKS } from "@/lib/race-track";
 import { ModeCover } from "@/components/modes/ModeCover";
 import { PrefetchCanvas } from "@/components/PrefetchCanvas";
 
 /**
- * The race lobby: open a grid, or join one somebody sent you.
+ * The race lobby: race the CPU, open a grid for friends, or join one
+ * somebody sent you.
+ *
+ * No server: the browser that opens a race runs it, and riders on the same
+ * Wi-Fi connect to it directly (`lib/net/race.ts`). The CPU riders run in
+ * the same browser (`lib/race-cpu.ts`).
  *
  * No public list of open races, for the same reason the match lobby has none: a
  * code you were given is the whole access model, and it keeps a race between
@@ -25,11 +31,23 @@ export default function RaceLobbyPage() {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [track, setTrack] = useState(RACE_TRACKS[0].id);
+  const [cpu, setCpu] = useState<CpuDifficulty>("medium");
+  const [bots, setBots] = useState(3);
+  /** Fill a friends' grid with CPUs when the lights arm, and at what level. */
+  const [fill, setFill] = useState<CpuDifficulty | "off">("off");
 
-  const open = () => {
-    const q = track === RACE_TRACKS[0].id ? "" : `?track=${track}`;
-    router.push(`/race/${makeMatchCode()}${q}`);
+  const go = (params: Record<string, string | number | undefined>) => {
+    const code = makeMatchCode();
+    markRaceHost(code);
+    const q = new URLSearchParams();
+    if (track !== RACE_TRACKS[0].id) q.set("track", track);
+    for (const [k, v] of Object.entries(params)) if (v !== undefined) q.set(k, String(v));
+    const qs = q.toString();
+    router.push(`/race/${code}${qs ? `?${qs}` : ""}`);
   };
+
+  const raceCpu = () => go({ cpu, bots });
+  const open = () => go({ cpu: fill === "off" ? undefined : fill });
 
   const join = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,21 +82,59 @@ export default function RaceLobbyPage() {
               </Link>
               <h1 className="text-display text-ink font-bold">Race</h1>
               <p className="text-dim max-w-md text-sm">
-                Up to {MAX_RIDERS} riders, {RACE_LAPS} laps, on bikes. Pick a
-                track, open a grid, and send the link to whoever you want to
-                race.
+                Up to {MAX_RIDERS} riders, {RACE_LAPS} laps, on bikes. Race the
+                CPU on your own, or open a grid for friends on the same Wi-Fi —
+                phones connect to each other directly, no server in between.
               </p>
             </div>
           </div>
         </header>
 
-        {!multiplayerEnabled && (
-          <p className="card border-accent/40 text-dim p-4 text-xs">
-            Races need the room server running.{" "}
-            <span className="num">NEXT_PUBLIC_MULTIPLAYER_URL</span> is not set,
-            so opening one here will not connect.
+
+        <section className="card flex flex-col gap-4 p-5">
+          <h2 className="text-ink text-sm font-semibold">Race the CPU</h2>
+          <p className="text-dim text-xs">
+            On your own, against up to three CPU riders. Easy brakes early for
+            every corner; Hard holds full throttle and boosts down the
+            straights — beat it by drifting to fill your own boost and spending it.
           </p>
-        )}
+          <fieldset className="flex flex-col gap-2">
+            <legend className="hud-label mb-1">Difficulty</legend>
+            <div className="flex gap-2">
+              {CPU_DIFFICULTIES.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setCpu(d)}
+                  aria-pressed={cpu === d}
+                  className={`hud-chip capitalize ${cpu === d ? "hud-chip--primary" : ""}`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="hud-label mb-1">CPU riders</legend>
+            <div className="flex gap-2">
+              {Array.from({ length: MAX_RIDERS - 1 }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setBots(n)}
+                  aria-pressed={bots === n}
+                  className={`hud-chip num ${bots === n ? "hud-chip--primary" : ""}`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <p className="text-dim text-xs">Track: {RACE_TRACKS.find((t) => t.id === track)?.name} (pick below).</p>
+          <button onClick={raceCpu} className="hud-chip hud-chip--primary w-fit">
+            Race the CPU
+          </button>
+        </section>
 
         <section className="card flex flex-col gap-4 p-5">
           {/* "Open a grid" was jargon. A grid is the thing you stand on at the
@@ -86,8 +142,9 @@ export default function RaceLobbyPage() {
               was looking for one — they were looking for a room to race in. */}
           <h2 className="text-ink text-sm font-semibold">Create a room to race</h2>
           <p className="text-dim text-xs">
-            You get a code to share. The lights start on their own once a second
-            rider arrives, or you can go out alone for a time trial.
+            You get a code to share with whoever is on your Wi-Fi. The lights
+            start on their own once a second rider arrives, or press start to go
+            out alone. Empty slots can be filled with CPU riders when the lights go.
           </p>
 
           <fieldset className="flex flex-col gap-2">
@@ -116,6 +173,23 @@ export default function RaceLobbyPage() {
                   </button>
                 );
               })}
+            </div>
+          </fieldset>
+
+          <fieldset className="flex flex-col gap-2">
+            <legend className="hud-label mb-1">Empty slots</legend>
+            <div className="flex flex-wrap gap-2">
+              {(["off", ...CPU_DIFFICULTIES] as const).map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setFill(d)}
+                  aria-pressed={fill === d}
+                  className={`hud-chip capitalize ${fill === d ? "hud-chip--primary" : ""}`}
+                >
+                  {d === "off" ? "Leave empty" : `CPU ${d}`}
+                </button>
+              ))}
             </div>
           </fieldset>
 

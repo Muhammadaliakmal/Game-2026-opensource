@@ -150,3 +150,13 @@ test("a party holds PARTY_MAX and refuses the next", () => {
   for (let i = 0; i < PARTY_MAX; i++) assert.ok(p.join(`m${i}`, "x"));
   assert.equal(p.join("one-more", "x"), null);
 });
+
+test("the host can send everyone to a race or a course, and nowhere else", () => {
+  const p = lobby(2);
+  assert.equal(p.go("m1", "/race/ABC234"), false, "only the host");
+  assert.ok(p.go("m0", "/race/ABC234?cpu=medium&riders=2"));
+  assert.ok(p.go("m0", "/play/neon-climb?together=ABC234"));
+  assert.equal(p.goTo.n, 2);
+  assert.equal(p.go("m0", "https://example.com/"), false, "never off the site");
+  assert.equal(p.go("m0", "/account"), false, "only game pages");
+});

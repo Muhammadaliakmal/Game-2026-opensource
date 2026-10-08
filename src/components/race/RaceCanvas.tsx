@@ -9,6 +9,8 @@ import Link from "next/link";
 import type { PartTuple, PropInstance, WorldDoc } from "@/lib/worlddoc";
 import { useEditorStore } from "@/stores/editor-store";
 import { joinRace, leaveRace } from "@/lib/net/race";
+import { isRaceHost } from "@/lib/race-host";
+import type { CpuDifficulty } from "@/lib/race-cpu";
 import { GameLoader } from "@/components/hud/GameLoader";
 import { useRaceStore } from "@/stores/race-store";
 import { playerFocus } from "@/components/play/camera-rig";
@@ -70,6 +72,8 @@ export default function RaceCanvas({
   code,
   target,
   track,
+  cpu,
+  bots,
 }: {
   code: string;
   /**
@@ -82,6 +86,10 @@ export default function RaceCanvas({
    * server on a join — the joiner races whatever the creator built.
    */
   track?: string;
+  /** CPU riders' difficulty, if this race has any. Heard only by the host. */
+  cpu?: CpuDifficulty;
+  /** CPU riders on the grid from the start: a race against the CPU. */
+  bots?: number;
 }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   // Cleared on the first frame that has the track in it, never on `onCreated`
@@ -110,7 +118,8 @@ export default function RaceCanvas({
   useEffect(() => {
     let dispose: (() => void) | undefined;
     let cancelled = false;
-    void joinRace(code, onWorld, target, track).then((d) => {
+    // The browser that opened this race runs it (`lib/net/race.ts`).
+    void joinRace(code, onWorld, { host: isRaceHost(code), target, track, cpu, bots }).then((d) => {
       if (cancelled) d();
       else dispose = d;
     });
@@ -119,7 +128,7 @@ export default function RaceCanvas({
       dispose?.();
       leaveRace();
     };
-  }, [code, onWorld, target, track]);
+  }, [code, onWorld, target, track, cpu, bots]);
 
   const getFocus = useMemo(() => () => playerFocus, []);
 

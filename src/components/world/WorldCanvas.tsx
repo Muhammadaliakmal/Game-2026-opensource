@@ -365,6 +365,9 @@ export default function WorldCanvas({
    */
   useEffect(() => {
     if (!multiplayerEnabled || isDraft || status !== "ready") return;
+    // Playing together is browser to browser (`lib/net/together.ts`), and two
+    // connections cannot both own the presence sender.
+    if (new URLSearchParams(window.location.search).has("together")) return;
 
     let dispose: (() => void) | undefined;
     let cancelled = false;

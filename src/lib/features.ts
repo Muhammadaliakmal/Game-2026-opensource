@@ -46,12 +46,12 @@ export const UGC = false;
 /**
  * The bike race: its cover, its lobby and every link to it.
  *
- * OFF while there is no room server deployed. A race is nothing without one —
- * `/race/<code>` would open onto "cannot connect", which is worse than the
- * mode not being offered. The code, the tracks and the server are untouched;
- * point `NEXT_PUBLIC_MULTIPLAYER_URL` at a live room server and flip this.
+ * ON since races went serverless (`plan-phase11.md`): the browser that opens
+ * a race runs it, riders on the same Wi-Fi connect to it directly, and the CPU
+ * riders (`race-cpu.ts`) mean one person can race alone. It no longer needs
+ * the room server.
  */
-export const RACE = false;
+export const RACE = true;
 
 /**
  * Party mode: people on the same Wi-Fi playing the arcade together

@@ -7,7 +7,12 @@ import { useRouter } from "next/navigation";
 import { PageShell } from "@/components/PageShell";
 import { entryFor } from "@/arcade/registry";
 import { useArcade } from "@/arcade/store";
-import { joinParty, leaveParty, partyPick, partyStart, partyToLobby } from "@/lib/net/party";
+import { joinParty, leaveParty, partyGo, partyPick, partyStart, partyToLobby } from "@/lib/net/party";
+import { makeMatchCode } from "@/lib/match-code";
+import { markRaceHost } from "@/lib/race-host";
+import { CPU_DIFFICULTIES, type CpuDifficulty } from "@/lib/race-cpu";
+import { MAX_RIDERS } from "@/lib/race-track";
+import { PARKOUR_META } from "@/lib/world-list";
 import { PARTY_GAMES, PARTY_MAX, partyGame, rankScores, type Ranked } from "@/lib/party-games";
 import { selectIsHost, usePartyStore, type PartyMemberView } from "@/stores/party-store";
 import { PartyBridge } from "./PartyBridge";
@@ -38,6 +43,19 @@ export function PartyLobby({ code }: { code: string }) {
     void joinParty(code, { creator: isPartyCreator(code) });
     return () => leaveParty();
   }, [code]);
+
+  /*
+   * Where the host sends everyone (`Party.go`). Followed by every member,
+   * the host included, the moment it changes — but not on arrival: a link the
+   * party already took before you joined is not one to follow now.
+   */
+  const go = usePartyStore((s) => s.go);
+  const [goSeen, setGoSeen] = useState<number | null>(null);
+  if (status === "live" && goSeen === null) setGoSeen(go.n);
+  useEffect(() => {
+    if (goSeen === null || go.n <= goSeen || !go.href) return;
+    router.push(go.href);
+  }, [go, goSeen, router]);
 
   const hostIt = () => {
     markPartyCreator(code);
@@ -179,6 +197,15 @@ export function PartyLobby({ code }: { code: string }) {
             </section>
           )}
 
+          {phase !== "playing" && isHost && <Together3D code={code} players={members.length} />}
+
+          {phase !== "playing" && !isHost && (
+            <p className="text-dim text-xs">
+              The host can also take everyone to the bike race or a parkour course — you will be
+              moved there automatically.
+            </p>
+          )}
+
           {phase !== "playing" && (
             <section className="card flex flex-col gap-3 p-5">
               <h2 className="text-ink text-sm font-semibold">
@@ -283,5 +310,72 @@ function ShareCode({ code }: { code: string }) {
         {copied ? "Copied" : "Share"}
       </button>
     </div>
+  );
+}
+
+/**
+ * The 3D modes, for the whole party at once. The host picks; everyone is sent
+ * (`Party.go`). The race is hosted by the host's browser, so it is marked as
+ * theirs before the link goes out; a course is played together on the party's
+ * own code (`?together=`).
+ */
+function Together3D({ code, players }: { code: string; players: number }) {
+  const [fill, setFill] = useState<CpuDifficulty | "off">("medium");
+  const [course, setCourse] = useState(PARKOUR_META[0]?.slug ?? "parkour");
+
+  const race = () => {
+    const raceCode = makeMatchCode();
+    markRaceHost(raceCode);
+    const q = new URLSearchParams({ riders: String(Math.min(MAX_RIDERS, players)) });
+    if (fill !== "off") q.set("cpu", fill);
+    partyGo(`/race/${raceCode}?${q}`);
+  };
+  const run = () => partyGo(`/play/${course}?together=${code}`);
+
+  return (
+    <section className="card flex flex-col gap-3 p-5">
+      <h2 className="text-ink text-sm font-semibold">Ride and run together</h2>
+      <p className="text-dim text-xs">
+        Takes everyone here to the same 3D game. Race grids hold {MAX_RIDERS}.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="hud-label">Bike race · empty slots</span>
+        {(["off", ...CPU_DIFFICULTIES] as const).map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => setFill(d)}
+            aria-pressed={fill === d}
+            className={`hud-chip text-xs capitalize ${fill === d ? "hud-chip--primary" : ""}`}
+          >
+            {d === "off" ? "None" : `CPU ${d}`}
+          </button>
+        ))}
+        <button type="button" className="hud-chip hud-chip--primary" onClick={race}>
+          Race on bikes
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="hud-label" htmlFor="party-course">
+          Parkour course
+        </label>
+        <select
+          id="party-course"
+          value={course}
+          onChange={(e) => setCourse(e.target.value)}
+          className="bg-surface text-ink rounded-[var(--radius)] px-2 py-1.5 text-sm ring-1 ring-white/10"
+        >
+          {PARKOUR_META.map((w) => (
+            <option key={w.slug} value={w.slug}>
+              {w.name}
+              {w.tier ? ` · ${w.tier}` : ""}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="hud-chip hud-chip--primary" onClick={run}>
+          Run it together
+        </button>
+      </div>
+    </section>
   );
 }

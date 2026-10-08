@@ -1,5 +1,6 @@
 "use client";
 
+import { relayConfig } from "./relays";
 import { PartySession, type PartyMessage } from "./party-session";
 import { networkRoom } from "./nearby";
 import { resetPartyStore, usePartyStore, type PartyPhase } from "@/stores/party-store";
@@ -73,6 +74,7 @@ function mirror(session: PartySession, code: string, selfId: string) {
     round: v.round,
     members: [...v.members].sort((a, b) => a.order - b.order).map((m) => ({ ...m })),
     seats: [...(v.seats ?? [])],
+    go: v.go ?? { href: "", n: 0 },
   });
 }
 
@@ -96,7 +98,7 @@ export async function joinParty(code: string, opts: { creator: boolean }): Promi
   }
   if (mine !== attempt) return;
 
-  const room = mod.joinRoom({ appId: APP_ID, password: code }, `party-${code}`);
+  const room = mod.joinRoom({ appId: APP_ID, password: code, relayConfig }, `party-${code}`);
   const action = room.makeAction("p");
   const send = action.send as unknown as Sender;
   const game = room.makeAction("g");
@@ -187,6 +189,8 @@ export function partyGameSend(round: number, msg: unknown, to?: string) {
 export const partyPick = (game: string) => live?.session.pick(game);
 export const partyStart = () => live?.session.start();
 export const partyToLobby = () => live?.session.toLobby();
+/** Host: send the whole party to a race or a course (`Party.go`). */
+export const partyGo = (href: string) => live?.session.go(href);
 export const partyScore = (n: number) => live?.session.score(n);
 export const partyDone = (n: number) => live?.session.done(n);
 
@@ -230,7 +234,7 @@ function acquireLobby() {
   lobby ??= (async () => {
     const [net, mod] = await Promise.all([networkRoom(), trystero()]);
     if (!net) return null;
-    const room = mod.joinRoom({ appId: APP_ID, password: net }, net);
+    const room = mod.joinRoom({ appId: APP_ID, password: net, relayConfig }, net);
     const action = room.makeAction("ad");
     const listeners = new Set<(ad: Ad, from: string) => void>();
     const joins = new Set<(id: string) => void>();

@@ -156,6 +156,10 @@ export class PartySession {
     if (this.party?.start(this.o.selfId, this.o.now())) this.publish();
   }
 
+  go(href: string) {
+    if (this.party?.go(this.o.selfId, href)) this.publish();
+  }
+
   toLobby() {
     if (this.party?.toLobby(this.o.selfId)) this.publish();
   }

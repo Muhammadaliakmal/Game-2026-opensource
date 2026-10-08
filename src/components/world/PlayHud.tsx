@@ -22,6 +22,7 @@ import { FullscreenButton } from "@/components/FullscreenButton";
 import { MuteButton } from "@/components/MuteButton";
 import { RemixButton } from "@/components/RemixButton";
 import { HudZone, HudZones } from "@/components/hud/HudZones";
+import { TogetherChip } from "./TogetherChip";
 import { MenuIcon } from "@/components/hud/MenuIcon";
 import { SettingsButton } from "@/components/hud/SettingsButton";
 import { ControlArranger } from "@/components/hud/ControlArranger";
@@ -93,6 +94,8 @@ export function PlayHud({
             <RunTimer />
             <CheckpointPips />
           </div>
+          {/* Other people on this course, on their own phones. */}
+          <TogetherChip worldId={worldId} isDraft={isDraft} />
         </HudZone>
 
         {/* Transient hints, stacked in the order they can appear. The zone

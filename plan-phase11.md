@@ -42,51 +42,58 @@ The address is hashed into a lobby name; hosts announce their party there.
 | `PARTY_GAMES` | `src/lib/party-games.ts` | Which cabinets, and how (`score` / `seats` / `duel`). |
 | `/party` | `src/app/party/` | Start, nearby list, join by code, lobby. |
 
-## Modes, by game
+## Modes, by game — all built 8 Oct 2026
 
-### 11A + 11B — score versus (built 8 Oct 2026, verified locally in two browsers)
+### Score versus (11B)
 
 Chunk Runner, Tower Stack, Gravity Shift, One Bullet, SwarmRush, Reflex,
-Untwine, ECHO.
+Untwine, ECHO. Every one is a function of its seed, so a round is one seed for
+everyone: same course, live scoreboard, standings, rematch. No continue or
+restart mid-round. Payout untouched.
 
-Every one of these is a function of its seed (`GameHost` builds `rng` from
-`useArcade.seed`, and `Math.random` is banned in a game module). So a versus
-round is: the host presses Start, the room picks one seed, and every member
-opens the same cabinet with it. Same course, same blocks, same spawns.
+### Seats (11C): Ludo, Snakes & Ladders
 
-- Live scores stream to the room at most 4 Hz; the overlay shows a strip of
-  everyone's running number.
-- A member's run ending is a `done` with the final score. When every
-  participant is done the room publishes standings.
-- **No continue, no restart** inside a round: a rewarded continue or an R
-  restart (which rerolls the seed) would make it a different contest. Again
-  becomes "back to lobby" / the host's Rematch.
-- Payout is untouched: the run pays like any run, from the same daily pool.
-  A party is not a coin multiplier.
-- Someone joining mid-round watches the scoreboard and plays the next round.
+The host's turn machine is the match: it runs the bots and the turn clocks and
+announces each decision (`onDecision`: the die as the throw starts, each move
+as it is played). Every other table is a puppet (`puppet: true`) that replays
+them as its own phases reach them — pacing stays local, decisions do not.
+`turn-net.test.ts` plays whole matches both ways and requires identical
+states. Guest taps are requests the host plays if it is their turn
+(`host/board-net.ts`). Seats are the first four members in join order; bots
+fill the rest; the host plays for anyone who leaves. A networked match ends
+for everyone at match-over.
 
-### 11C — seats (Ludo, Snakes & Ladders)
+### Duel (11D): Ragdoll Rumble
 
-Host-authoritative. The host's browser runs the turn machine with remote
-humans in seats that would have been bots; empty seats stay bots. Clients send
-intents (`roll`, `move i`), the host broadcasts resolved events. The turn
-machine already returns events and never touches a pixel (`rules.ts`), which
-is exactly what makes this possible.
+Not lockstep — `Math.sin` may round differently in Chrome and Safari. The host
+simulates with the guest's stick as player two and sends a snapshot every step
+(`duel/net.ts`); the guest's own `Match` is written from it, so the renderer
+and sounds run unchanged. One seated player fights the CPU.
 
-### 11D — duel (Ragdoll Rumble)
+### 3D (11E): the bike race and parkour
 
-`match.step(dt, in0, in1)` is already a two-input simulation. The host runs
-it; the guest sends its input every step over the party's data channel and
-draws the host's snapshots. On one Wi-Fi that is a few milliseconds.
+**Race** (`lib/net/race.ts`): serverless now. The browser that opens a race
+runs `Race` (moved to `lib/race-rules.ts`; the server re-exports it) and the
+CPU riders, and sends the state at 15 Hz; riders send their position. Each
+rider builds the track from its id. **CPU riders** (`lib/race-cpu.ts`): Easy,
+Medium, Hard — they ride the centreline by distance, brake for corners, ride
+the terrain, and Hard boosts on straights. Race the CPU alone (`?cpu=&bots=`)
+or fill a friends' grid's empty slots when the lights arm (`?cpu=`). `RACE`
+is on.
 
-### 11E — the 3D modes
+**Parkour together** (`lib/net/together.ts`): `/play/<course>?together=CODE`
+— positions go browser to browser into the peer map `Peers.tsx` already
+draws, and finish times to a board under the run clock (`TogetherChip`).
 
-Both run through the room server today, which is down. Doing them without it
-means moving peer presence onto the party's data channels.
+**From a party**, the host sends everyone to either (`Party.go`).
 
 ## Not doing
 
 - No TURN relay. Two networks that block direct connections cannot play;
   on one Wi-Fi that does not come up.
+- No race payout. The room server paid race places; a browser cannot be
+  trusted to report its own, so serverless races pay nothing.
+- No host handover mid-race or mid-board-match. The match lives in the
+  host's tab; if it closes, the round ends.
 - No party chat. Everyone is in the same room, physically.
 - No new payout. See above.

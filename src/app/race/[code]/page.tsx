@@ -3,6 +3,7 @@ import { RememberPlay } from "@/components/RememberPlay";
 import { RaceMount } from "@/components/race/RaceMount";
 import { isMatchCode, normalizeMatchCode } from "@/lib/match-code";
 import { MAX_RIDERS, RACE_TRACKS } from "@/lib/race-track";
+import { isCpuDifficulty } from "@/lib/race-cpu";
 import { IMMERSIVE_VIEWPORT } from "@/lib/immersive";
 import { CountPlay } from "@/components/stats/CountPlay";
 
@@ -20,10 +21,10 @@ export default async function RacePage({
   searchParams,
 }: {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ riders?: string; track?: string }>;
+  searchParams: Promise<{ riders?: string; track?: string; cpu?: string; bots?: string }>;
 }) {
   const { code } = await params;
-  const { riders, track: trackParam } = await searchParams;
+  const { riders, track: trackParam, cpu: cpuParam, bots: botsParam } = await searchParams;
   if (!isMatchCode(code)) notFound();
 
   // Validate against the known set here too, so a junk value never reaches the
@@ -45,9 +46,16 @@ export default async function RacePage({
   const target =
     Number.isFinite(n) && n >= 1 && n <= MAX_RIDERS ? Math.floor(n) : undefined;
 
+  // CPU riders: `?cpu=` is their difficulty, `?bots=` how many start on the
+  // grid (a race against the CPU). Without `bots`, CPUs fill the empty slots
+  // when the lights arm. Both are heard only by the browser hosting the race.
+  const cpu = isCpuDifficulty(cpuParam) ? cpuParam : undefined;
+  const b = Number(botsParam);
+  const bots = cpu && Number.isFinite(b) && b >= 1 && b < MAX_RIDERS ? Math.floor(b) : undefined;
+
   return (
     <>
-      <RaceMount code={normalizeMatchCode(code)} target={target} track={track} />
+      <RaceMount code={normalizeMatchCode(code)} target={target} track={track} cpu={cpu} bots={bots} />
       {/* The lobby, not this grid: a code is one session's, and a chip that
           rejoins a room everyone has left is a chip that opens an empty grid. */}
       <RememberPlay href="/race" title="Race" kind="race" slug="race-mode" />

@@ -1128,6 +1128,17 @@ in `plan-phase11.md`.
   order), never typed: nearby can include strangers on a shared address.
 - `PARTY_GAMES` (`lib/party-games.ts`) mirrors the arcade registry;
   `party-games.test.ts` holds them together.
+- **Table games** (Ludo, Snakes, the duel) get `GameServices.net`
+  (`arcade/host/net.ts`): seat, players, `isHost`, a pipe. Board games: the
+  host's turn machine decides (`onDecision`), guests are `puppet` tables
+  (`turn-net.test.ts`). A solo machine must draw its dice exactly as before.
+  The duel streams snapshots (`duel/net.ts`), never lockstep.
+- **The race is serverless too** (`lib/net/race.ts`, `RACE = true`): the
+  opener's tab runs `lib/race-rules.ts` (the server re-exports it) and the
+  CPU riders (`lib/race-cpu.ts`). Races no longer pay — nothing trustworthy
+  counts the laps. Parkour together is `?together=CODE` (`net/together.ts`).
+- **Relays are pinned** in `net/relays.ts`; Trystero's own list had dead
+  entries. If phones stop finding each other, check those first.
 
 ## Ragdoll Rumble (the duel cabinet)
 

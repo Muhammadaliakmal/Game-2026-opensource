@@ -34,6 +34,8 @@ interface PartyStoreState {
   members: PartyMemberView[];
   /** A table game's seats this round, as member ids in seat order. */
   seats: string[];
+  /** Where the host last sent everyone. See `Party.go`. */
+  go: { href: string; n: number };
 }
 
 const initial: PartyStoreState = {
@@ -48,6 +50,7 @@ const initial: PartyStoreState = {
   round: 0,
   members: [],
   seats: [],
+  go: { href: "", n: 0 },
 };
 
 export const usePartyStore = create<PartyStoreState>(() => initial);

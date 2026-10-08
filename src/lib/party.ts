@@ -56,7 +56,15 @@ export interface PartySnapshot {
    * Empty for a score game, where everyone plays their own copy.
    */
   seats: string[];
+  /**
+   * Where the host last sent everyone — the bike race or a parkour course
+   * (`go`). `n` counts sends, so the same course twice still moves people.
+   */
+  go: { href: string; n: number };
 }
+
+/** The pages a host may send a party to: a race, or a course to play together. */
+const GO_HREF = /^\/(race\/[A-Z0-9]{6}(\?[A-Za-z0-9=&_-]*)?|play\/[a-z0-9-]+\?together=[A-Z0-9]{6})$/;
 
 export interface Standing {
   id: string;
@@ -78,6 +86,7 @@ export class Party {
   startedAt = 0;
   born = 0;
   seats: string[] = [];
+  goTo = { href: "", n: 0 };
   private joins = 0;
 
   constructor(private readonly nextSeed: () => number) {}
@@ -93,6 +102,7 @@ export class Party {
       joins: this.joins,
       members: [...this.members.values()].map((m) => ({ ...m })),
       seats: [...this.seats],
+      go: { ...this.goTo },
     };
   }
 
@@ -111,6 +121,7 @@ export class Party {
     p.round = snap.round;
     p.joins = snap.joins;
     p.seats = [...(snap.seats ?? [])];
+    p.goTo = { ...(snap.go ?? { href: "", n: 0 }) };
     p.startedAt = now;
     for (const m of snap.members) p.members.set(m.id, { ...m });
     return p;
@@ -209,6 +220,13 @@ export class Party {
     if (this.phase !== "playing" || now - this.startedAt < ROUND_LIMIT_MS) return false;
     for (const m of this.members.values()) if (m.playing) m.done = true;
     return this.maybeEnd();
+  }
+
+  /** Host only: send everyone to the race or a course. Only this site's own game pages. */
+  go(by: string, href: string): boolean {
+    if (!this.isHost(by) || !GO_HREF.test(href)) return false;
+    this.goTo = { href, n: this.goTo.n + 1 };
+    return true;
   }
 
   /** Host only: everyone back to the game picker. */
