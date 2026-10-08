@@ -23,3 +23,28 @@ export function isPartyCreator(code: string): boolean {
     return false;
   }
 }
+
+/** The game a party was started for ("Compete nearby" on a cabinet), picked once it is live. */
+const gameKey = (code: string) => `sdg-party-game:${code}`;
+
+export function markPartyGame(code: string, game: string) {
+  try {
+    sessionStorage.setItem(gameKey(code), game);
+  } catch {
+    /* The host picks it by hand instead. */
+  }
+}
+
+/** Read once: the pick happens a single time, and the host may change it after. */
+export function takePartyGame(code: string): string | null {
+  try {
+    const g = sessionStorage.getItem(gameKey(code));
+    sessionStorage.removeItem(gameKey(code));
+    return g;
+  } catch {
+    return null;
+  }
+}
+
+/** Where a cabinet's "Compete nearby" goes: a fresh party with this game picked. */
+export const competeHref = (game: string) => `/party/new?game=${encodeURIComponent(game)}`;

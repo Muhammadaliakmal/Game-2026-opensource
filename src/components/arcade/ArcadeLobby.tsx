@@ -5,6 +5,9 @@ import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CABINETS, entryFor } from "@/arcade/registry";
+import { PARTY } from "@/lib/features";
+import { isPlayablePartyGame } from "@/lib/party-games";
+import { competeHref } from "@/components/party/creator";
 import { byKind, filterTagsFor, type GameTag } from "@/content/registry";
 import {
   filterByTags,
@@ -229,7 +232,21 @@ export function ArcadeLobby() {
                 {/* The tile is the control (the stretched button above); this
                     is the affordance that says so, as on the hub's cards. */}
                 <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="hud-chip hud-chip--primary w-fit">Play</span>
+                  <span className="flex items-center gap-2">
+                    <span className="hud-chip hud-chip--primary w-fit">Play</span>
+                    {/* Against people on the same Wi-Fi, each on their own
+                        device. A link, in `card-actions`, for the same reason
+                        as the guide link: the tile is a stretched button. */}
+                    {PARTY && isPlayablePartyGame(entry.id) && (
+                      <Link
+                        href={competeHref(entry.id)}
+                        aria-label={`Compete at ${entry.title} with people nearby`}
+                        className="card-actions hud-chip w-fit"
+                      >
+                        Compete nearby
+                      </Link>
+                    )}
+                  </span>
                   {/* The written half of this cabinet: what it is, how it
                       scores, and one thing to do differently. `card-actions`
                       because the title above is a stretched link and covers the

@@ -16,7 +16,7 @@ import { PARKOUR_META } from "@/lib/world-list";
 import { PARTY_GAMES, PARTY_MAX, partyGame, rankScores, type Ranked } from "@/lib/party-games";
 import { selectIsHost, usePartyStore, type PartyMemberView } from "@/stores/party-store";
 import { PartyBridge } from "./PartyBridge";
-import { isPartyCreator, markPartyCreator } from "./creator";
+import { isPartyCreator, markPartyCreator, takePartyGame } from "./creator";
 
 const ArcadeOverlay = dynamic(() => import("@/arcade/host/ArcadeOverlay"), { ssr: false });
 
@@ -56,6 +56,13 @@ export function PartyLobby({ code }: { code: string }) {
     if (goSeen === null || go.n <= goSeen || !go.href) return;
     router.push(go.href);
   }, [go, goSeen, router]);
+
+  // Started from a cabinet's "Compete nearby": pick that game once we host.
+  useEffect(() => {
+    if (status !== "live" || !isHost) return;
+    const wanted = takePartyGame(code);
+    if (wanted) partyPick(wanted);
+  }, [status, isHost, code]);
 
   const hostIt = () => {
     markPartyCreator(code);

@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import { audioBus, duckBus, noiseHit, noiseLoop, toneHit } from "@/lib/audio";
 import { useRaceStore } from "@/stores/race-store";
 import { raceTelemetry } from "./telemetry";
+import { MAX_SPEED, engineNote } from "./engine-note";
 
 /**
  * What the bike sounds like, and what the race sounds like around it.
@@ -20,34 +21,50 @@ import { raceTelemetry } from "./telemetry";
  * server decides (laps, places, the phase), and `raceTelemetry`, for what the
  * simulation decides on this machine (a crash, a boost lighting).
  *
- * ── The engine is a pitch, not a sample ──────────────────────────────────
+ * ── The engine is a geared motor, not a siren ────────────────────────────
  *
- * A sawtooth and a square an octave under it, through a lowpass that opens
- * with speed. Pitch follows speed on a short time constant, so lifting off
- * the throttle is heard as a fall rather than a cut, and a boost — which
- * raises the top speed — is heard as the engine going somewhere it could not
- * go before, without any special case. The engine idles on the grid: a race
- * with a silent bike under the lights is a race that has not started for the
- * ear either.
+ * Revs come from `engine-note.ts`: five gears and a boost overrev, so the
+ * engine climbs, drops on the shift, and climbs again. The tone is two
+ * detuned triangles and two sine harmonics — soft-edged, nothing a phone
+ * speaker turns into a buzz — with the firing as an amplitude pulse at a
+ * fraction of the pitch, which is where a motor's growl lives and the one
+ * part of a low engine a small speaker can still carry. A high-pass at 85 Hz
+ * throws away what no phone can play anyway.
+ *
+ * The first version was a sawtooth and a square from 26 Hz up through a
+ * resonant lowpass: harsh on headphones and pure buzz on a phone.
+ *
+ * Load (speeding up, coasting, braking) is read off the change in speed: on
+ * the throttle the engine is louder and brighter, off it the sound drops back
+ * and burbles. An upshift under load cuts the note for a beat. The engine
+ * idles on the grid: a silent bike under the lights is a race that has not
+ * started for the ear either.
  */
 
-/** Speeds the sounds are scaled against. Mirrors the bike's constants. */
-const MAX_SPEED = 18;
 const BOOST_TOP_SPEED = 26;
 
-const ENGINE_IDLE_HZ = 52;
-const ENGINE_SPAN_HZ = 150;
-const ENGINE_IDLE_GAIN = 0.035;
-const ENGINE_RIDE_GAIN = 0.075;
+const ENGINE_IDLE_GAIN = 0.05;
+const ENGINE_RIDE_GAIN = 0.1;
+/** How long an upshift's cut lasts, seconds. */
+const SHIFT_CUT = 0.07;
 
-const DRIFT_GAIN = 0.1;
+const DRIFT_GAIN = 0.06;
 
 interface Live {
   ctx: AudioContext;
-  saw: OscillatorNode;
-  sub: OscillatorNode;
+  /** Every engine oscillator, for start and stop. */
+  oscs: OscillatorNode[];
+  body: OscillatorNode;
+  body2: OscillatorNode;
+  octave: OscillatorNode;
+  turbine: OscillatorNode;
+  turbineGain: GainNode;
+  pulse: OscillatorNode;
+  pulseDepth: GainNode;
   engineFilter: BiquadFilterNode;
   engineGain: GainNode;
+  /** Everything to disconnect on teardown. */
+  nodes: AudioNode[];
   tyre: AudioBufferSourceNode;
   tyreFilter: BiquadFilterNode;
   tyreGain: GainNode;
@@ -60,25 +77,54 @@ function build(): Live | null {
   if (!a || a.ctx.state !== "running") return null;
   const { ctx } = a;
 
-  const saw = ctx.createOscillator();
-  saw.type = "sawtooth";
-  saw.frequency.value = ENGINE_IDLE_HZ;
-  const sub = ctx.createOscillator();
-  sub.type = "square";
-  sub.frequency.value = ENGINE_IDLE_HZ / 2;
-  const subGain = ctx.createGain();
-  subGain.gain.value = 0.4;
+  const osc = (type: OscillatorType, f: number, detune = 0) => {
+    const o = ctx.createOscillator();
+    o.type = type;
+    o.frequency.value = f;
+    o.detune.value = detune;
+    return o;
+  };
+  const gain = (v: number) => {
+    const g = ctx.createGain();
+    g.gain.value = v;
+    return g;
+  };
+
+  // The body: two triangles a few cents apart, so it beats like an engine
+  // rather than sitting dead still like a tuning fork.
+  const body = osc("triangle", 130, -6);
+  const body2 = osc("triangle", 130, 7);
+  const octave = osc("sine", 260);
+  const turbine = osc("sine", 390);
+  const mix = gain(1);
+  const bodyGain = gain(0.5);
+  const body2Gain = gain(0.45);
+  const octaveGain = gain(0.28);
+  const turbineGain = gain(0);
+  body.connect(bodyGain).connect(mix);
+  body2.connect(body2Gain).connect(mix);
+  octave.connect(octaveGain).connect(mix);
+  turbine.connect(turbineGain).connect(mix);
+
+  // The firing pulse: the mix's level wobbles at a fraction of the pitch.
+  const am = gain(0.7);
+  const pulse = osc("sine", 32);
+  const pulseDepth = gain(0.25);
+  pulse.connect(pulseDepth).connect(am.gain);
+  mix.connect(am);
+
+  const highpass = ctx.createBiquadFilter();
+  highpass.type = "highpass";
+  highpass.frequency.value = 85;
+  highpass.Q.value = 0.5;
   const engineFilter = ctx.createBiquadFilter();
   engineFilter.type = "lowpass";
-  engineFilter.frequency.value = 300;
-  engineFilter.Q.value = 2;
-  const engineGain = ctx.createGain();
-  engineGain.gain.value = 0;
-  saw.connect(engineFilter);
-  sub.connect(subGain).connect(engineFilter);
-  engineFilter.connect(engineGain).connect(a.bus.game);
-  saw.start();
-  sub.start();
+  engineFilter.frequency.value = 900;
+  engineFilter.Q.value = 0.6;
+  const engineGain = gain(0);
+  am.connect(highpass).connect(engineFilter).connect(engineGain).connect(a.bus.game);
+  const oscs = [body, body2, octave, turbine, pulse];
+  for (const o of oscs) o.start();
 
   const tyre = noiseLoop();
   if (!tyre) return null;
@@ -99,7 +145,25 @@ function build(): Live | null {
   hum.connect(humGain).connect(a.bus.game);
   hum.start();
 
-  return { ctx, saw, sub, engineFilter, engineGain, tyre, tyreFilter, tyreGain, hum, humGain };
+  return {
+    ctx,
+    oscs,
+    body,
+    body2,
+    octave,
+    turbine,
+    turbineGain,
+    pulse,
+    pulseDepth,
+    engineFilter,
+    engineGain,
+    nodes: [mix, bodyGain, body2Gain, octaveGain, turbineGain, am, pulseDepth, highpass, engineFilter, engineGain],
+    tyre,
+    tyreFilter,
+    tyreGain,
+    hum,
+    humGain,
+  };
 }
 
 function teardown(l: Live) {
@@ -110,12 +174,11 @@ function teardown(l: Live) {
     g.gain.setTargetAtTime(0, t, 0.03);
   }
   const stopAt = t + 0.2;
-  l.saw.stop(stopAt);
-  l.sub.stop(stopAt);
+  for (const o of l.oscs) o.stop(stopAt);
   l.tyre.stop(stopAt);
   l.hum.stop(stopAt);
   window.setTimeout(() => {
-    for (const n of [l.saw, l.sub, l.engineFilter, l.engineGain, l.tyre, l.tyreFilter, l.tyreGain, l.hum, l.humGain]) {
+    for (const n of [...l.oscs, ...l.nodes, l.tyre, l.tyreFilter, l.tyreGain, l.hum, l.humGain]) {
       n.disconnect();
     }
   }, 400);
@@ -167,7 +230,7 @@ function sfxFinish(place: number) {
 function sfxBoost() {
   noiseHit(0.22, 3200, 0.16, { bus: "game" });
   noiseHit(0.3, 900, 0.12, { bus: "game", at: 0.05 });
-  toneHit(160, 0.35, 0.1, "sawtooth", { bus: "game", glide: 2.2 });
+  toneHit(160, 0.35, 0.12, "triangle", { bus: "game", glide: 2.2 });
 }
 
 function sfxCrash(loss: number) {
@@ -181,6 +244,8 @@ export function RaceSounds() {
   const live = useRef<Live | null>(null);
   const wasBoosting = useRef(false);
   const impacts = useRef(0);
+  /** The engine between frames: gear, last speed, smoothed load, shift cut. */
+  const motor = useRef({ gear: -1, speed: 0, load: 0, cut: 0, at: 0 });
 
   useEffect(() => {
     const l = live;
@@ -224,16 +289,45 @@ export function RaceSounds() {
     const l = live.current;
     const t = l.ctx.currentTime;
     const T = raceTelemetry;
-    const ratio = Math.min(1, Math.abs(T.speed) / MAX_SPEED);
-    const over = Math.max(0, (Math.abs(T.speed) - MAX_SPEED) / (BOOST_TOP_SPEED - MAX_SPEED));
+    const speed = Math.abs(T.speed);
+    const ratio = Math.min(1, speed / MAX_SPEED);
+    const over = Math.max(0, (speed - MAX_SPEED) / (BOOST_TOP_SPEED - MAX_SPEED));
 
-    // Engine: pitch and brightness follow speed; the sub follows the pitch.
-    const f = ENGINE_IDLE_HZ + ENGINE_SPAN_HZ * ratio + 90 * over;
-    l.saw.frequency.setTargetAtTime(f, t, 0.06);
-    l.sub.frequency.setTargetAtTime(f / 2, t, 0.06);
-    l.engineFilter.frequency.setTargetAtTime(300 + 1400 * ratio + 900 * over, t, 0.08);
-    const gain = T.riding ? ENGINE_IDLE_GAIN + (ENGINE_RIDE_GAIN - ENGINE_IDLE_GAIN) * (0.3 + 0.7 * ratio) : ENGINE_IDLE_GAIN;
-    l.engineGain.gain.setTargetAtTime(gain, t, 0.05);
+    // Load, off the change in speed: +1 is hard on the throttle, -1 braking.
+    const m = motor.current;
+    const dt = m.at > 0 ? Math.min(0.1, Math.max(1e-3, t - m.at)) : 1 / 60;
+    m.at = t;
+    const accel = (speed - m.speed) / dt;
+    m.speed = speed;
+    m.load += (Math.max(-1, Math.min(1, accel / 5)) - m.load) * Math.min(1, dt * 6);
+    const onThrottle = T.riding && m.load > -0.15;
+
+    const note = engineNote(speed, m.gear);
+    if (note.gear > m.gear && m.gear >= 0 && m.load > 0.1) m.cut = SHIFT_CUT;
+    m.gear = note.gear;
+    m.cut = Math.max(0, m.cut - dt);
+
+    // Pitch: the gear's revs, quick enough to hear the drop on a shift.
+    const f = note.hz;
+    l.body.frequency.setTargetAtTime(f, t, 0.045);
+    l.body2.frequency.setTargetAtTime(f, t, 0.045);
+    l.octave.frequency.setTargetAtTime(f * 2, t, 0.045);
+    l.turbine.frequency.setTargetAtTime(f * 3, t, 0.045);
+    // Boost spins a turbine whine up over the top.
+    l.turbineGain.gain.setTargetAtTime(T.boosting ? 0.16 + 0.1 * over : 0.03 * ratio, t, 0.08);
+
+    // The firing pulse: slow and lumpy at idle and off the throttle, a fast
+    // smooth growl on it.
+    l.pulse.frequency.setTargetAtTime(Math.max(9, f / (onThrottle ? 3 : 5)), t, 0.06);
+    l.pulseDepth.gain.setTargetAtTime(onThrottle ? 0.18 + 0.1 * (1 - note.rpm) : 0.35, t, 0.08);
+
+    // Brightness and level: open and loud under load, closed and quieter coasting.
+    const bright = 700 + 1500 * note.rpm + 900 * Math.max(0, m.load) + 700 * over;
+    l.engineFilter.frequency.setTargetAtTime(onThrottle ? bright : bright * 0.6, t, 0.06);
+    const level = T.riding
+      ? ENGINE_IDLE_GAIN + (ENGINE_RIDE_GAIN - ENGINE_IDLE_GAIN) * (0.35 + 0.65 * ratio) * (onThrottle ? 1 : 0.7)
+      : ENGINE_IDLE_GAIN;
+    l.engineGain.gain.setTargetAtTime(m.cut > 0 ? level * 0.45 : level, t, m.cut > 0 ? 0.012 : 0.05);
 
     // Tyres: only while sliding, louder and brighter the faster the slide.
     l.tyreGain.gain.setTargetAtTime(T.drifting ? DRIFT_GAIN * (0.4 + 0.6 * ratio) : 0, t, T.drifting ? 0.08 : 0.04);

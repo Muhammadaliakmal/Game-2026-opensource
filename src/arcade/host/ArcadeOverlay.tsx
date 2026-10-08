@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { MuteButton } from "@/components/MuteButton";
 import { ControlsHint, Hotkey } from "@/components/hud/Hotkey";
 import { RewardBurst } from "@/components/hud/RewardBurst";
@@ -17,7 +17,9 @@ import { lockZoom } from "./zoom-lock";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
 import { VersusResults, VersusStrip } from "@/components/party/Versus";
-import { partyGame } from "@/lib/party-games";
+import { isPlayablePartyGame, partyGame } from "@/lib/party-games";
+import { PARTY } from "@/lib/features";
+import { competeHref } from "@/components/party/creator";
 import {
   FIGHT_PACKS,
   FIGHT_PACK_LABEL,
@@ -98,6 +100,7 @@ export default function ArcadeOverlay() {
    * would close the cabinet on the same tick it was opened.
    */
   const pathname = usePathname();
+  const router = useRouter();
   const openedOn = useRef(pathname);
   useEffect(() => {
     if (pathname !== openedOn.current) useArcade.getState().close();
@@ -153,6 +156,13 @@ export default function ArcadeOverlay() {
   // interstitial may go — paced in lib/game-ads-policy.ts, and the next run
   // starts whether or not one showed.
   const again = () => breakBeforeRun(restart);
+  /** A solo run of a game parties can play: offer the same game against people nearby. */
+  const canCompete = PARTY && !versus && isPlayablePartyGame(entry.id);
+  const compete = () => {
+    const href = competeHref(entry.id);
+    close();
+    router.push(href);
+  };
 
   return (
     <div
@@ -292,6 +302,7 @@ export default function ArcadeOverlay() {
                 Quit
               </button>
             </div>
+            {canCompete && <CompeteNearby onClick={compete} />}
           </Panel>
         )}
 
@@ -359,6 +370,7 @@ export default function ArcadeOverlay() {
                 </button>
               </div>
             )}
+            {canCompete && <CompeteNearby onClick={compete} />}
           </Panel>
         )}
       </div>
@@ -490,6 +502,22 @@ function RotateHint() {
           <span aria-hidden="true">✕</span>
         </button>
       </p>
+    </div>
+  );
+}
+
+/**
+ * The same game against people on the same Wi-Fi, each on their own device.
+ * Starts a party with this cabinet picked; anyone nearby sees it on their
+ * Party page. See `plan-phase11.md`.
+ */
+function CompeteNearby({ onClick }: { onClick: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <button type="button" className="hud-chip" onClick={onClick}>
+        Compete nearby
+      </button>
+      <span className="text-dim text-2xs">Same Wi-Fi, different devices</span>
     </div>
   );
 }
