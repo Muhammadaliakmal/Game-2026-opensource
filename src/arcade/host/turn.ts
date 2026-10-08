@@ -81,7 +81,29 @@ export interface TurnOptions<S, M> {
   autoplaySingle?: boolean;
   /** Steps on a human's turn clock, or 0 for "off" — also a setting. */
   turnTimerSteps?: number;
+  /**
+   * A networked match's HOST: called with every decision the moment it is
+   * made — the dice value as the throw starts, and each move as it is played —
+   * so the other tables can replay them (`plan-phase11.md`, 11C).
+   *
+   * With this set the dice are drawn when the throw starts rather than when
+   * it lands, so the value can travel with the throw. Without it nothing
+   * moves: a solo match draws from `rng` in exactly the order it always has,
+   * and a seed still replays the same table.
+   */
+  onDecision?: (d: Decision) => void;
+  /**
+   * A networked match's GUEST: a table that decides nothing. It never rolls,
+   * never plays a timed-out or forced move, and never draws a die; it applies
+   * the host's decisions (`apply`) as its own phases reach them. Pacing — the
+   * tumble, the beat between turns, the hops — stays local, so a guest can run
+   * a moment behind the host and still play exactly the same match.
+   */
+  puppet?: boolean;
 }
+
+/** One thing a host decided, small enough to send. */
+export type Decision = { k: "roll"; raw: number } | { k: "move"; i: number };
 
 export interface TurnMachine<S, M> {
   readonly phase: Phase;
@@ -111,12 +133,20 @@ export interface TurnMachine<S, M> {
   step(): void;
   /** Take the events produced since the last call. Empties the queue. */
   drainEvents(): MoveEvent[];
+  /** A puppet: queue the host's decision, applied when the phase allows it. */
+  apply(d: Decision): void;
 }
 
 export function createTurnMachine<S, M>(opts: TurnOptions<S, M>): TurnMachine<S, M> {
   const { rules, seats, seed, rng } = opts;
   const autoplaySingle = opts.autoplaySingle ?? true;
   const turnTimerSteps = opts.turnTimerSteps ?? TURN_TIMER_STEPS;
+  const puppet = opts.puppet === true;
+  const onDecision = opts.onDecision;
+  /** A puppet's decisions from the host, in the order they were made. */
+  const inbox: Decision[] = [];
+  /** The die already decided for the throw in progress, or null to draw at landing. */
+  let decidedRaw: number | null = null;
 
   const state = rules.createInitialState({ seats, seed });
 
@@ -153,7 +183,7 @@ export function createTurnMachine<S, M>(opts: TurnOptions<S, M>): TurnMachine<S,
    * would nonetheless make the bot look like it timed out.
    */
   const clockRuns = () =>
-    turnTimerSteps > 0 && seats[active]?.kind === "human";
+    !puppet && turnTimerSteps > 0 && seats[active]?.kind === "human";
 
   const enterAwaitingRoll = () => {
     phase = "awaitingRoll";
@@ -202,13 +232,29 @@ export function createTurnMachine<S, M>(opts: TurnOptions<S, M>): TurnMachine<S,
   };
 
   /** The dice have landed. Everything from here to a phase is one decision. */
-  const resolveRoll = () => {
-    const seat = seats[active];
+  const drawRaw = () => {
     const faces = rules.dice.faces;
     let raw = 0;
     for (let i = 0; i < rules.dice.count; i++) {
       raw += 1 + Math.floor(rng() * faces);
     }
+    return raw;
+  };
+
+  /** The throw starts. A host decides its value now, so it can say so. */
+  const beginRoll = () => {
+    phase = "rolling";
+    setTimer(DICE_STEPS);
+    if (onDecision && !puppet) {
+      decidedRaw = drawRaw();
+      onDecision({ k: "roll", raw: decidedRaw });
+    }
+  };
+
+  const resolveRoll = () => {
+    const seat = seats[active];
+    const raw = decidedRaw ?? drawRaw();
+    decidedRaw = null;
 
     const result = rules.applyRoll(state, seat.id, raw);
     emit(result.events);
@@ -231,7 +277,10 @@ export function createTurnMachine<S, M>(opts: TurnOptions<S, M>): TurnMachine<S,
     }
 
     phase = "awaitingMove";
-    if (autoplaySingle && moves.length === 1) {
+    if (puppet) {
+      // The host times this turn and will say what was played.
+      setTimer(0);
+    } else if (autoplaySingle && moves.length === 1) {
       setTimer(AUTOPLAY_STEPS);
     } else {
       setTimer(clockRuns() ? turnTimerSteps : 0);
@@ -240,6 +289,7 @@ export function createTurnMachine<S, M>(opts: TurnOptions<S, M>): TurnMachine<S,
 
   const play = (move: M) => {
     const seat = seats[active];
+    if (onDecision && !puppet) onDecision({ k: "move", i: moves.indexOf(move) });
     const result = rules.applyMove(state, seat.id, move);
     emit(result.events);
     if (result.extraTurn) extraTurn = true;
@@ -310,14 +360,13 @@ export function createTurnMachine<S, M>(opts: TurnOptions<S, M>): TurnMachine<S,
     },
 
     requestRoll() {
-      if (phase !== "awaitingRoll") return false;
-      phase = "rolling";
-      setTimer(DICE_STEPS);
+      if (puppet || phase !== "awaitingRoll") return false;
+      beginRoll();
       return true;
     },
 
     chooseMove(move) {
-      if (phase !== "awaitingMove") return false;
+      if (puppet || phase !== "awaitingMove") return false;
       if (!moves.includes(move)) return false;
       play(move);
       return true;
@@ -329,6 +378,22 @@ export function createTurnMachine<S, M>(opts: TurnOptions<S, M>): TurnMachine<S,
     },
 
     step() {
+      // A puppet applies the host's next decision as soon as its own table has
+      // caught up to the phase that decision belongs to.
+      const next = inbox[0];
+      if (next) {
+        if (next.k === "roll" && phase === "awaitingRoll") {
+          inbox.shift();
+          phase = "rolling";
+          setTimer(DICE_STEPS);
+          decidedRaw = next.raw;
+        } else if (next.k === "move" && phase === "awaitingMove") {
+          inbox.shift();
+          const move = moves[next.i];
+          if (move !== undefined) play(move);
+        }
+      }
+
       // `animating` has no timer of its own: only the animator knows how many
       // cells a token has left to hop, so it is the thing that ends the phase.
       if (timer <= 0) return;
@@ -347,8 +412,7 @@ export function createTurnMachine<S, M>(opts: TurnOptions<S, M>): TurnMachine<S,
       } else if (phase === "awaitingRoll") {
         // The clock expired before a human pressed anything. Roll for them —
         // the alternative is a match that stops because somebody looked away.
-        phase = "rolling";
-        setTimer(DICE_STEPS);
+        beginRoll();
       }
     },
 
@@ -356,6 +420,10 @@ export function createTurnMachine<S, M>(opts: TurnOptions<S, M>): TurnMachine<S,
       const out = events;
       events = [];
       return out;
+    },
+
+    apply(d) {
+      if (puppet) inbox.push(d);
     },
   };
 }

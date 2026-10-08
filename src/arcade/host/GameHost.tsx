@@ -6,6 +6,7 @@ import { resizeCanvas } from "./canvas";
 import { fillLetterbox, setSideReserve } from "./view";
 import { attachInput, type InputHost } from "./input";
 import { mulberry32 } from "./rng";
+import { getCabinetNet } from "./net";
 import { sfx } from "./audio";
 import { startMusic, stopMusic } from "./music";
 import type { ArcadeGame, GameServices } from "./types";
@@ -132,6 +133,8 @@ export function GameHost({ className }: { className?: string }) {
       height: canvas.clientHeight,
       // Recreated per run from the store's seed, so a run is reproducible.
       rng: mulberry32(seed),
+      // A party match's line to the other tables, or nothing on a solo run.
+      net: useArcade.getState().versus ? (getCabinetNet() ?? undefined) : undefined,
       // Replaced once input is attached; a game cannot step before then.
       input: { keys: {}, pointer: { x: 0, y: 0, down: false }, axis: { x: 0, y: 0 }, touches: [] },
       sfx,

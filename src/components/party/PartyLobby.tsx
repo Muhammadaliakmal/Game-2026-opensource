@@ -8,7 +8,7 @@ import { PageShell } from "@/components/PageShell";
 import { entryFor } from "@/arcade/registry";
 import { useArcade } from "@/arcade/store";
 import { joinParty, leaveParty, partyPick, partyStart, partyToLobby } from "@/lib/net/party";
-import { PARTY_GAMES, PARTY_MAX, rankScores, type Ranked } from "@/lib/party-games";
+import { PARTY_GAMES, PARTY_MAX, partyGame, rankScores, type Ranked } from "@/lib/party-games";
 import { selectIsHost, usePartyStore, type PartyMemberView } from "@/stores/party-store";
 import { PartyBridge } from "./PartyBridge";
 import { isPartyCreator, markPartyCreator } from "./creator";
@@ -143,7 +143,11 @@ export function PartyLobby({ code }: { code: string }) {
                 Round on: {picked?.title ?? game}
               </h2>
               {me && !me.playing && (
-                <p className="text-dim text-xs">You arrived mid-round. You are in the next one.</p>
+                <p className="text-dim text-xs">
+                  {partyGame(game)?.seats
+                    ? `${picked?.title ?? "This game"} seats ${partyGame(game)?.seats}, and the table is full this round. You are watching.`
+                    : "You arrived mid-round. You are in the next one."}
+                </p>
               )}
               {me?.playing && !me.done && !activeGame && (
                 <button
@@ -154,14 +158,14 @@ export function PartyLobby({ code }: { code: string }) {
                   Back into the round
                 </button>
               )}
-              <Standings rows={standings} selfId={selfId} />
+              <Standings rows={standings} selfId={selfId} placesOnly={partyGame(game)?.kind !== "score"} />
             </section>
           )}
 
           {phase === "results" && (
             <section className="card flex flex-col gap-3 p-5">
               <h2 className="text-ink text-sm font-semibold">Last round: {picked?.title ?? game}</h2>
-              <Standings rows={standings} selfId={selfId} />
+              <Standings rows={standings} selfId={selfId} placesOnly={partyGame(game)?.kind !== "score"} />
               {isHost && (
                 <div className="flex flex-wrap gap-2">
                   <button type="button" className="hud-chip hud-chip--primary" onClick={partyStart}>
@@ -231,9 +235,11 @@ export function PartyLobby({ code }: { code: string }) {
 function Standings({
   rows,
   selfId,
+  placesOnly,
 }: {
   rows: Ranked<PartyMemberView>[];
   selfId: string | null;
+  placesOnly: boolean;
 }) {
   if (rows.length === 0) return null;
   return (
@@ -245,7 +251,7 @@ function Standings({
             {row.name}
             {row.id === selfId && <span className="text-dim"> (you)</span>}
           </span>
-          <span className="num font-semibold">{row.score}</span>
+          {!placesOnly && <span className="num font-semibold">{row.score}</span>}
           <span className="text-dim w-4 text-xs">{row.done ? "✓" : "…"}</span>
         </li>
       ))}

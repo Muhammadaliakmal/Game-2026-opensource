@@ -1,4 +1,4 @@
-import { PARTY_MAX, isPlayablePartyGame, rankScores } from "./party-games";
+import { PARTY_MAX, isPlayablePartyGame, partyGame, rankScores } from "./party-games";
 
 /**
  * A party: a few people in one room, playing one game at a time together.
@@ -51,6 +51,11 @@ export interface PartySnapshot {
   round: number;
   joins: number;
   members: Member[];
+  /**
+   * For a table game, the member in each seat this round, in seat order.
+   * Empty for a score game, where everyone plays their own copy.
+   */
+  seats: string[];
 }
 
 export interface Standing {
@@ -72,6 +77,7 @@ export class Party {
   round = 0;
   startedAt = 0;
   born = 0;
+  seats: string[] = [];
   private joins = 0;
 
   constructor(private readonly nextSeed: () => number) {}
@@ -86,6 +92,7 @@ export class Party {
       round: this.round,
       joins: this.joins,
       members: [...this.members.values()].map((m) => ({ ...m })),
+      seats: [...this.seats],
     };
   }
 
@@ -103,6 +110,7 @@ export class Party {
     p.seed = snap.seed;
     p.round = snap.round;
     p.joins = snap.joins;
+    p.seats = [...(snap.seats ?? [])];
     p.startedAt = now;
     for (const m of snap.members) p.members.set(m.id, { ...m });
     return p;
@@ -166,8 +174,12 @@ export class Party {
     this.seed = this.nextSeed() >>> 0;
     this.phase = "playing";
     this.startedAt = now;
+    // A table game seats the first members to arrive; everyone else watches.
+    const table = partyGame(this.game)?.seats;
+    const byOrder = [...this.members.values()].sort((a, b) => a.order - b.order);
+    this.seats = table ? byOrder.slice(0, table).map((m) => m.id) : [];
     for (const m of this.members.values()) {
-      m.playing = true;
+      m.playing = !table || this.seats.includes(m.id);
       m.score = 0;
       m.done = false;
     }

@@ -19,6 +19,7 @@ import {
 } from "./controls";
 import { RESULT_BUTTONS, createRenderer, type Scene } from "./render";
 import { loadSprites } from "./sprites";
+import { applySnapshot, inputMsg, readInputMsg, snapshotOf, type DuelSnapshot, type InputMsg } from "./net";
 import { burnSound, clashSound, hitSound, koSound, whooshSound, windupSound } from "./sound";
 
 /**
@@ -86,6 +87,25 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
   let ended = false;
   let reported = -1;
 
+  /**
+   * A party duel: two devices, one fight (`./net.ts`). The host simulates with
+   * the guest's input as player two; the guest draws the host's snapshots.
+   * One seated player is a duel against the CPU, played exactly as solo.
+   */
+  const net = s.net && s.net.players.length >= 2 ? s.net : null;
+  const remoteIn = neutralInput();
+  const localIn = neutralInput();
+  const inbox: DuelSnapshot[] = [];
+  let sentAt = -1;
+  let lastSent = "";
+  if (net) {
+    net.onMessage = (msg) => {
+      const m = msg as InputMsg | DuelSnapshot;
+      if (net.isHost && m?.k === "in") readInputMsg(m, remoteIn);
+      else if (!net.isHost && m?.k === "snap") inbox.push(m);
+    };
+  }
+
   const seen = new Set<number>();
   const was: Record<string, boolean> = {};
   const pressed: Record<string, boolean> = {};
@@ -119,7 +139,8 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
     scene.mode = choice.kind;
     scene.screen = "match";
     scene.resultT = 0;
-    touch = createTouchControls(choice.kind);
+    // Across two devices each phone is one player, so each gets the one-player pads.
+    touch = createTouchControls(net ? "cpu" : choice.kind);
     scene.pads = touch.pads;
     const seed = Math.floor(s.rng() * 0xffffffff) >>> 0;
     match = createMatch(mulberry32(seed));
@@ -232,7 +253,46 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
     }
   }
 
+  /** A party duel's end, said as a place: the cabinet reports who won, not a score. */
+  function finishNet(m: Match) {
+    ended = true;
+    const me = net!.seat === 0 ? 0 : 1;
+    const place = m.winner === null || m.winner === me ? 1 : 2;
+    if (s.onPlaced) s.onPlaced(place, 2);
+    else s.onGameOver(0);
+  }
+
+  /** The guest: send the stick, draw what the host sent. */
+  function stepGuest(dt: number, list: readonly ViewTouch[]) {
+    const m = match;
+    if (!m) return;
+    if (list.length > 0) scene.showTouch = true;
+    if (hitstop > 0) hitstop -= 1;
+    touch.update(list);
+    mergeInput(touch.pads[0], readers.solo.read(s.input.keys), localIn);
+    // Every step it changes, and every few anyway: a dropped message must not
+    // leave the host holding a stick the guest has let go of.
+    const wire = inputMsg(localIn);
+    const key = `${wire.x},${wire.y},${wire.j},${wire.h}`;
+    if (key !== lastSent || sentAt++ > 6) {
+      net!.send(wire);
+      lastSent = key;
+      sentAt = 0;
+    }
+    if (inbox.length === 0) return;
+    while (inbox.length) {
+      applySnapshot(m, inbox.shift()!);
+      react(m);
+    }
+    renderer.record(m);
+    if (m.phase === "over") {
+      overT += dt;
+      if (overT >= OVER_HOLD && !ended) finishNet(m);
+    }
+  }
+
   function stepMatch(dt: number, list: readonly ViewTouch[]) {
+    if (net && !net.isHost) return stepGuest(dt, list);
     const m = match;
     if (!m) return;
     if (list.length > 0) scene.showTouch = true;
@@ -241,7 +301,11 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
       return;
     }
     touch.update(list);
-    if (scene.mode === "cpu") {
+    if (net) {
+      // The host is player one; player two is the other phone.
+      mergeInput(touch.pads[0], readers.solo.read(s.input.keys), in0);
+      Object.assign(in1, remoteIn);
+    } else if (scene.mode === "cpu") {
       mergeInput(touch.pads[0], readers.solo.read(s.input.keys), in0);
       const cpu = ai ? ai.input(m) : NEUTRAL;
       Object.assign(in1, cpu);
@@ -252,6 +316,7 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
     const scale = slowT > 0 ? T.KO_SLOW : 1;
     if (slowT > 0) slowT = Math.max(0, slowT - dt);
     m.step(dt * scale, in0, in1);
+    if (net) net.send(snapshotOf(m));
     renderer.record(m);
     react(m);
 
@@ -266,7 +331,9 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
     if (m.phase === "over") {
       overT += dt;
       if (overT < OVER_HOLD) return;
-      if (scene.mode === "cpu") {
+      if (net) {
+        if (!ended) finishNet(m);
+      } else if (scene.mode === "cpu") {
         ended = true;
         s.onGameOver(scoreFor(m, difficulty));
       } else {
@@ -303,6 +370,9 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
     step(dt) {
       renderer.step(dt, scene, hitstop > 0);
       if (ended) return;
+      // A party duel has no menu: the party already chose the fight. One
+      // seated player plays the CPU, at the middle difficulty.
+      if (s.net && scene.screen === "menu") start(net ? { kind: "versus" } : { kind: "cpu", difficulty: "medium" });
       readKeys();
       const list = viewTouches();
       const fresh = taps(list);

@@ -23,6 +23,12 @@ export interface PartyGame {
   id: string;
   kind: PartyKind;
   ready: boolean;
+  /**
+   * Seats at one table, for `seats` and `duel`. The first this many members
+   * (in join order) play; anyone past it watches the standings. Empty seats
+   * are bots — or the CPU, in the duel.
+   */
+  seats?: number;
 }
 
 export const PARTY_GAMES: readonly PartyGame[] = [
@@ -34,9 +40,9 @@ export const PARTY_GAMES: readonly PartyGame[] = [
   { id: "reflex", kind: "score", ready: true },
   { id: "untwine", kind: "score", ready: true },
   { id: "echo", kind: "score", ready: true },
-  { id: "ludo", kind: "seats", ready: false },
-  { id: "snakes", kind: "seats", ready: false },
-  { id: "duel", kind: "duel", ready: false },
+  { id: "ludo", kind: "seats", ready: true, seats: 4 },
+  { id: "snakes", kind: "seats", ready: true, seats: 4 },
+  { id: "duel", kind: "duel", ready: true, seats: 2 },
 ];
 
 const BY_ID = new Map(PARTY_GAMES.map((g) => [g.id, g]));

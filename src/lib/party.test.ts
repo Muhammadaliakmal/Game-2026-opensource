@@ -39,9 +39,24 @@ test("only the host picks and starts", () => {
   assert.equal(p.phase, "playing");
 });
 
+test("a table game seats the first to arrive, and the rest watch", () => {
+  const p = lobby(6);
+  assert.ok(p.pick("m0", "ludo"));
+  assert.ok(p.start("m0", 0));
+  assert.deepEqual(p.seats, ["m0", "m1", "m2", "m3"]);
+  assert.equal(p.members.get("m4")!.playing, false);
+  for (const id of p.seats) p.finish(id, 1);
+  assert.equal(p.phase, "results", "the watchers are not waited for");
+});
+
+test("a score game seats nobody: everyone plays their own copy", () => {
+  const p = playing(3);
+  assert.deepEqual(p.seats, []);
+  assert.ok([...p.members.values()].every((m) => m.playing));
+});
+
 test("a game that is not ready cannot be picked", () => {
   const p = lobby();
-  assert.equal(p.pick("m0", "duel"), false, "duel is 11D");
   assert.equal(p.pick("m0", "no-such-cabinet"), false);
   assert.equal(p.game, "");
   assert.equal(p.start("m0", 0), false, "nothing picked, nothing to start");

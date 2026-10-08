@@ -41,6 +41,8 @@ const trystero = () => import("trystero");
 interface Live {
   code: string;
   room: TrysteroRoom;
+  /** The cabinet's channel: one table's moves to the others (`host/net.ts`). */
+  sendGame: Sender;
   session: PartySession;
   timers: number[];
   stopAds: (() => void) | null;
@@ -70,6 +72,7 @@ function mirror(session: PartySession, code: string, selfId: string) {
     seed: v.seed,
     round: v.round,
     members: [...v.members].sort((a, b) => a.order - b.order).map((m) => ({ ...m })),
+    seats: [...(v.seats ?? [])],
   });
 }
 
@@ -96,6 +99,11 @@ export async function joinParty(code: string, opts: { creator: boolean }): Promi
   const room = mod.joinRoom({ appId: APP_ID, password: code }, `party-${code}`);
   const action = room.makeAction("p");
   const send = action.send as unknown as Sender;
+  const game = room.makeAction("g");
+  game.onMessage = (data, ctx) => {
+    const g = data as unknown as { r: number; m: unknown };
+    if (g && typeof g.r === "number") gameHandler?.(g.m, ctx.peerId, g.r);
+  };
   const selfId = mod.selfId;
 
   const pending: number[] = [];
@@ -119,7 +127,14 @@ export async function joinParty(code: string, opts: { creator: boolean }): Promi
   room.onPeerJoin = (id) => session.peerJoined(id);
   room.onPeerLeave = (id) => session.peerLeft(id);
 
-  const state: Live = { code, room, session, timers: pending, stopAds: null };
+  const state: Live = {
+    code,
+    room,
+    sendGame: game.send as unknown as Sender,
+    session,
+    timers: pending,
+    stopAds: null,
+  };
   live = state;
   state.timers.push(window.setInterval(() => session.tick(), 1000));
   state.timers.push(
@@ -155,6 +170,18 @@ export function leaveParty() {
   }
   going.stopAds?.();
   leaving = going.room.leave().catch(() => {});
+}
+
+/** Where a table game's messages go. One at a time: there is one cabinet open. */
+let gameHandler: ((msg: unknown, from: string, round: number) => void) | null = null;
+
+export function onPartyGame(handler: typeof gameHandler) {
+  gameHandler = handler;
+}
+
+/** A table game's message for this round: to one peer, or everyone. */
+export function partyGameSend(round: number, msg: unknown, to?: string) {
+  void live?.sendGame({ r: round, m: msg }, to ? { target: to } : undefined).catch(() => {});
 }
 
 export const partyPick = (game: string) => live?.session.pick(game);

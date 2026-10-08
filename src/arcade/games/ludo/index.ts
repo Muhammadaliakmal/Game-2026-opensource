@@ -1,6 +1,7 @@
 import { createAnimator } from "@/arcade/host/anim";
 import { createPainter } from "@/arcade/host/board";
-import { createBotDriver, fillSeats } from "@/arcade/host/bots";
+import { createBotDriver } from "@/arcade/host/bots";
+import { createBoardLink, netMachineOptions, partySeats } from "@/arcade/host/board-net";
 import { TURN_TIMER_STEPS, createTurnMachine } from "@/arcade/host/turn";
 import type { ArcadeGame, GameModule, GameServices } from "@/arcade/host/types";
 import { reducedMotion } from "@/lib/motion";
@@ -44,8 +45,11 @@ import { DEFAULT_SETTINGS } from "./tuning";
 
 const SEATS = 4;
 
-/** The seat the person holding the phone plays. `fillSeats` puts them first. */
-const LOCAL = 0;
+/**
+ * The seat the person holding the phone plays on a solo run. `fillSeats` puts
+ * them first. A party match says which is theirs (`GameServices.net`).
+ */
+const SOLO_SEAT = 0;
 
 /** A beat after the last token lands, before the result screen. */
 const END_FREEZE = 42;
@@ -60,13 +64,18 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
   // a seed replays the same table: the same bots, the same names, the same
   // dice, the same mistakes.
   const seed = Math.floor(s.rng() * 0xffffffff) >>> 0;
-  const seats = fillSeats({ total: SEATS, rng: s.rng, difficulty: "normal" });
+  // A party match seats its players first and bots after; solo is you and
+  // three bots. See `host/board-net.ts`.
+  const seats = partySeats(s.net, SEATS, s.rng, "normal");
+  const LOCAL = s.net ? s.net.seat : SOLO_SEAT;
 
   const machine = createTurnMachine<LudoState, LudoMove>({
     rules,
     seats,
     seed,
     rng: s.rng,
+    // The host's table decides and says so; a guest's replays it.
+    ...netMachineOptions(s.net),
   });
   const painter = createPainter(LUDO_GRAPH);
   const animator = createAnimator({
@@ -76,6 +85,10 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
     reduced: reducedMotion,
   });
   const bots = createBotDriver({ machine, rules, rng: s.rng });
+  // A guest's taps become requests to the host; solo, they are plain calls.
+  const link = createBoardLink({ net: s.net, machine, rules });
+  /** Only the deciding table runs the bots. A puppet's bots would be a second opinion. */
+  const runsBots = !s.net || s.net.isHost;
   const renderer = createRenderer(painter);
 
   const state = machine.state;
@@ -127,7 +140,7 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
       // A tap anywhere throws the dice. Hit-testing the die itself would be a
       // 60-pixel target on a phone in the corner of the board, and there is
       // nothing else to press in this phase.
-      if (tapped || rolled) machine.requestRoll();
+      if (tapped || rolled) link.roll();
       return;
     }
 
@@ -136,7 +149,7 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
     const moves = machine.moves;
     for (let i = 0; i < picks.length && i < moves.length; i++) {
       if (picks[i]) {
-        machine.chooseMove(moves[i]);
+        link.move(moves[i]);
         return;
       }
     }
@@ -152,11 +165,11 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
     // piece means.
     const onPiece = moves.find((m) => cellOfMove(m) === cell);
     if (onPiece) {
-      machine.chooseMove(onPiece);
+      link.move(onPiece);
       return;
     }
     const onTarget = moves.find((m) => cellFor(LOCAL, m.to, m.token) === cell);
-    if (onTarget) machine.chooseMove(onTarget);
+    if (onTarget) link.move(onTarget);
   };
 
   /** Cues are drained rather than played by the animator — see `anim.ts`. */
@@ -209,7 +222,8 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
 
       const before = machine.phase;
       machine.step();
-      bots.step();
+      if (runsBots) bots.step();
+      link.step();
 
       // The throw and the landing, which are the two moments the dice have.
       if (before !== "rolling" && machine.phase === "rolling") s.sfx("jump", -5);
@@ -232,7 +246,10 @@ export const create: GameModule["create"] = (s: GameServices): ArcadeGame => {
       // how many cells are left to hop, so it is the thing that ends the phase.
       if (machine.phase === "animating" && !animator.busy) machine.animationDone();
 
-      const placed = machine.rankings.includes(LOCAL);
+      // A party match ends for everyone at once, when the match does: the
+      // host's table is the match, and it cannot stop when its own token is
+      // home while the others are still playing on it.
+      const placed = !s.net && machine.rankings.includes(LOCAL);
       if ((machine.phase === "matchOver" || placed) && !animator.busy && !ended) {
         endFreeze = END_FREEZE;
       }

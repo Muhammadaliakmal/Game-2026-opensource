@@ -14,6 +14,8 @@
  * same reason.
  */
 
+import type { CabinetNet } from "./net";
+
 export interface InputState {
   /** Written by listeners, read once per step. Keyed by `KeyboardEvent.code`. */
   readonly keys: Record<string, boolean>;
@@ -42,6 +44,12 @@ export interface TouchPoint {
 
 export interface GameServices {
   ctx: CanvasRenderingContext2D;
+  /**
+   * A party match: who sits where, and a line to the other tables. Absent on
+   * a solo run, and a cabinet must play exactly as before when it is. See
+   * `host/net.ts`.
+   */
+  net?: CabinetNet;
   /** CSS pixels. `ctx` is already DPR-transformed, so draw in these. */
   width: number;
   height: number;

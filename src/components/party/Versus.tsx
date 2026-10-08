@@ -2,7 +2,7 @@
 
 import { useArcade } from "@/arcade/store";
 import { partyStart } from "@/lib/net/party";
-import { rankScores } from "@/lib/party-games";
+import { partyGame, rankScores } from "@/lib/party-games";
 import { selectIsHost, usePartyStore, type PartyMemberView } from "@/stores/party-store";
 
 /**
@@ -13,6 +13,12 @@ import { selectIsHost, usePartyStore, type PartyMemberView } from "@/stores/part
 function useRanked() {
   const members = usePartyStore((s) => s.members);
   return rankScores(members.filter((m) => m.playing));
+}
+
+/** A board or duel round is ranked by place; its "score" is only the sort key. */
+function usePlacesOnly() {
+  const game = usePartyStore((s) => s.game);
+  return partyGame(game)?.kind !== "score";
 }
 
 function ordinal(n: number): string {
@@ -30,7 +36,9 @@ function ordinal(n: number): string {
 export function VersusStrip() {
   const ranked = useRanked();
   const selfId = usePartyStore((s) => s.selfId);
-  if (ranked.length < 2) return null;
+  const placesOnly = usePlacesOnly();
+  // A table game is played on one shared board, which already shows everyone.
+  if (ranked.length < 2 || placesOnly) return null;
   const top = ranked.slice(0, 4);
   const me = ranked.find((r) => r.row.id === selfId);
   const rows = me && !top.includes(me) ? [...top, me] : top;
@@ -63,13 +71,21 @@ export function VersusResults() {
   const selfId = usePartyStore((s) => s.selfId);
   const phase = usePartyStore((s) => s.phase);
   const isHost = usePartyStore(selectIsHost);
+  const placesOnly = usePlacesOnly();
   const waiting = ranked.filter(({ row }) => !row.done).length;
 
   return (
     <div className="flex w-full max-w-xs flex-col gap-3">
       <ol className="flex flex-col gap-1.5" aria-label="Standings">
         {ranked.map(({ row, place }) => (
-          <Row key={row.id} row={row} place={place} self={row.id === selfId} final={phase === "results"} />
+          <Row
+            key={row.id}
+            row={row}
+            place={place}
+            self={row.id === selfId}
+            final={phase === "results"}
+            placesOnly={placesOnly}
+          />
         ))}
       </ol>
       {phase === "playing" && waiting > 0 && (
@@ -99,11 +115,13 @@ function Row({
   place,
   self,
   final,
+  placesOnly,
 }: {
   row: PartyMemberView;
   place: number;
   self: boolean;
   final: boolean;
+  placesOnly: boolean;
 }) {
   return (
     <li
@@ -116,7 +134,7 @@ function Row({
         {row.name}
         {self && <span className="text-dim"> (you)</span>}
       </span>
-      <span className="num font-semibold">{row.score}</span>
+      {!placesOnly && <span className="num font-semibold">{row.score}</span>}
       <span className="text-dim w-4 text-xs" aria-label={row.done ? "finished" : "still playing"}>
         {row.done ? "✓" : "…"}
       </span>

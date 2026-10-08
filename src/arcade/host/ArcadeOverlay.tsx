@@ -17,6 +17,7 @@ import { lockZoom } from "./zoom-lock";
 import { useArcade } from "../store";
 import { entryFor } from "../registry";
 import { VersusResults, VersusStrip } from "@/components/party/Versus";
+import { partyGame } from "@/lib/party-games";
 import {
   FIGHT_PACKS,
   FIGHT_PACK_LABEL,
@@ -210,7 +211,8 @@ export default function ArcadeOverlay() {
               minutes is a readout that is wrong rather than merely useless.
               What is worth reading during a match — whose turn it is, what the
               dice said — is on the board itself, beside the pieces it is about. */}
-          {!entry.board && (
+          {/* A party duel is ranked by who won, so it has no number either. */}
+          {!entry.board && !(versus && partyGame(entry.id)?.kind !== "score") && (
             <>
               <span className="hud-readout num text-sm font-semibold">{score}</span>
               {bestScore > 0 && (

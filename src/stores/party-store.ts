@@ -32,6 +32,8 @@ interface PartyStoreState {
   seed: number;
   round: number;
   members: PartyMemberView[];
+  /** A table game's seats this round, as member ids in seat order. */
+  seats: string[];
 }
 
 const initial: PartyStoreState = {
@@ -45,6 +47,7 @@ const initial: PartyStoreState = {
   seed: 0,
   round: 0,
   members: [],
+  seats: [],
 };
 
 export const usePartyStore = create<PartyStoreState>(() => initial);
