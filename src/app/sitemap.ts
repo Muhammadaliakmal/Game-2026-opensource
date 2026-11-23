@@ -107,5 +107,28 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  return [...fixed, ...blog, ...guides];
+  // Beast Tamer Arena (mobile game) marketing pages: static HTML under
+  // public/beast-tamer-arena/, rewritten in next.config.ts. Slashless URLs,
+  // matching the canonical/hreflang URLs inside those pages.
+  const beastTamer: MetadataRoute.Sitemap = [
+    "",
+    "/de",
+    "/fr",
+    "/es",
+    "/pt",
+    "/ja",
+    "/ko",
+    "/zh-cn",
+    "/creatures",
+    "/how-to-play",
+    "/contact",
+    "/privacy",
+  ].map((p) => ({
+    url: `${SITE_URL}/beast-tamer-arena${p}`,
+    lastModified: new Date("2026-11-23T00:00:00Z"),
+    changeFrequency: "monthly" as const,
+    priority: p === "" ? 0.8 : 0.5,
+  }));
+
+  return [...fixed, ...blog, ...guides, ...beastTamer];
 }
