@@ -156,6 +156,20 @@ export default function GamesPage() {
           rows={rowsFor("world")}
         />
 
+        <section className="flex flex-col gap-3">
+          <h2 className="text-ink text-xl font-bold">Also from Spec Driven Games</h2>
+          <p className="text-dim text-sm leading-relaxed">
+            <a
+              href="/beast-tamer-arena"
+              className="text-accent underline"
+            >
+              Beast Tamer Arena
+            </a>{" "}
+            is our free monster-taming RPG for Android: collect creatures,
+            battle in 3D arenas and take on bosses.
+          </p>
+        </section>
+
         <AdSlot placement="guide" />
       </div>
 

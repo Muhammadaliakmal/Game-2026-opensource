@@ -1,0 +1,26 @@
+:root{--bg:#fbf8f4;--tx:#1d1a17;--mu:#5f5850;--ac:#a8430a;--rule:#e6ddd2;--card:#fff;--hd:#2a1d3d;--hdtx:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#121014;--tx:#efe9e2;--mu:#b3aba2;--ac:#ff9a4d;--rule:#2c2830;--card:#1b181f;--hd:#1b1228}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif}
+a{color:var(--ac)}img{max-width:100%;height:auto;display:block}
+header.site{background:var(--hd);color:var(--hdtx);padding:10px 16px}
+header.site div{max-width:60rem;margin:0 auto;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+header.site a{color:var(--hdtx);text-decoration:none;font-weight:600}header.site a:hover,header.site a:focus{text-decoration:underline}
+header.site .brand{display:flex;gap:8px;align-items:center;margin-right:auto}
+header.site nav{display:flex;gap:6px 18px;flex-wrap:wrap}
+main{max-width:60rem;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:2rem;line-height:1.2;margin:0 0 .4rem}h2{font-size:1.35rem;margin:2rem 0 .6rem}h3{font-size:1.1rem;margin:1.2rem 0 .3rem}
+.lead{font-size:1.15rem;color:var(--mu);margin:0 0 1rem}
+.btn{display:inline-block;background:#111;color:#fff;border:2px solid #a6a6a6;border-radius:10px;padding:10px 20px;font-weight:700;text-decoration:none;margin:.4rem 0}
+.btn:hover,.btn:focus{background:#2b2b2b}
+.hero{border-radius:12px;margin:1rem 0;width:100%}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:14px;padding:0;list-style:none}
+.grid li{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px}
+.grid h3{margin-top:0}.shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:12px;list-style:none;padding:0}
+.shots img{border-radius:8px;border:1px solid var(--rule)}
+.crumbs{font-size:.9rem;color:var(--mu);margin:0 0 .8rem}.crumbs a{color:var(--mu)}
+.langs{display:flex;flex-wrap:wrap;gap:6px 14px;padding:0;list-style:none}
+footer.site{border-top:1px solid var(--rule);padding:20px 16px;color:var(--mu);font-size:.9rem}footer.site div{max-width:60rem;margin:0 auto}
+footer.site a{color:var(--mu)}
+.skip{position:absolute;left:-999px}.skip:focus{left:8px;top:8px;background:#fff;color:#000;padding:6px;z-index:9}
+.prose p,.prose li{max-width:46rem}
+.meta{color:var(--mu);margin:0 0 2rem}hr{border:0;border-top:1px solid var(--rule);margin:2.5rem 0 1rem}

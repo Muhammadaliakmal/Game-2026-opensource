@@ -45,6 +45,22 @@ const nextConfig: NextConfig = {
    */
   async rewrites() {
     return [
+      /**
+       * Beast Tamer Arena marketing pages: static HTML in
+       * `public/beast-tamer-arena/`, one `index.html` per directory. Next does
+       * not map a bare directory URL to its index.html, so each page is
+       * rewritten (not redirected) to the file. The trailing-slash form is the
+       * canonical one in the pages' own canonical/hreflang/sitemap URLs.
+       */
+      {
+        source: "/beast-tamer-arena",
+        destination: "/beast-tamer-arena/index.html",
+      },
+      {
+        source:
+          "/beast-tamer-arena/:page(de|es|fr|pt|ja|ko|zh-cn|creatures|how-to-play|contact|privacy|beast-tamer-arena-privacy)",
+        destination: "/beast-tamer-arena/:page/index.html",
+      },
       {
         source: "/.well-known/assetlinks.json",
         destination: "/well-known/assetlinks.json",
